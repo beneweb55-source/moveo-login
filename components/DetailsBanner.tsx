@@ -7,7 +7,7 @@ import ContentWrapper from "@/components/ContentWrapper";
 import CircularProgressBar from "@/components/CircularProgressBar";
 import VideoPopup from "@/components/VideoPopup";
 import { format } from "date-fns";
-import { Play, Star, Clock, Calendar, Plus, Check, Loader2 } from "lucide-react";
+import { Play, Star, Clock, Calendar, Plus, Check, Loader2, Heart, Bookmark, Eye } from "lucide-react";
 import Image from "next/image";
 
 const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
@@ -15,9 +15,27 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
   const [videoId, setVideoId] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [inList, setInList] = useState(false);
-  const [listLoading, setListLoading] = useState(false);
+  
+  const [user, setUser] = useState<any>(null);
+  const [lists, setLists] = useState<string[]>([]);
+  const [listLoading, setListLoading] = useState<string | null>(null);
+  
   const { mediaType, id } = useParams();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     const fetchDetails = async () => {
@@ -31,27 +49,35 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
 
   useEffect(() => {
     const checkListStatus = async () => {
+      if (!user) return;
       try {
         const res = await fetch(`/api/user/status?media_type=${mediaType}&media_id=${id}`);
         if (res.ok) {
           const data = await res.json();
-          setInList(data.inList);
+          setLists(data.lists || []);
         }
       } catch (error) {
         console.error('Error checking list status:', error);
       }
     };
     checkListStatus();
-  }, [mediaType, id]);
+  }, [mediaType, id, user]);
 
-  const toggleList = async () => {
-    setListLoading(true);
+  const toggleList = async (listType: string) => {
+    if (!user) {
+      alert('Veuillez vous connecter pour utiliser cette fonctionnalité.');
+      return;
+    }
+    
+    setListLoading(listType);
+    const inList = lists.includes(listType);
+    
     try {
       if (inList) {
-        const res = await fetch(`/api/user/list?media_type=${mediaType}&media_id=${id}`, {
+        const res = await fetch(`/api/user/list?media_type=${mediaType}&media_id=${id}&list_type=${listType}`, {
           method: 'DELETE',
         });
-        if (res.ok) setInList(false);
+        if (res.ok) setLists(lists.filter(l => l !== listType));
       } else {
         const res = await fetch('/api/user/list', {
           method: 'POST',
@@ -59,19 +85,17 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
           body: JSON.stringify({
             media_type: mediaType,
             media_id: id,
+            list_type: listType,
             title: data?.name || data?.title,
             poster_path: data?.poster_path,
           }),
         });
-        if (res.ok) setInList(true);
-        else if (res.status === 401) {
-          alert('Please login to add to your list');
-        }
+        if (res.ok) setLists([...lists, listType]);
       }
     } catch (error) {
       console.error('Error toggling list:', error);
     } finally {
-      setListLoading(false);
+      setListLoading(null);
     }
   };
 
@@ -173,7 +197,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
               )}
             </div>
 
-            {/* Play Trailer Button */}
+            {/* Play Trailer Button and Lists */}
             <div className="flex flex-wrap items-center gap-4 mb-10">
               {video && (
                 <button
@@ -188,29 +212,60 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
                 </button>
               )}
               
-              <button
-                onClick={toggleList}
-                disabled={listLoading}
-                className={`flex items-center gap-3 px-6 py-4 rounded-full font-bold text-lg transition-all duration-300 border-2 ${
-                  inList 
-                    ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' 
-                    : 'bg-transparent border-white/50 text-white hover:border-white hover:bg-white/5'
-                }`}
-              >
-                {listLoading ? (
-                  <Loader2 className="w-6 h-6 animate-spin" />
-                ) : inList ? (
-                  <>
-                    <Check className="w-6 h-6" />
-                    In List
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-6 h-6" />
-                    Add to List
-                  </>
-                )}
-              </button>
+              {user && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleList('watchlist')}
+                    disabled={listLoading === 'watchlist'}
+                    title="Ajouter à la Watchlist"
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                      lists.includes('watchlist')
+                        ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' 
+                        : 'bg-transparent border-white/50 text-white hover:border-white hover:bg-white/5'
+                    }`}
+                  >
+                    {listLoading === 'watchlist' ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Bookmark className={`w-5 h-5 ${lists.includes('watchlist') ? 'fill-current' : ''}`} />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => toggleList('favorites')}
+                    disabled={listLoading === 'favorites'}
+                    title="Ajouter en Favoris"
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                      lists.includes('favorites')
+                        ? 'bg-pink-500/20 border-pink-500/50 text-pink-500 hover:bg-pink-500/30' 
+                        : 'bg-transparent border-white/50 text-white hover:border-white hover:bg-white/5'
+                    }`}
+                  >
+                    {listLoading === 'favorites' ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Heart className={`w-5 h-5 ${lists.includes('favorites') ? 'fill-current' : ''}`} />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => toggleList('watched')}
+                    disabled={listLoading === 'watched'}
+                    title="Marquer comme vu"
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                      lists.includes('watched')
+                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/30' 
+                        : 'bg-transparent border-white/50 text-white hover:border-white hover:bg-white/5'
+                    }`}
+                  >
+                    {listLoading === 'watched' ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Eye className={`w-5 h-5 ${lists.includes('watched') ? 'fill-current' : ''}`} />
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Overview */}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, Menu, X, PlayCircle, Star, Loader2, Globe, User, LogOut } from "lucide-react";
+import { Search, Menu, X, PlayCircle, Star, Loader2, Globe, User, LogOut, Settings, Heart, Eye, Bookmark } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
@@ -15,7 +15,8 @@ const Header = () => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [user, setUser] = useState<any>(null);
   
   const router = useRouter();
@@ -42,14 +43,15 @@ const Header = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    setShowDropdown(false);
+    setShowSearchDropdown(false);
+    setShowUserDropdown(false);
     setQuery("");
   }, [pathname]);
 
   useEffect(() => {
     const controlNavbar = () => {
       if (window.scrollY > 100) {
-        if (window.scrollY > lastScrollY && !mobileMenu && !showDropdown) {
+        if (window.scrollY > lastScrollY && !mobileMenu && !showSearchDropdown && !showUserDropdown) {
           setShow("hide");
         } else {
           setShow("show");
@@ -62,13 +64,18 @@ const Header = () => {
 
     window.addEventListener("scroll", controlNavbar);
     return () => window.removeEventListener("scroll", controlNavbar);
-  }, [lastScrollY, mobileMenu, showDropdown]);
+  }, [lastScrollY, mobileMenu, showSearchDropdown, showUserDropdown]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowDropdown(false);
+        setShowSearchDropdown(false);
+      }
+      // Close user dropdown if clicked outside
+      const userDropdownEl = document.getElementById('user-dropdown-container');
+      if (userDropdownEl && !userDropdownEl.contains(event.target as Node)) {
+        setShowUserDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -80,12 +87,12 @@ const Header = () => {
     const fetchResults = async () => {
       if (!query.trim()) {
         setResults([]);
-        setShowDropdown(false);
+        setShowSearchDropdown(false);
         return;
       }
 
       setLoading(true);
-      setShowDropdown(true);
+      setShowSearchDropdown(true);
       try {
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
         const res = await fetch(`/api/tmdb-proxy?q=${encodeURIComponent(query)}&language=${langParam}`);
@@ -106,7 +113,7 @@ const Header = () => {
     e.preventDefault();
     if (query.trim()) {
       router.push(`/search/${query}`);
-      setShowDropdown(false);
+      setShowSearchDropdown(false);
     }
   };
 
@@ -166,7 +173,7 @@ const Header = () => {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => query.trim() && setShowDropdown(true)}
+              onFocus={() => query.trim() && setShowSearchDropdown(true)}
               placeholder={t.nav.searchPlaceholder}
               className="w-full bg-white/10 border border-white/10 rounded-full py-2.5 pl-12 pr-4 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-black/80 transition-all duration-300"
             />
@@ -183,7 +190,7 @@ const Header = () => {
 
           {/* Live Search Dropdown */}
           <AnimatePresence>
-            {showDropdown && (
+            {showSearchDropdown && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -253,17 +260,69 @@ const Header = () => {
         {/* Language Switch & Mobile Menu Icon */}
         <div className="flex items-center gap-4">
           {user ? (
-            <div className="hidden lg:flex items-center gap-4">
-              <span className="text-sm font-medium text-white/80">
-                {user.name}
-              </span>
+            <div className="hidden lg:flex items-center relative" id="user-dropdown-container">
               <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium text-red-400 hover:text-red-300"
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                className="flex items-center gap-2 hover:bg-white/5 p-1.5 rounded-full transition-colors"
               >
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E50914] to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                  {user.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <span className="text-sm font-medium text-white/90 mr-1">
+                  {user.name}
+                </span>
               </button>
+
+              {/* User Dropdown */}
+              <AnimatePresence>
+                {showUserDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute top-full right-0 mt-2 w-56 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-2"
+                  >
+                    <div className="px-4 py-3 border-b border-white/10 mb-2">
+                      <p className="text-sm text-white font-medium">{user.name}</p>
+                      <p className="text-xs text-white/50 truncate">{user.email}</p>
+                    </div>
+                    
+                    <div className="flex flex-col">
+                      <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <User className="w-4 h-4" />
+                        Profil
+                      </Link>
+                      <Link href="/profile?tab=watchlist" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <Bookmark className="w-4 h-4" />
+                        Watchlist
+                      </Link>
+                      <Link href="/profile?tab=favorites" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <Heart className="w-4 h-4" />
+                        Favoris
+                      </Link>
+                      <Link href="/profile?tab=watched" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <Eye className="w-4 h-4" />
+                        Déjà vu
+                      </Link>
+                      <Link href="/profile?tab=settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <Settings className="w-4 h-4" />
+                        Paramètres
+                      </Link>
+                    </div>
+                    
+                    <div className="mt-2 pt-2 border-t border-white/10">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#E50914] hover:bg-[#E50914]/10 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        Déconnexion
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           ) : (
             <div className="hidden lg:flex items-center gap-2">

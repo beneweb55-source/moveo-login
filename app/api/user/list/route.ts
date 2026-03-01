@@ -25,10 +25,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const result = await pool.query(
-      'SELECT * FROM user_list WHERE user_id = $1 ORDER BY added_at DESC',
-      [user.userId]
-    );
+    const { searchParams } = new URL(req.url);
+    const list_type = searchParams.get('list_type');
+
+    let query = 'SELECT * FROM user_list WHERE user_id = $1';
+    let params: any[] = [user.userId];
+
+    if (list_type) {
+      query += ' AND list_type = $2';
+      params.push(list_type);
+    }
+
+    query += ' ORDER BY added_at DESC';
+
+    const result = await pool.query(query, params);
 
     return NextResponse.json({ list: result.rows }, { status: 200 });
   } catch (error: any) {
@@ -44,18 +54,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { media_type, media_id, title, poster_path } = await req.json();
+    const { media_type, media_id, list_type, title, poster_path } = await req.json();
 
-    if (!media_type || !media_id || !title) {
+    if (!media_type || !media_id || !list_type || !title) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     const result = await pool.query(
-      `INSERT INTO user_list (user_id, media_type, media_id, title, poster_path)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (user_id, media_type, media_id) DO NOTHING
+      `INSERT INTO user_list (user_id, media_type, media_id, list_type, title, poster_path)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (user_id, media_type, media_id, list_type) DO NOTHING
        RETURNING *`,
-      [user.userId, media_type, media_id, title, poster_path]
+      [user.userId, media_type, media_id, list_type, title, poster_path]
     );
 
     return NextResponse.json({ message: 'Added to list', item: result.rows[0] }, { status: 201 });
@@ -75,14 +85,15 @@ export async function DELETE(req: Request) {
     const { searchParams } = new URL(req.url);
     const media_type = searchParams.get('media_type');
     const media_id = searchParams.get('media_id');
+    const list_type = searchParams.get('list_type');
 
-    if (!media_type || !media_id) {
+    if (!media_type || !media_id || !list_type) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     await pool.query(
-      'DELETE FROM user_list WHERE user_id = $1 AND media_type = $2 AND media_id = $3',
-      [user.userId, media_type, media_id]
+      'DELETE FROM user_list WHERE user_id = $1 AND media_type = $2 AND media_id = $3 AND list_type = $4',
+      [user.userId, media_type, media_id, list_type]
     );
 
     return NextResponse.json({ message: 'Removed from list' }, { status: 200 });

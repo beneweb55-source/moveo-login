@@ -1,8 +1,6 @@
 import { Pool } from 'pg';
-import fs from 'fs';
 
-const env = fs.readFileSync('.env.local', 'utf-8');
-const dbUrl = env.split('\n').find(line => line.startsWith('DATABASE_URL='))?.split('=')[1]?.replace(/"/g, '');
+const dbUrl = "postgresql://neondb_owner:npg_htHL3N0DKzTA@ep-ancient-forest-ai8bpw82-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require";
 
 const pool = new Pool({
   connectionString: dbUrl,
@@ -13,19 +11,21 @@ const pool = new Pool({
 
 async function initDb() {
   try {
+    await pool.query(`DROP TABLE IF EXISTS user_list;`);
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS user_list (
+      CREATE TABLE user_list (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         media_type VARCHAR(50) NOT NULL,
         media_id INTEGER NOT NULL,
+        list_type VARCHAR(50) NOT NULL,
         title VARCHAR(255) NOT NULL,
         poster_path VARCHAR(255),
         added_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, media_type, media_id)
+        UNIQUE(user_id, media_type, media_id, list_type)
       );
     `);
-    console.log('user_list table created successfully');
+    console.log('user_list table recreated successfully');
   } catch (err) {
     console.error('Error creating table:', err);
   } finally {
