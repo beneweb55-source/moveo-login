@@ -7,7 +7,7 @@ import ContentWrapper from "@/components/ContentWrapper";
 import CircularProgressBar from "@/components/CircularProgressBar";
 import VideoPopup from "@/components/VideoPopup";
 import { format } from "date-fns";
-import { Play, Star, Clock, Calendar } from "lucide-react";
+import { Play, Star, Clock, Calendar, Plus, Check, Loader2 } from "lucide-react";
 import Image from "next/image";
 
 const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
@@ -15,6 +15,8 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
   const [videoId, setVideoId] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [inList, setInList] = useState(false);
+  const [listLoading, setListLoading] = useState(false);
   const { mediaType, id } = useParams();
 
   useEffect(() => {
@@ -26,6 +28,52 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
     };
     fetchDetails();
   }, [mediaType, id]);
+
+  useEffect(() => {
+    const checkListStatus = async () => {
+      try {
+        const res = await fetch(`/api/user/status?media_type=${mediaType}&media_id=${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setInList(data.inList);
+        }
+      } catch (error) {
+        console.error('Error checking list status:', error);
+      }
+    };
+    checkListStatus();
+  }, [mediaType, id]);
+
+  const toggleList = async () => {
+    setListLoading(true);
+    try {
+      if (inList) {
+        const res = await fetch(`/api/user/list?media_type=${mediaType}&media_id=${id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) setInList(false);
+      } else {
+        const res = await fetch('/api/user/list', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            media_type: mediaType,
+            media_id: id,
+            title: data?.name || data?.title,
+            poster_path: data?.poster_path,
+          }),
+        });
+        if (res.ok) setInList(true);
+        else if (res.status === 401) {
+          alert('Please login to add to your list');
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling list:', error);
+    } finally {
+      setListLoading(false);
+    }
+  };
 
   const director = crew?.filter((f: any) => f.job === "Director");
   const writer = crew?.filter(
@@ -126,18 +174,44 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
             </div>
 
             {/* Play Trailer Button */}
-            {video && (
+            <div className="flex flex-wrap items-center gap-4 mb-10">
+              {video && (
+                <button
+                  onClick={() => {
+                    setShow(true);
+                    setVideoId(video.key);
+                  }}
+                  className="flex items-center gap-4 bg-[#E50914] hover:bg-red-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 shadow-[0_0_20px_rgba(229,9,20,0.4)] hover:shadow-[0_0_30px_rgba(229,9,20,0.6)] hover:scale-105"
+                >
+                  <Play className="w-6 h-6 fill-current" />
+                  Watch Trailer
+                </button>
+              )}
+              
               <button
-                onClick={() => {
-                  setShow(true);
-                  setVideoId(video.key);
-                }}
-                className="flex items-center gap-4 bg-[#E50914] hover:bg-red-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 w-fit mb-10 shadow-[0_0_20px_rgba(229,9,20,0.4)] hover:shadow-[0_0_30px_rgba(229,9,20,0.6)] hover:scale-105"
+                onClick={toggleList}
+                disabled={listLoading}
+                className={`flex items-center gap-3 px-6 py-4 rounded-full font-bold text-lg transition-all duration-300 border-2 ${
+                  inList 
+                    ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' 
+                    : 'bg-transparent border-white/50 text-white hover:border-white hover:bg-white/5'
+                }`}
               >
-                <Play className="w-6 h-6 fill-current" />
-                Watch Trailer
+                {listLoading ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : inList ? (
+                  <>
+                    <Check className="w-6 h-6" />
+                    In List
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-6 h-6" />
+                    Add to List
+                  </>
+                )}
               </button>
-            )}
+            </div>
 
             {/* Overview */}
             <div className="mb-8 max-w-3xl">

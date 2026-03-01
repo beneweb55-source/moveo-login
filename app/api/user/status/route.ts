@@ -1,36 +1,46 @@
-import { auth } from "@/auth";
-import { db } from "@/lib/db";
-import { NextResponse } from "next/server";
+import { NextResponse } from 'next/server';
+import { jwtVerify } from 'jose';
+import { cookies } from 'next/headers';
+import pool from '@/lib/db';
+
+async function getUserFromToken() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
+
+    if (!token) return null;
+
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const { payload } = await jwtVerify(token, secret);
+    return payload;
+  } catch (error) {
+    return null;
+  }
+}
 
 export async function GET(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return new NextResponse("Unauthorized", { status: 401 });
+  try {
+    const user = await getUserFromToken();
+    if (!user) {
+      return NextResponse.json({ inList: false }, { status: 200 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const media_type = searchParams.get('media_type');
+    const media_id = searchParams.get('media_id');
+
+    if (!media_type || !media_id) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const result = await pool.query(
+      'SELECT 1 FROM user_list WHERE user_id = $1 AND media_type = $2 AND media_id = $3',
+      [user.userId, media_type, media_id]
+    );
+
+    return NextResponse.json({ inList: result.rows.length > 0 }, { status: 200 });
+  } catch (error: any) {
+    console.error('Error checking list status:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-
-  const { searchParams } = new URL(req.url);
-  const tmdbId = searchParams.get("tmdbId");
-  const mediaType = searchParams.get("mediaType");
-
-  if (!tmdbId || !mediaType) {
-    return new NextResponse("Missing params", { status: 400 });
-  }
-
-  const watchlist = await db.watchlist.findFirst({
-    where: { userId: session.user.id, tmdbId: Number(tmdbId), mediaType },
-  });
-
-  const favorite = await db.favorite.findFirst({
-    where: { userId: session.user.id, tmdbId: Number(tmdbId), mediaType },
-  });
-
-  const watched = await db.watched.findFirst({
-    where: { userId: session.user.id, tmdbId: Number(tmdbId), mediaType },
-  });
-
-  return NextResponse.json({
-    watchlist: !!watchlist,
-    favorite: !!favorite,
-    watched: !!watched,
-  });
 }
