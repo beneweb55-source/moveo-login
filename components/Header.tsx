@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, Menu, X, PlayCircle, Star, Loader2, Globe } from "lucide-react";
+import { Search, Menu, X, PlayCircle, Star, Loader2, Globe, User, LogOut } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
@@ -16,11 +16,29 @@ const Header = () => {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [user, setUser] = useState<any>(null);
   
   const router = useRouter();
   const pathname = usePathname();
   const searchRef = useRef<HTMLDivElement>(null);
   const { language, t, toggleLanguage } = useLanguage();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchUser();
+  }, [pathname]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -89,6 +107,16 @@ const Header = () => {
     if (query.trim()) {
       router.push(`/search/${query}`);
       setShowDropdown(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      setUser(null);
+      router.refresh();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -221,6 +249,36 @@ const Header = () => {
 
         {/* Language Switch & Mobile Menu Icon */}
         <div className="flex items-center gap-4">
+          {user ? (
+            <div className="hidden lg:flex items-center gap-4">
+              <span className="text-sm font-medium text-white/80">
+                {user.name}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium text-red-400 hover:text-red-300"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : (
+            <div className="hidden lg:flex items-center gap-2">
+              <Link
+                href="/login"
+                className="px-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/register"
+                className="px-4 py-1.5 rounded-full bg-[#E50914] hover:bg-[#E50914]/90 transition-colors text-sm font-medium text-white"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
+
           <button
             onClick={toggleLanguage}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium"
@@ -253,6 +311,22 @@ const Header = () => {
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/"); setMobileMenu(false); }}>{t.nav.home}</li>
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
+              
+              <div className="h-px bg-white/10 my-2" />
+              
+              {user ? (
+                <>
+                  <li className="text-white/50 text-sm font-normal">Signed in as {user.name}</li>
+                  <li className="cursor-pointer text-red-400 hover:text-red-300 transition-colors flex items-center gap-2" onClick={() => { handleLogout(); setMobileMenu(false); }}>
+                    <LogOut className="w-5 h-5" /> Logout
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/login"); setMobileMenu(false); }}>Sign In</li>
+                  <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/register"); setMobileMenu(false); }}>Sign Up</li>
+                </>
+              )}
             </ul>
           </motion.div>
         )}
