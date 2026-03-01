@@ -8,13 +8,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "@/context/LanguageContext";
 
-import { logout } from "@/app/actions/auth";
-
-interface HeaderProps {
-  user?: { userId: string } | null;
-}
-
-const Header = ({ user }: HeaderProps) => {
+const Header = () => {
   const [show, setShow] = useState("top");
   const [lastScrollY, setLastScrollY] = useState(0);
   const [mobileMenu, setMobileMenu] = useState(false);
@@ -22,25 +16,22 @@ const Header = ({ user }: HeaderProps) => {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   
   const router = useRouter();
   const pathname = usePathname();
   const searchRef = useRef<HTMLDivElement>(null);
-  const userMenuRef = useRef<HTMLDivElement>(null);
   const { language, t, toggleLanguage } = useLanguage();
 
   useEffect(() => {
     window.scrollTo(0, 0);
     setShowDropdown(false);
-    setShowUserMenu(false);
     setQuery("");
   }, [pathname]);
 
   useEffect(() => {
     const controlNavbar = () => {
       if (window.scrollY > 100) {
-        if (window.scrollY > lastScrollY && !mobileMenu && !showDropdown && !showUserMenu) {
+        if (window.scrollY > lastScrollY && !mobileMenu && !showDropdown) {
           setShow("hide");
         } else {
           setShow("show");
@@ -53,16 +44,13 @@ const Header = ({ user }: HeaderProps) => {
 
     window.addEventListener("scroll", controlNavbar);
     return () => window.removeEventListener("scroll", controlNavbar);
-  }, [lastScrollY, mobileMenu, showDropdown, showUserMenu]);
+  }, [lastScrollY, mobileMenu, showDropdown]);
 
-  // Handle click outside to close dropdowns
+  // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
-      }
-      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -231,7 +219,7 @@ const Header = ({ user }: HeaderProps) => {
           </AnimatePresence>
         </div>
 
-        {/* Language Switch, User Menu & Mobile Menu Icon */}
+        {/* Language Switch & Mobile Menu Icon */}
         <div className="flex items-center gap-4">
           <button
             onClick={toggleLanguage}
@@ -240,48 +228,6 @@ const Header = ({ user }: HeaderProps) => {
             <Globe className="w-4 h-4 text-white/70" />
             <span className="uppercase">{language}</span>
           </button>
-
-          {/* User Menu */}
-          {user ? (
-            <div className="relative" ref={userMenuRef}>
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-red-600 text-white font-bold text-sm hover:bg-red-700 transition-colors"
-              >
-                {user.userId.substring(0, 1).toUpperCase()}
-              </button>
-              <AnimatePresence>
-                {showUserMenu && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    className="absolute top-full right-0 mt-2 w-48 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-1"
-                  >
-                    <div className="px-4 py-3 border-b border-white/5">
-                      <p className="text-sm text-white font-medium truncate">Compte</p>
-                      <p className="text-xs text-white/50 truncate">ID: {user.userId.substring(0, 8)}...</p>
-                    </div>
-                    <button
-                      onClick={() => logout()}
-                      className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-white/5 transition-colors"
-                    >
-                      Se déconnecter
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Link href="/login" className="text-sm font-medium text-white/80 hover:text-white transition-colors hidden sm:block">
-                Connexion
-              </Link>
-              <Link href="/signup" className="px-4 py-1.5 bg-[#E50914] hover:bg-[#b20710] text-white text-sm font-medium rounded-full transition-colors">
-                S'inscrire
-              </Link>
-            </div>
-          )}
           
           <div className="lg:hidden flex items-center">
             {mobileMenu ? (
