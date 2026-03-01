@@ -18,8 +18,8 @@ const SERVERS = [
     icon: Zap,
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
-        ? `https://vidsrc.to/embed/movie/${id}?sub=fr`
-        : `https://vidsrc.to/embed/tv/${id}/${s}/${e}?sub=fr`,
+        ? `https://vidsrc.to/embed/movie/${id}`
+        : `https://vidsrc.to/embed/tv/${id}/${s}/${e}`,
   },
   {
     name: "VidSrc.rip",
@@ -27,8 +27,8 @@ const SERVERS = [
     icon: Server,
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
-        ? `https://vidsrc.rip/embed/movie/${id}?sub=fr`
-        : `https://vidsrc.rip/embed/tv/${id}/${s}/${e}?sub=fr`,
+        ? `https://vidsrc.rip/embed/movie/${id}`
+        : `https://vidsrc.rip/embed/tv/${id}/${s}/${e}`,
   },
   {
     name: "VidSrc.me",
@@ -36,8 +36,8 @@ const SERVERS = [
     icon: Globe,
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
-        ? `https://vidsrc.me/embed/movie?tmdb=${id}&sub=fr`
-        : `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}&sub=fr`,
+        ? `https://vidsrc.me/embed/movie?tmdb=${id}`
+        : `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
   // --- GROUPE 2 : Nouveaux challengers ---
   {
@@ -46,8 +46,8 @@ const SERVERS = [
     icon: Zap,
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
-        ? `https://vidlink.pro/movie/${id}?lang=fr`
-        : `https://vidlink.pro/tv/${id}/${s}/${e}?lang=fr`,
+        ? `https://vidlink.pro/movie/${id}`
+        : `https://vidlink.pro/tv/${id}/${s}/${e}`,
   },
   {
     name: "SmashyStream",
@@ -55,8 +55,8 @@ const SERVERS = [
     icon: Globe,
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
-        ? `https://embed.smashystream.com/playere.php?tmdb=${id}&sub=fr`
-        : `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${s}&episode=${e}&sub=fr`,
+        ? `https://embed.smashystream.com/playere.php?tmdb=${id}`
+        : `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${s}&episode=${e}`,
   },
   {
     name: "VidBinge",
@@ -64,8 +64,8 @@ const SERVERS = [
     icon: Film,
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
-        ? `https://vidbinge.dev/embed/movie/${id}?sub=fr`
-        : `https://vidbinge.dev/embed/tv/${id}/${s}/${e}?sub=fr`,
+        ? `https://vidbinge.dev/embed/movie/${id}`
+        : `https://vidbinge.dev/embed/tv/${id}/${s}/${e}`,
   },
   // --- GROUPE 3 : Les Anciens ---
   {
@@ -74,8 +74,8 @@ const SERVERS = [
     icon: Film,
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
-        ? `https://moviesapi.club/movie/${id}?sub=fr`
-        : `https://moviesapi.club/tv/${id}-${s}-${e}?sub=fr`,
+        ? `https://moviesapi.club/movie/${id}`
+        : `https://moviesapi.club/tv/${id}-${s}-${e}`,
   },
   {
     name: "AutoEmbed",
@@ -83,8 +83,8 @@ const SERVERS = [
     icon: Server,
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
-        ? `https://player.autoembed.cc/embed/movie?tmdb=${id}&lang=fr`
-        : `https://player.autoembed.cc/embed/tv?tmdb=${id}&season=${s}&episode=${e}&lang=fr`,
+        ? `https://player.autoembed.cc/embed/movie?tmdb=${id}`
+        : `https://player.autoembed.cc/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
 ];
 
