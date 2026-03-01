@@ -30,14 +30,15 @@ export default function MyList() {
     fetchList();
   }, [router]);
 
-  const removeFromList = async (e: React.MouseEvent, mediaType: string, mediaId: number) => {
+  const removeFromList = async (e: React.MouseEvent, mediaType: string, mediaId: number, listType: string) => {
     e.stopPropagation();
     try {
-      const res = await fetch(`/api/user/list?media_type=${mediaType}&media_id=${mediaId}`, {
+      const res = await fetch(`/api/user/list?media_type=${mediaType}&media_id=${mediaId}&list_type=${listType}`, {
         method: 'DELETE',
       });
       if (res.ok) {
-        setList(list.filter(item => !(item.media_type === mediaType && item.media_id === mediaId)));
+        setList(list.filter(item => !(item.media_type === mediaType && item.media_id === mediaId && item.list_type === listType)));
+        window.dispatchEvent(new Event('list-updated'));
       }
     } catch (error) {
       console.error('Error removing from list:', error);
@@ -95,7 +96,7 @@ export default function MyList() {
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
                     <div className="flex justify-end">
                       <button
-                        onClick={(e) => removeFromList(e, item.media_type, item.media_id)}
+                        onClick={(e) => removeFromList(e, item.media_type, item.media_id, item.list_type)}
                         className="w-8 h-8 rounded-full bg-black/50 hover:bg-red-500/80 flex items-center justify-center text-white transition-colors backdrop-blur-sm"
                         title="Remove from list"
                       >

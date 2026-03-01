@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { fetchDataFromApi } from "@/utils/api";
 import ContentWrapper from "@/components/ContentWrapper";
 import VideoPlayer from "@/components/VideoPlayer";
+import ActionButtons from "@/components/ActionButtons";
 import { Star, ArrowLeft, Info, ChevronDown } from "lucide-react";
 import Image from "next/image";
 
@@ -153,6 +154,13 @@ export default function TvDetails() {
                   ))}
                 </div>
               </div>
+
+              <ActionButtons 
+                id={id as string} 
+                type="tv" 
+                title={data?.name} 
+                posterPath={data?.poster_path} 
+              />
 
               <p className="text-lg text-white/80 leading-relaxed max-w-3xl font-light line-clamp-4 md:line-clamp-none">
                 {data?.overview}

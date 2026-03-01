@@ -18,11 +18,24 @@ const Header = () => {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [stats, setStats] = useState({ watchlist: 0, favorites: 0, watched: 0 });
   
   const router = useRouter();
   const pathname = usePathname();
   const searchRef = useRef<HTMLDivElement>(null);
   const { language, t, toggleLanguage } = useLanguage();
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/profile/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data.stats);
+      }
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+    }
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -31,6 +44,7 @@ const Header = () => {
         if (res.ok) {
           const data = await res.json();
           setUser(data.user);
+          fetchStats();
         } else {
           setUser(null);
         }
@@ -40,6 +54,14 @@ const Header = () => {
     };
     fetchUser();
   }, [pathname]);
+
+  useEffect(() => {
+    const handleListUpdated = () => {
+      if (user) fetchStats();
+    };
+    window.addEventListener('list-updated', handleListUpdated);
+    return () => window.removeEventListener('list-updated', handleListUpdated);
+  }, [user]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -293,17 +315,26 @@ const Header = () => {
                         <User className="w-4 h-4" />
                         Profil
                       </Link>
-                      <Link href="/profile?tab=watchlist" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
-                        <Bookmark className="w-4 h-4" />
-                        Watchlist
+                      <Link href="/profile?tab=watchlist" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Bookmark className="w-4 h-4" />
+                          Watchlist
+                        </div>
+                        <span className="bg-white/10 text-white text-xs py-0.5 px-2 rounded-full">{stats.watchlist}</span>
                       </Link>
-                      <Link href="/profile?tab=favorites" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
-                        <Heart className="w-4 h-4" />
-                        Favoris
+                      <Link href="/profile?tab=favorites" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Heart className="w-4 h-4" />
+                          Favoris
+                        </div>
+                        <span className="bg-pink-500/20 text-pink-400 text-xs py-0.5 px-2 rounded-full">{stats.favorites}</span>
                       </Link>
-                      <Link href="/profile?tab=watched" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
-                        <Eye className="w-4 h-4" />
-                        Déjà vu
+                      <Link href="/profile?tab=watched" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Eye className="w-4 h-4" />
+                          Déjà vu
+                        </div>
+                        <span className="bg-emerald-500/20 text-emerald-400 text-xs py-0.5 px-2 rounded-full">{stats.watched}</span>
                       </Link>
                       <Link href="/profile?tab=settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
                         <Settings className="w-4 h-4" />

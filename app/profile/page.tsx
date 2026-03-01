@@ -64,6 +64,7 @@ function ProfileContent() {
       });
       if (res.ok) {
         setListItems(prev => prev.filter(item => !(item.media_type === mediaType && item.media_id === mediaId && item.list_type === listType)));
+        window.dispatchEvent(new Event('list-updated'));
       }
     } catch (error) {
       console.error('Error removing item:', error);
