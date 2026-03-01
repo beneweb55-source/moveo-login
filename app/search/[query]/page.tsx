@@ -18,7 +18,7 @@ const SearchResult = () => {
   
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-    fetchDataFromApi(`/search/multi?query=${query}&page=${pageNum}&language=${langParam}`).then(
+    fetchDataFromApi(`/search/multi?query=${query}&page=${pageNum}&language=${langParam}&include_adult=false`).then(
       (res) => {
         if (data?.results) {
           setData({
@@ -37,7 +37,7 @@ const SearchResult = () => {
     const fetchInitialData = () => {
       setLoading(true);
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-      fetchDataFromApi(`/search/multi?query=${query}&page=1&language=${langParam}`).then(
+      fetchDataFromApi(`/search/multi?query=${query}&page=1&language=${langParam}&include_adult=false`).then(
         (res) => {
           setData(res);
           setPageNum(2);

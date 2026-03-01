@@ -33,8 +33,9 @@ export async function GET(request: Request) {
   });
 
   if (q) {
-    targetUrl = `${BASE_URL}/search/movie`;
+    targetUrl = `${BASE_URL}/search/multi`;
     params.query = q;
+    params.include_adult = 'false';
   } else if (endpoint) {
     targetUrl = `${BASE_URL}${endpoint}`;
   } else {

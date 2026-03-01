@@ -43,6 +43,13 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
           referrerPolicy="no-referrer"
         />
         
+        {/* Badge for Media Type */}
+        <div className="absolute top-2 left-2 z-10">
+          <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white bg-black/60 backdrop-blur-md rounded-md border border-white/10">
+            {type === 'tv' ? 'Série' : 'Film'}
+          </span>
+        </div>
+
         {/* Dark Overlay & Play Button on Hover */}
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
           <Play className="w-14 h-14 text-[#E50914] fill-current transform scale-50 group-hover:scale-100 transition-transform duration-300" />
