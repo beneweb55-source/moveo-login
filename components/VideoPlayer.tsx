@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { ExternalLink, Server, Zap, Globe, Film, PlayCircle, AlertTriangle } from "lucide-react";
-import CustomVideoPlayer from "./CustomVideoPlayer";
+import React, { useState } from "react";
+import { ExternalLink, Server, Zap, Globe, Film } from "lucide-react";
 
 interface VideoPlayerProps {
   id: string;
@@ -12,15 +11,6 @@ interface VideoPlayerProps {
 }
 
 const SERVERS = [
-  // --- GROUPE 0 : Direct Stream (Custom) ---
-  {
-    name: "⭐ Mode Streaming Direct (HLS)",
-    group: "Premium",
-    icon: PlayCircle,
-    isCustom: true,
-    badge: "Optimisé VF/STFR",
-    url: () => "", // Placeholder
-  },
   // --- GROUPE 1 : Les Plus Fiables ---
   {
     name: "VidSrc.to",
@@ -100,94 +90,20 @@ const SERVERS = [
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) => {
   const [currentServer, setCurrentServer] = useState(0);
-  const [customSource, setCustomSource] = useState<string | null>(null);
-  const [isLoadingCustom, setIsLoadingCustom] = useState(false);
-  const [customError, setCustomError] = useState<string | null>(null);
 
-  const activeServer = SERVERS[currentServer];
-  const isCustomMode = activeServer.isCustom;
-
-  useEffect(() => {
-    if (isCustomMode) {
-      const fetchSource = async () => {
-        setIsLoadingCustom(true);
-        setCustomError(null);
-        setCustomSource(null);
-
-        try {
-          const res = await fetch("/api/stream/source", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tmdbId: id, type, season, episode }),
-          });
-
-          const data = await res.json();
-
-          if (!res.ok) {
-            throw new Error(data.error || "Erreur lors de la récupération du flux");
-          }
-
-          if (data.source && data.source.url) {
-            setCustomSource(data.source.url);
-          } else {
-            throw new Error("Aucune source compatible trouvée");
-          }
-        } catch (err: any) {
-          console.error("Custom Stream Error:", err);
-          setCustomError(err.message || "Erreur inconnue");
-        } finally {
-          setIsLoadingCustom(false);
-        }
-      };
-
-      fetchSource();
-    }
-  }, [currentServer, id, type, season, episode, isCustomMode]);
-
-  const handleRetryStandard = () => {
-    // Switch to the first standard server (index 1)
-    setCurrentServer(1);
-  };
+  const videoUrl = SERVERS[currentServer].url(type, id, season, episode);
 
   return (
     <div className="w-full max-w-5xl mx-auto mt-8 mb-12">
       {/* Video Player Container */}
       <div className="relative w-full aspect-video bg-[#0A0A0A] rounded-xl overflow-hidden shadow-[0_0_40px_-10px_rgba(0,0,0,0.5)] border border-zinc-800 mb-8 group">
-        {isCustomMode ? (
-          isLoadingCustom ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-black text-white">
-              <div className="w-12 h-12 border-4 border-[#E50914] border-t-transparent rounded-full animate-spin" />
-              <p className="text-sm font-medium animate-pulse">Recherche du meilleur flux...</p>
-            </div>
-          ) : customError ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-4 bg-black text-white p-6 text-center">
-              <AlertTriangle className="w-12 h-12 text-[#E50914]" />
-              <h3 className="text-xl font-bold">Erreur de chargement</h3>
-              <p className="text-zinc-400 max-w-md">{customError}</p>
-              <button 
-                onClick={handleRetryStandard}
-                className="mt-4 px-6 py-2 bg-[#E50914] hover:bg-red-700 text-white rounded-full font-bold transition-all"
-              >
-                Revenir au lecteur standard
-              </button>
-            </div>
-          ) : customSource ? (
-            <CustomVideoPlayer 
-              src={customSource} 
-              autoPlay 
-              onBack={handleRetryStandard}
-              onError={(e) => setCustomError("Erreur de lecture du flux.")}
-            />
-          ) : null
-        ) : (
-          <iframe
-            src={activeServer.url(type, id, season, episode)}
-            className="w-full h-full"
-            allowFullScreen
-            referrerPolicy="no-referrer"
-            title="Video Player"
-          />
-        )}
+        <iframe
+          src={videoUrl}
+          className="w-full h-full"
+          allowFullScreen
+          referrerPolicy="no-referrer"
+          title="Video Player"
+        />
       </div>
 
       {/* Server Selection Grid */}
@@ -198,60 +114,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
             <span className="w-1 h-6 bg-[#E50914] rounded-full"></span>
             Sources de lecture
           </h3>
-          {!isCustomMode && (
-            <a
-              href={activeServer.url(type, id, season, episode)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-300 hover:text-white hover:border-[#E50914] hover:bg-zinc-800 transition-all duration-300 group"
-            >
-              <span>OUVRIR DANS UN NOUVEL ONGLET</span>
-              <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </a>
-          )}
-        </div>
-
-        {/* Premium / Custom Servers */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold text-[#E50914] uppercase tracking-widest ml-1 flex items-center gap-2">
-            <Zap className="w-3 h-3" /> Premium
-          </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {SERVERS.filter(s => s.group === "Premium").map((server) => {
-              const index = SERVERS.indexOf(server);
-              const isActive = currentServer === index;
-              const Icon = server.icon;
-              
-              return (
-                <button
-                  key={server.name}
-                  onClick={() => setCurrentServer(index)}
-                  className={`
-                    relative flex items-center justify-between gap-3 px-4 py-4 rounded-xl font-bold text-sm transition-all duration-300 overflow-hidden group
-                    ${isActive 
-                      ? "bg-gradient-to-r from-[#E50914] to-red-900 text-white shadow-[0_0_25px_rgba(229,9,20,0.4)] scale-[1.02]" 
-                      : "bg-zinc-900 text-white border border-zinc-800 hover:border-[#E50914]/50 hover:bg-zinc-800"
-                    }
-                  `}
-                >
-                  <div className="flex items-center gap-3 relative z-10">
-                    <div className={`p-2 rounded-full ${isActive ? "bg-white/20" : "bg-zinc-800 group-hover:bg-[#E50914]/20"} transition-colors`}>
-                      <Icon className={`w-5 h-5 ${isActive ? "text-white" : "text-[#E50914]"}`} />
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span>{server.name}</span>
-                      {server.badge && (
-                        <span className={`text-[10px] uppercase tracking-wider ${isActive ? "text-white/80" : "text-zinc-500"}`}>
-                          {server.badge}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {isActive && <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20" />}
-                </button>
-              );
-            })}
-          </div>
+          <a
+            href={videoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-300 hover:text-white hover:border-[#E50914] hover:bg-zinc-800 transition-all duration-300 group"
+          >
+            <span>OUVRIR DANS UN NOUVEL ONGLET</span>
+            <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+          </a>
         </div>
 
         {/* Recommended Servers */}
@@ -290,7 +161,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
         <div className="space-y-3">
           <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Alternatifs</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {SERVERS.filter(s => s.group !== "Recommended" && s.group !== "Premium").map((server) => {
+            {SERVERS.filter(s => s.group !== "Recommended").map((server) => {
               const index = SERVERS.indexOf(server);
               const isActive = currentServer === index;
               
