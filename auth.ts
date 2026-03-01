@@ -1,54 +1,23 @@
-import NextAuth from "next-auth";
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import { db } from "@/lib/db";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
-import { z } from "zod";
+// auth.ts
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
 
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-});
+export async function auth() {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth_token')?.value;
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(db),
-  session: { strategy: "jwt" },
-  providers: [
-    Credentials({
-      async authorize(credentials) {
-        const validatedFields = loginSchema.safeParse(credentials);
+    if (!token) {
+      return null;
+    }
 
-        if (validatedFields.success) {
-          const { email, password } = validatedFields.data;
+    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const { payload } = await jwtVerify(token, secret);
 
-          const user = await db.user.findUnique({
-            where: { email },
-          });
-
-          if (!user || !user.password) return null;
-
-          const passwordsMatch = await bcrypt.compare(password, user.password);
-
-          if (passwordsMatch) return user;
-        }
-
-        return null;
-      },
-    }),
-  ],
-  callbacks: {
-    async session({ session, token }) {
-      if (token.sub && session.user) {
-        session.user.id = token.sub;
-      }
-      return session;
-    },
-    async jwt({ token }) {
-      return token;
-    },
-  },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
-});
+    // Retourne un objet similaire à ce que NextAuth renvoyait
+    return { user: payload };
+  } catch (error) {
+    // Si le token est invalide ou expiré
+    return null;
+  }
+}
