@@ -151,7 +151,7 @@ export default function DirectPlayer({ id, type, season, episode }: DirectPlayer
               default: sub.lang?.toLowerCase().includes('fre') || sub.lang?.toLowerCase().includes('fr'),
             })),
           },
-        }}
+        } as any}
       />
       
       {/* Indicateur de qualité */}
