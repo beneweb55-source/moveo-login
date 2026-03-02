@@ -1,5 +1,4 @@
 import React from "react";
-import ReactPlayer from "react-player";
 import { X } from "lucide-react";
 
 interface VideoPopupProps {
@@ -8,8 +7,6 @@ interface VideoPopupProps {
   videoId: string | null;
   setVideoId: (id: string | null) => void;
 }
-
-const Player = ReactPlayer as any;
 
 const VideoPopup = ({ show, setShow, videoId, setVideoId }: VideoPopupProps) => {
   const hidePopup = () => {
@@ -32,12 +29,12 @@ const VideoPopup = ({ show, setShow, videoId, setVideoId }: VideoPopupProps) => 
         >
           <X className="w-8 h-8" />
         </button>
-        <Player
-          url={`https://www.youtube.com/watch?v=${videoId}`}
-          controls
-          width="100%"
-          height="100%"
-          playing={true}
+        <iframe
+          src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1`}
+          className="w-full h-full"
+          allowFullScreen
+          allow="autoplay; encrypted-media"
+          title="YouTube Video Player"
         />
       </div>
     </div>
