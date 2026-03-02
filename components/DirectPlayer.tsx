@@ -132,6 +132,7 @@ export default function DirectPlayer({ id, type, season, episode }: DirectPlayer
 
   return (
     <div className="relative w-full h-full bg-black group">
+      {/* @ts-ignore - ReactPlayer types are not compatible with React 19 yet */}
       <ReactPlayer
         url={streamUrl!}
         width="100%"
@@ -141,7 +142,7 @@ export default function DirectPlayer({ id, type, season, episode }: DirectPlayer
         config={{
           file: {
             attributes: {
-              crossOrigin: "anonymous", // Important pour les sous-titres
+              crossOrigin: "anonymous",
             },
             tracks: subtitles.map((sub: any) => ({
               kind: 'subtitles',
