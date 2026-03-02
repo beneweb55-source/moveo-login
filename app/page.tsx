@@ -44,7 +44,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
       <HeroBanner />
       
-      <main className="flex-1 -mt-32 relative z-20 px-4 sm:px-6 lg:px-8 max-w-[1400px] mx-auto w-full pb-20">
+      <main className="flex-1 relative z-20 px-4 sm:px-6 lg:px-8 max-w-[1400px] mx-auto w-full pb-20 -mt-20 md:-mt-32">
         <Carousel 
           title={t.home.trending} 
           data={trending} 

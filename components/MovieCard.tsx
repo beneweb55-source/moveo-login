@@ -30,35 +30,37 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
 
   return (
     <div
-      className="relative flex flex-col gap-3 cursor-pointer group w-full flex-shrink-0"
+      className="relative flex flex-col gap-3 cursor-pointer group/card w-full flex-shrink-0"
       onClick={() => router.push(`/${type}/${data.id}`)}
     >
       {/* Poster Container */}
-      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a]">
+      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a] transition-all duration-300 ease-out group-hover/card:shadow-[0_0_20px_rgba(229,9,20,0.4)] group-hover/card:scale-[1.05]">
         <Image
           src={posterUrl}
           alt={data.title || data.name || t.details.noPoster}
           fill
-          className="object-cover transition-transform duration-500 group-hover:scale-110"
+          className="object-cover transition-transform duration-500 group-hover/card:scale-110"
           referrerPolicy="no-referrer"
         />
         
         {/* Badge for Media Type */}
-        <div className="absolute top-2 left-2 z-10">
+        <div className="absolute top-2 left-2 z-10 opacity-100 transition-opacity duration-300 group-hover/card:opacity-0">
           <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white bg-black/60 backdrop-blur-md rounded-md border border-white/10">
             {type === 'tv' ? 'Série' : 'Film'}
           </span>
         </div>
 
         {/* Dark Overlay & Play Button on Hover */}
-        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <Play className="w-14 h-14 text-[#E50914] fill-current transform scale-50 group-hover:scale-100 transition-transform duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-[#E50914] flex items-center justify-center shadow-lg transform scale-50 opacity-0 group-hover/card:scale-100 group-hover/card:opacity-100 transition-all duration-300 delay-75">
+            <Play className="w-5 h-5 text-white fill-current ml-0.5" />
+          </div>
         </div>
       </div>
 
       {/* Info Section */}
       <div className="flex flex-col px-1">
-        <h3 className="text-base font-semibold text-white truncate group-hover:text-[#E50914] transition-colors">
+        <h3 className="text-base font-semibold text-white truncate group-hover/card:text-[#E50914] transition-colors duration-300">
           {data.title || data.name}
         </h3>
         <div className="flex items-center justify-between mt-1">
