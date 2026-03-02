@@ -44,30 +44,30 @@ const Carousel = ({ data, loading, endpoint, title }: CarouselProps) => {
       {title && (
         <div className="text-2xl text-white mb-6 font-bold tracking-tight">{title}</div>
       )}
-      <div className="relative group/carousel">
+      <div className="relative group">
         <ChevronLeft
-          className="absolute -left-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-black/80 text-white rounded-full p-2 cursor-pointer z-20 opacity-0 group-hover/carousel:opacity-100 transition-all duration-300 hidden md:block hover:bg-[#E50914] hover:scale-110 shadow-xl"
+          className="absolute -left-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-black/80 text-white rounded-full p-2 cursor-pointer z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 hidden md:block hover:bg-[#E50914] hover:scale-110 shadow-xl"
           onClick={() => navigation("left")}
         />
         <ChevronRight
-          className="absolute -right-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-black/80 text-white rounded-full p-2 cursor-pointer z-20 opacity-0 group-hover/carousel:opacity-100 transition-all duration-300 hidden md:block hover:bg-[#E50914] hover:scale-110 shadow-xl"
+          className="absolute -right-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-black/80 text-white rounded-full p-2 cursor-pointer z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 hidden md:block hover:bg-[#E50914] hover:scale-110 shadow-xl"
           onClick={() => navigation("right")}
         />
 
         {!loading ? (
           <div
-            className="flex gap-6 md:gap-8 overflow-y-hidden overflow-x-auto scrollbar-hide scroll-smooth pb-8 px-1"
+            className="flex gap-4 md:gap-6 overflow-y-hidden overflow-x-auto scrollbar-hide scroll-smooth pb-4 px-1"
             ref={carouselContainer}
             style={{ scrollSnapType: "x mandatory" }}
           >
             {data?.map((item) => (
-              <div key={item.id} className="w-[140px] md:w-[calc(25%-24px)] lg:w-[calc(20%-26px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
+              <div key={item.id} className="w-[140px] md:w-[calc(25%-18px)] lg:w-[calc(20%-19px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
                 <MovieCard data={item} mediaType={endpoint} />
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex gap-6 md:gap-8 overflow-hidden px-1 pb-8">
+          <div className="flex gap-4 md:gap-6 overflow-hidden px-1">
             {skItem()}
             {skItem()}
             {skItem()}

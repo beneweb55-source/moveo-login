@@ -17,8 +17,8 @@ export const SERVER_SOURCES: VideoSource[] = [
     badge: "🟢 Officiel",
     desc: "Serveur principal",
     url: (id, s, e) => s && e
-      ? `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}&sub=fr`
-      : `https://vidsrc.me/embed/movie?tmdb=${id}&sub=fr`
+      ? `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`
+      : `https://vidsrc.me/embed/movie?tmdb=${id}`
   }
 ];
 

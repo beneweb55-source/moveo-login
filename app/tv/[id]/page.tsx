@@ -281,13 +281,7 @@ export default function TvDetails() {
                 </div>
 
                 <div className="bg-[#141414] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-                    <VideoPlayer 
-                        key={`${id}-${selectedSeason}-${selectedEpisode}`}
-                        id={id as string} 
-                        type="tv" 
-                        season={selectedSeason} 
-                        episode={selectedEpisode} 
-                    />
+                    <VideoPlayer id={id as string} type="tv" season={selectedSeason} episode={selectedEpisode} />
                 </div>
             </div>
         </ContentWrapper>
