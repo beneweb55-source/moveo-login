@@ -34,57 +34,70 @@ export const getDirectStreamUrl = async (
     return null;
   }
 
-  // --- STRATÉGIE 1 : Via meta/tmdb (Rapide mais peut échouer sur les IDs) ---
-  try {
-    console.log(`[DirectStream] Stratégie 1: meta/tmdb/${tmdbId}`);
-    const infoUrl = `${BASE_URL}/meta/tmdb/${tmdbId}`;
-    const infoResponse = await axios.get(infoUrl, { timeout: 5000 });
-    const data = infoResponse.data;
+    let title = '';
+    let year = '';
+    let originalTitle = '';
 
-    let episodeId = '';
-    let mediaId = data.id; // Pour meta/tmdb, l'ID du média est souvent l'ID TMDB ou mappé
+    // --- STRATÉGIE 1 : Via meta/tmdb (Rapide mais peut échouer sur les IDs) ---
+    try {
+      console.log(`[DirectStream] Stratégie 1: meta/tmdb/${tmdbId}`);
+      const infoUrl = `${BASE_URL}/meta/tmdb/${tmdbId}`;
+      const infoResponse = await axios.get(infoUrl, { timeout: 5000 });
+      const data = infoResponse.data;
 
-    if (type === 'movie') {
-      episodeId = data.episodeId;
-    } else if (type === 'tv' && season && episode) {
-      const targetSeason = data.seasons?.find((s: any) => s.season === season);
-      const targetEpisode = targetSeason?.episodes?.find((e: any) => e.episode === episode);
-      if (targetEpisode) episodeId = targetEpisode.id;
-    }
+      // Sauvegarde des métadonnées pour la stratégie 2 si besoin
+      title = data.title;
+      year = (data.releaseDate || data.firstAirDate)?.split('-')[0];
+      originalTitle = data.originalTitle;
 
-    if (episodeId) {
-      const watchUrl = `${BASE_URL}/meta/tmdb/watch/${episodeId}`;
-      const watchResponse = await axios.get(watchUrl, { timeout: 8000 });
-      const sources = watchResponse.data.sources;
-
-      if (sources && sources.length > 0) {
-        const m3u8Source = sources.find((s: StreamSource) => s.quality === 'auto') || sources[0];
-        return {
-          url: m3u8Source.url,
-          referer: watchResponse.data.headers?.Referer,
-          subtitles: watchResponse.data.subtitles
-        };
+      let episodeId = '';
+      // ... (reste du code de recherche d'episodeId)
+      if (type === 'movie') {
+        episodeId = data.episodeId;
+      } else if (type === 'tv' && season && episode) {
+        const targetSeason = data.seasons?.find((s: any) => s.season === season);
+        const targetEpisode = targetSeason?.episodes?.find((e: any) => e.episode === episode);
+        if (targetEpisode) episodeId = targetEpisode.id;
       }
+
+      if (episodeId) {
+        const watchUrl = `${BASE_URL}/meta/tmdb/watch/${episodeId}`;
+        const watchResponse = await axios.get(watchUrl, { timeout: 8000 });
+        const sources = watchResponse.data.sources;
+
+        if (sources && sources.length > 0) {
+          const m3u8Source = sources.find((s: StreamSource) => s.quality === 'auto') || sources[0];
+          return {
+            url: m3u8Source.url,
+            referer: watchResponse.data.headers?.Referer,
+            subtitles: watchResponse.data.subtitles
+          };
+        }
+      }
+    } catch (error) {
+      console.warn("[DirectStream] Stratégie 1 échouée, passage à la Stratégie 2 (Fallback FlixHQ)");
     }
-  } catch (error) {
-    console.warn("[DirectStream] Stratégie 1 échouée, passage à la Stratégie 2 (Fallback FlixHQ)");
-  }
 
-  // --- STRATÉGIE 2 : Fallback via Recherche FlixHQ (Plus robuste pour les IDs) ---
-  try {
-    if (!TMDB_API_KEY) {
-      console.warn("[DirectStream] Pas de clé TMDB, impossible d'utiliser le fallback.");
-      return null;
-    }
+    // --- STRATÉGIE 2 : Fallback via Recherche FlixHQ (Plus robuste pour les IDs) ---
+    try {
+      // Si on n'a pas pu récupérer les infos via Consumet (Stratégie 1 échouée totalement),
+      // on essaie via l'API TMDB officielle si la clé est présente.
+      if (!title || !year) {
+        if (TMDB_API_KEY) {
+          const tmdbDetailsUrl = `https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
+          const tmdbRes = await axios.get(tmdbDetailsUrl);
+          title = tmdbRes.data.title || tmdbRes.data.name;
+          year = (tmdbRes.data.release_date || tmdbRes.data.first_air_date)?.split('-')[0];
+          originalTitle = tmdbRes.data.original_title || tmdbRes.data.original_name;
+        } else {
+          console.warn("[DirectStream] Pas de métadonnées (titre/année) et pas de clé TMDB. Impossible d'utiliser le fallback.");
+          return null;
+        }
+      }
 
-    // 1. Récupérer le titre exact et l'année via TMDB officiel
-    const tmdbDetailsUrl = `https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
-    const tmdbRes = await axios.get(tmdbDetailsUrl);
-    const title = tmdbRes.data.title || tmdbRes.data.name;
-    const year = (tmdbRes.data.release_date || tmdbRes.data.first_air_date)?.split('-')[0];
-    const originalTitle = tmdbRes.data.original_title || tmdbRes.data.original_name;
-
-    console.log(`[DirectStream] Stratégie 2: Recherche FlixHQ pour "${title}" (${year})`);
+      console.log(`[DirectStream] Stratégie 2: Recherche FlixHQ pour "${title}" (${year})`);
+      
+      // ... (reste du code de recherche FlixHQ)
 
     // 2. Rechercher sur FlixHQ via Consumet
     // On essaie d'abord avec le titre anglais, puis original si différent
