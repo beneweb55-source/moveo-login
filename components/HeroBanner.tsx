@@ -95,12 +95,15 @@ const HeroBanner = () => {
 
           {/* Genres */}
           <div className="flex flex-wrap gap-2 mb-6">
-            {movieGenres.map((genre: string, i: number) => (
-              <span key={i} className="text-zinc-300 text-sm md:text-base">
-                {genre}
-                {i < movieGenres.length - 1 && <span className="mx-2 text-zinc-500">•</span>}
-              </span>
-            ))}
+            {movieGenres.map((genre: any, i: number) => {
+              const genreName = typeof genre === 'object' ? genre.name : genre;
+              return (
+                <span key={i} className="text-zinc-300 text-sm md:text-base">
+                  {genreName}
+                  {i < movieGenres.length - 1 && <span className="mx-2 text-zinc-500">•</span>}
+                </span>
+              );
+            })}
           </div>
 
           {/* Synopsis */}

@@ -9,13 +9,15 @@ const Genres = ({ data }: { data: number[] }) => {
   return (
     <div className="flex gap-2 flex-wrap mb-2">
       {data?.map((g) => {
-        if (!genres[g]?.name) return null;
+        const genre = genres[g];
+        const name = typeof genre === 'object' ? genre?.name : genre;
+        if (!name) return null;
         return (
           <div
             key={g}
             className="bg-[#E50914]/20 text-[#E50914] text-xs px-2 py-1 rounded-md font-medium"
           >
-            {genres[g]?.name}
+            {name}
           </div>
         );
       })}
