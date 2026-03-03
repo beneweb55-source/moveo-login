@@ -86,22 +86,20 @@ export const getDirectStreamUrl = async (
     return null;
   };
 
-  // --- STRATÉGIE 2 : Fallback via Recherche FlixHQ ---
-  const strategy2 = async (): Promise<DirectStreamResult | null> => {
+  // --- STRATÉGIE GÉNÉRIQUE POUR LES PROVIDERS (FlixHQ, Goku, SFlix, HiMovies) ---
+  const runProviderStrategy = async (provider: string): Promise<DirectStreamResult | null> => {
     // On construit une liste de titres à essayer (Titre local + Titre original)
     const titlesToTry = [targetTitle];
     if (targetOriginalTitle && targetOriginalTitle !== targetTitle) {
       titlesToTry.push(targetOriginalTitle);
     }
-    // On enlève les doublons et les vides
     const uniqueTitles = [...new Set(titlesToTry)].filter(t => t.length > 0);
 
     if (uniqueTitles.length === 0) return null;
 
-    // Fonction de recherche interne pour un titre donné
     const searchAndFind = async (searchQuery: string) => {
       try {
-        const searchUrl = `${BASE_URL}/movies/flixhq/${encodeURIComponent(searchQuery)}`;
+        const searchUrl = `${BASE_URL}/movies/${provider}/${encodeURIComponent(searchQuery)}`;
         const searchRes = await axios.get(searchUrl, { timeout: 6000 });
         const searchResults = searchRes.data.results;
 
@@ -148,15 +146,12 @@ export const getDirectStreamUrl = async (
         if (bestMatch) break;
     }
 
-    if (!bestMatch) {
-      // console.warn("[DirectStream] Stratégie 2: Aucune correspondance trouvée.");
-      return null;
-    }
+    if (!bestMatch) return null;
 
-    console.log(`[DirectStream] Stratégie 2: Correspondance trouvée -> ${bestMatch.title} (${bestMatch.id})`);
+    console.log(`[DirectStream] ${provider}: Correspondance trouvée -> ${bestMatch.title} (${bestMatch.id})`);
 
     try {
-      const infoUrl = `${BASE_URL}/movies/flixhq/info?id=${bestMatch.id}`;
+      const infoUrl = `${BASE_URL}/movies/${provider}/info?id=${bestMatch.id}`;
       const infoRes = await axios.get(infoUrl, { timeout: 6000 });
       const mediaInfo = infoRes.data;
 
@@ -173,7 +168,7 @@ export const getDirectStreamUrl = async (
       // Fonction helper pour tenter de lire le flux avec retry sur les serveurs
       const tryWatch = async (server?: string) => {
         try {
-            const url = `${BASE_URL}/movies/flixhq/watch?episodeId=${episodeId}&mediaId=${bestMatch.id}${server ? `&server=${server}` : ''}`;
+            const url = `${BASE_URL}/movies/${provider}/watch?episodeId=${episodeId}&mediaId=${bestMatch.id}${server ? `&server=${server}` : ''}`;
             const res = await axios.get(url, { timeout: 8000 });
             return res.data;
         } catch (e) {
@@ -181,24 +176,22 @@ export const getDirectStreamUrl = async (
         }
       };
 
-      // 1. Essai par défaut (souvent VidCloud)
+      // 1. Essai par défaut
       let watchData = await tryWatch();
       
       // 2. Si échec, essai avec UpCloud
       if (!watchData || !watchData.sources || watchData.sources.length === 0) {
-        console.log("[DirectStream] Stratégie 2: Retry avec server=upcloud...");
         watchData = await tryWatch('upcloud');
       }
 
-      // 3. Si échec, essai avec VidCloud explicitement
+      // 3. Si échec, essai avec VidCloud
       if (!watchData || !watchData.sources || watchData.sources.length === 0) {
-        console.log("[DirectStream] Stratégie 2: Retry avec server=vidcloud...");
         watchData = await tryWatch('vidcloud');
       }
 
       if (watchData && watchData.sources && watchData.sources.length > 0) {
         const m3u8Source = watchData.sources.find((s: StreamSource) => s.quality === 'auto') || watchData.sources[0];
-        console.log(`[DirectStream] Stratégie 2: Succès !`);
+        console.log(`[DirectStream] ${provider}: Succès !`);
         return {
           url: m3u8Source.url,
           referer: watchData.headers?.Referer,
@@ -211,64 +204,21 @@ export const getDirectStreamUrl = async (
     return null;
   };
 
-  // --- STRATÉGIE 3 : Fallback via Recherche GoMovies (Nouveau Provider) ---
-  const strategy3 = async (): Promise<DirectStreamResult | null> => {
-    if (!targetTitle) return null;
-    
-    // GoMovies est souvent bon pour les films
-    if (type !== 'movie') return null; 
+  // Liste des providers à utiliser (basé sur la doc utilisateur)
+  const providers = ['flixhq', 'goku', 'sflix', 'himovies'];
 
-    try {
-        const searchUrl = `${BASE_URL}/movies/gomovies/${encodeURIComponent(targetTitle)}`;
-        const searchRes = await axios.get(searchUrl, { timeout: 6000 });
-        const searchResults = searchRes.data.results;
+  // Exécution parallèle : On lance TMDB + tous les providers
+  const strategies = [
+      strategy1(),
+      ...providers.map(p => runProviderStrategy(p))
+  ];
 
-        if (!searchResults || searchResults.length === 0) return null;
+  const results = await Promise.allSettled(strategies);
 
-        const match = searchResults.find((r: any) => {
-            const rYear = r.releaseDate ? parseInt(r.releaseDate.split('-')[0]) : 0;
-            const yearMatch = targetYear > 0 && rYear > 0 ? Math.abs(rYear - targetYear) <= 1 : true;
-            const titleMatch = cleanTitle(r.title).toLowerCase().includes(targetTitle.toLowerCase());
-            return yearMatch && titleMatch;
-        });
-
-        if (!match) return null;
-
-        console.log(`[DirectStream] Stratégie 3 (GoMovies): Correspondance trouvée -> ${match.title}`);
-
-        const infoUrl = `${BASE_URL}/movies/gomovies/info?id=${match.id}`;
-        const infoRes = await axios.get(infoUrl, { timeout: 6000 });
-        const mediaInfo = infoRes.data;
-        
-        const episodeId = mediaInfo.episodes?.[0]?.id;
-        if (!episodeId) return null;
-
-        const watchUrl = `${BASE_URL}/movies/gomovies/watch?episodeId=${episodeId}&mediaId=${match.id}`;
-        const watchRes = await axios.get(watchUrl, { timeout: 8000 });
-        const sources = watchRes.data.sources;
-
-        if (sources && sources.length > 0) {
-            const m3u8Source = sources.find((s: StreamSource) => s.quality === 'auto') || sources[0];
-            console.log(`[DirectStream] Stratégie 3: Succès !`);
-            return {
-                url: m3u8Source.url,
-                referer: watchRes.data.headers?.Referer,
-                subtitles: watchRes.data.subtitles
-            };
-        }
-    } catch (e) {
-        // console.warn("[DirectStream] Stratégie 3 échouée.");
-    }
-    return null;
-  };
-
-  // Exécution parallèle : On lance les trois stratégies
-  const [res1, res2, res3] = await Promise.allSettled([strategy1(), strategy2(), strategy3()]);
-
-  // Priorité : S1 > S2 > S3
-  if (res1.status === 'fulfilled' && res1.value) return res1.value;
-  if (res2.status === 'fulfilled' && res2.value) return res2.value;
-  if (res3.status === 'fulfilled' && res3.value) return res3.value;
+  // On retourne le premier résultat positif
+  for (const res of results) {
+      if (res.status === 'fulfilled' && res.value) return res.value;
+  }
 
   return null;
 };
