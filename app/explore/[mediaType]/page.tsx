@@ -21,6 +21,10 @@ const sortOptions = [
   { value: "primary_release_date.desc", label: "Date de sortie" },
 ];
 
+import { motion } from "motion/react";
+
+// ... (imports)
+
 const Explore = () => {
   const [data, setData] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
@@ -99,20 +103,20 @@ const Explore = () => {
   };
 
   return (
-    <div className="min-h-screen pt-[100px] pb-10">
+    <div className="min-h-screen pt-[100px] pb-10 bg-[#0A0A0A]">
       <ContentWrapper>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-white capitalize">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+          <h1 className="text-3xl md:text-4xl font-bold text-white capitalize tracking-tight">
             {mediaType === "tv" ? t.explore.exploreTv : t.explore.exploreMovies}
           </h1>
           
-          <div className="flex flex-wrap gap-3 w-full md:w-auto">
+          <div className="flex flex-wrap gap-4 w-full md:w-auto">
             {/* Sort By Select */}
             <div className="relative group">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="appearance-none bg-zinc-800 text-white px-4 py-2 pr-10 rounded-full border border-white/10 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-700 transition-colors text-sm font-medium min-w-[140px]"
+                className="appearance-none bg-zinc-900 text-white px-6 py-3 pr-12 rounded-xl border border-zinc-800 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-800 transition-all duration-300 text-sm font-medium min-w-[160px] shadow-lg"
               >
                 {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -120,7 +124,7 @@ const Explore = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none" />
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
             </div>
 
             {/* Genre Select */}
@@ -128,7 +132,7 @@ const Explore = () => {
               <select
                 value={selectedGenre}
                 onChange={(e) => setSelectedGenre(e.target.value)}
-                className="appearance-none bg-zinc-800 text-white px-4 py-2 pr-10 rounded-full border border-white/10 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-700 transition-colors text-sm font-medium min-w-[140px] max-w-[200px]"
+                className="appearance-none bg-zinc-900 text-white px-6 py-3 pr-12 rounded-xl border border-zinc-800 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-800 transition-all duration-300 text-sm font-medium min-w-[160px] max-w-[240px] shadow-lg"
               >
                 <option value="">Tous les genres</option>
                 {genres.map((genre) => (
@@ -137,7 +141,7 @@ const Explore = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none" />
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
             </div>
           </div>
         </div>
@@ -148,7 +152,7 @@ const Explore = () => {
           <>
             {data?.results?.length > 0 ? (
               <InfiniteScroll
-                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6"
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8"
                 dataLength={data?.results?.length || 0}
                 next={fetchNextPageData}
                 hasMore={pageNum <= data?.total_pages}
@@ -157,20 +161,26 @@ const Explore = () => {
                 {data?.results?.map((item: any, index: number) => {
                   if (item.media_type === "person") return null;
                   return (
-                    <MovieCard
+                    <motion.div
                       key={`${item.id}-${index}`}
-                      data={item}
-                      mediaType={mediaType as string}
-                    />
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index % 10 * 0.05 }}
+                    >
+                      <MovieCard
+                        data={item}
+                        mediaType={mediaType as string}
+                      />
+                    </motion.div>
                   );
                 })}
               </InfiniteScroll>
             ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <span className="text-2xl text-white/50 font-medium">
+              <div className="flex flex-col items-center justify-center py-32 text-center">
+                <span className="text-3xl text-white/40 font-bold mb-4">
                   {t.explore.noResults}
                 </span>
-                <p className="text-white/30 mt-2">Essayez de modifier vos filtres</p>
+                <p className="text-white/30 text-lg">Essayez de modifier vos filtres pour voir plus de résultats.</p>
               </div>
             )}
           </>

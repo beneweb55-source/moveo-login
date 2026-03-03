@@ -13,6 +13,6 @@ export const fetchDataFromApi = async (url: string, params?: any) => {
     return data;
   } catch (err) {
     console.log(err);
-    return err;
+    throw err;
   }
 };

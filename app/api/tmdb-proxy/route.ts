@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   
   // Get the TMDB API Key from environment variables
-  const TMDB_API_KEY = process.env.TMDB_API_KEY;
+  const TMDB_API_KEY = process.env.TMDB_API_KEY || process.env.NEXT_PUBLIC_TMDB_API_KEY;
 
   if (!TMDB_API_KEY) {
     return NextResponse.json(

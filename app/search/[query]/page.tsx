@@ -70,7 +70,7 @@ const SearchResult = () => {
                   if (item.media_type === "person") return null;
                   return (
                     <MovieCard
-                      key={index}
+                      key={item.id || index}
                       data={item}
                     />
                   );

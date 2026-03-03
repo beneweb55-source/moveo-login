@@ -42,7 +42,10 @@ const Carousel = ({ data, loading, endpoint, title }: CarouselProps) => {
   return (
     <div className="relative mb-12">
       {title && (
-        <div className="text-2xl text-white mb-6 font-bold tracking-tight">{title}</div>
+        <h2 className="text-2xl md:text-3xl font-bold mb-8 text-white flex items-center gap-2">
+          <span className="w-1 h-8 bg-[#E50914] rounded-full mr-2"></span>
+          {title}
+        </h2>
       )}
       <div className="relative group">
         <ChevronLeft

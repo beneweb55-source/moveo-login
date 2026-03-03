@@ -1,71 +1,125 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchDataFromApi } from "@/utils/api";
-import { Play, Info } from "lucide-react";
-import { motion } from "motion/react";
+import { Play, Info, Star, Calendar, Film } from "lucide-react";
+import { motion, useScroll, useTransform } from "motion/react";
+import { useSelector } from "react-redux";
 import { useLanguage } from "@/context/LanguageContext";
 
 const HeroBanner = () => {
   const [background, setBackground] = useState("");
   const [movie, setMovie] = useState<any>(null);
   const router = useRouter();
+  const { genres } = useSelector((state: any) => state.home);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 1000], [0, 400]);
+  const opacity = useTransform(scrollY, [0, 500], [1, 0]);
   const { language, t } = useLanguage();
 
   useEffect(() => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
     fetchDataFromApi("/trending/all/day", { language: langParam }).then((res) => {
-      const results = res.results || [];
+      const results = res?.results || [];
       if (results.length > 0) {
-        const randomMovie = results[Math.floor(Math.random() * results.length)];
-        const bg = `https://image.tmdb.org/t/p/original${randomMovie?.backdrop_path}`;
+        // Pick random from top 5
+        const top5 = results.slice(0, 5);
+        const randomMovie = top5[Math.floor(Math.random() * top5.length)];
+        
+        const bg = randomMovie?.backdrop_path 
+          ? `https://image.tmdb.org/t/p/original${randomMovie.backdrop_path}`
+          : "";
+          
         setBackground(bg);
         setMovie(randomMovie);
       }
     });
   }, [language]);
 
+  const getGenreNames = (genreIds: number[]) => {
+    if (!genreIds || !genres) return [];
+    return genreIds.map((id) => genres[id]).filter((g) => g);
+  };
+
+  const movieGenres = movie ? getGenreNames(movie.genre_ids) : [];
+
   return (
-    <div className="relative w-full h-[80vh] md:h-[90vh] flex items-center justify-center bg-[#0A0A0A]">
-      {/* Background Image */}
+    <div ref={containerRef} className="relative w-full h-[85vh] min-h-[700px] overflow-hidden bg-[#0A0A0A]">
+      {/* Parallax Background */}
       {background && (
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-50 transition-opacity duration-1000"
-          style={{ backgroundImage: `url(${background})` }}
-        />
+        <motion.div
+          className="absolute inset-0 w-full h-[120%] -top-[10%]"
+          style={{ y, opacity }}
+        >
+          <div 
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(${background})` }}
+          />
+        </motion.div>
       )}
 
-      {/* Gradient Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/60 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A] via-[#0A0A0A]/40 to-transparent" />
+      {/* Complex Gradients for Vignette */}
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/40 to-transparent z-10" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A] via-[#0A0A0A]/60 to-transparent z-10" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#0A0A0A] z-10" />
 
       {/* Content */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col items-start justify-end h-full pb-20 md:pb-32">
+      <div className="relative z-20 w-full h-full max-w-[1600px] mx-auto px-6 md:px-12 pb-20 md:pb-32 flex flex-col justify-end items-start">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
-          className="max-w-3xl"
+          transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
+          className="max-w-4xl"
         >
-          <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-4 text-white drop-shadow-lg">
-            {movie?.title || movie?.name || t.home.welcome}
+          {/* Metadata Badge Row */}
+          <div className="flex flex-wrap items-center gap-3 mb-4 text-sm md:text-base font-medium">
+            <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-2">
+              {movie?.media_type === "tv" ? <Film className="w-4 h-4" /> : <Film className="w-4 h-4" />}
+              {movie?.media_type === "tv" ? "TV Series" : "Movie"}
+            </span>
+            <span className="flex items-center gap-1 text-[#FFD700]">
+              <Star className="w-4 h-4 fill-current" />
+              {movie?.vote_average?.toFixed(1)}
+            </span>
+            <span className="text-zinc-300">
+              {new Date(movie?.release_date || movie?.first_air_date).getFullYear()}
+            </span>
+          </div>
+
+          {/* Title */}
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-white mb-6 drop-shadow-2xl leading-[0.9]">
+            {movie?.title || movie?.name}
           </h1>
-          <p className="text-lg md:text-xl text-white/80 mb-8 line-clamp-3 md:line-clamp-4 max-w-2xl drop-shadow-md font-medium">
-            {movie?.overview || t.home.subtitle}
+
+          {/* Genres */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            {movieGenres.map((genre: string, i: number) => (
+              <span key={i} className="text-zinc-300 text-sm md:text-base">
+                {genre}
+                {i < movieGenres.length - 1 && <span className="mx-2 text-zinc-500">•</span>}
+              </span>
+            ))}
+          </div>
+
+          {/* Synopsis */}
+          <p className="text-lg md:text-xl text-zinc-300 mb-10 line-clamp-3 md:line-clamp-4 max-w-2xl leading-relaxed drop-shadow-md">
+            {movie?.overview}
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+          {/* Buttons */}
+          <div className="flex flex-col sm:flex-row items-center gap-4">
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white text-black px-8 py-3 rounded-full font-bold text-lg hover:bg-[#E50914] hover:text-white transition-all duration-300 transform hover:scale-105"
+              className="group w-full sm:w-auto flex items-center justify-center gap-3 bg-white text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-[#E50914] hover:text-white transition-all duration-300 shadow-[0_0_20px_-5px_rgba(229,9,20,0.5)] hover:shadow-[0_0_30px_-5px_rgba(229,9,20,0.7)]"
             >
-              <Play className="w-6 h-6 fill-current" />
+              <Play className="w-6 h-6 fill-current transition-transform group-hover:scale-110" />
               {t.home.watchNow}
             </button>
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/20 backdrop-blur-md text-white px-8 py-3 rounded-full font-bold text-lg hover:bg-white/30 transition-all duration-300"
+              className="w-full sm:w-auto flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/20 transition-all duration-300"
             >
               <Info className="w-6 h-6" />
               {t.home.moreInfo}
