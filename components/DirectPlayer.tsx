@@ -10,10 +10,12 @@ interface DirectPlayerProps {
   type: 'movie' | 'tv';
   season?: number;
   episode?: number;
+  title?: string;
+  year?: string;
   onClose?: () => void; // Callback pour revenir au mode standard en cas d'erreur
 }
 
-const DirectPlayer: React.FC<DirectPlayerProps> = ({ tmdbId, type, season, episode, onClose }) => {
+const DirectPlayer: React.FC<DirectPlayerProps> = ({ tmdbId, type, season, episode, title, year, onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ const DirectPlayer: React.FC<DirectPlayerProps> = ({ tmdbId, type, season, episo
       setLoading(true);
       setError(null);
       try {
-        const result = await getDirectStreamUrl(tmdbId, type, season, episode);
+        const result = await getDirectStreamUrl(tmdbId, type, season, episode, title, year);
         
         if (!isMounted) return;
 
@@ -46,7 +48,7 @@ const DirectPlayer: React.FC<DirectPlayerProps> = ({ tmdbId, type, season, episo
     return () => {
       isMounted = false;
     };
-  }, [tmdbId, type, season, episode]);
+  }, [tmdbId, type, season, episode, title, year]);
 
   useEffect(() => {
     if (!streamUrl || !videoRef.current) return;

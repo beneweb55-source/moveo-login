@@ -210,7 +210,12 @@ export default function MovieDetails() {
                 </div>
 
                 <div className="bg-[#141414] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-                    <VideoPlayer id={id as string} type="movie" />
+                    <VideoPlayer 
+                        id={id as string} 
+                        type="movie" 
+                        title={data?.title}
+                        year={year ? String(year) : undefined}
+                    />
                 </div>
             </div>
         </ContentWrapper>

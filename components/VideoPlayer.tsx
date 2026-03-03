@@ -9,6 +9,8 @@ interface VideoPlayerProps {
   type: "movie" | "tv";
   season?: number;
   episode?: number;
+  title?: string;
+  year?: string;
 }
 
 const SERVERS = [
@@ -89,7 +91,7 @@ const SERVERS = [
   },
 ];
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, title, year }) => {
   const [currentServer, setCurrentServer] = useState(0);
   const [isDirectMode, setIsDirectMode] = useState(false);
 
@@ -105,6 +107,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
             type={type}
             season={season}
             episode={episode}
+            title={title}
+            year={year}
             onClose={() => setIsDirectMode(false)}
           />
         ) : (
