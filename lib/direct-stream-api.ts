@@ -36,148 +36,133 @@ export const getDirectStreamUrl = async (
     return null;
   }
 
-  let fetchedTitle = title || '';
-  let fetchedYear = year || '';
-  let originalTitle = '';
+  // Normalisation des paramètres
+  const targetTitle = title ? cleanTitle(title) : '';
+  const targetYear = year ? parseInt(year) : 0;
 
-  // --- STRATÉGIE 1 : Via meta/tmdb (Rapide mais peut échouer sur les IDs) ---
-  try {
-    console.log(`[DirectStream] Stratégie 1: meta/tmdb/${tmdbId}`);
-    const infoUrl = `${BASE_URL}/meta/tmdb/${tmdbId}`;
-    const infoResponse = await axios.get(infoUrl, { timeout: 5000 });
-    const data = infoResponse.data;
+  console.log(`[DirectStream] Démarrage pour ${type} ID:${tmdbId} "${targetTitle}" (${targetYear})`);
 
-    // Sauvegarde des métadonnées pour la stratégie 2 si besoin
-    if (!fetchedTitle) fetchedTitle = data.title;
-    if (!fetchedYear) fetchedYear = (data.releaseDate || data.firstAirDate)?.split('-')[0];
-    originalTitle = data.originalTitle;
+  // --- STRATÉGIE 1 : Via meta/tmdb (Consumet TMDB Provider) ---
+  const strategy1 = async (): Promise<DirectStreamResult | null> => {
+    try {
+      // console.log(`[DirectStream] Stratégie 1 (TMDB): Recherche...`);
+      const infoUrl = `${BASE_URL}/meta/tmdb/${tmdbId}`;
+      const infoResponse = await axios.get(infoUrl, { timeout: 6000 });
+      const data = infoResponse.data;
 
-    let episodeId = '';
-    let mediaId = data.id; // Pour meta/tmdb, l'ID du média est souvent l'ID TMDB ou mappé
+      let episodeId = '';
+      
+      if (type === 'movie') {
+        episodeId = data.episodeId;
+      } else if (type === 'tv' && season && episode) {
+        const targetSeason = data.seasons?.find((s: any) => s.season === season);
+        const targetEpisode = targetSeason?.episodes?.find((e: any) => e.episode === episode);
+        if (targetEpisode) episodeId = targetEpisode.id;
+      }
 
-    if (type === 'movie') {
-      episodeId = data.episodeId;
-    } else if (type === 'tv' && season && episode) {
-      const targetSeason = data.seasons?.find((s: any) => s.season === season);
-      const targetEpisode = targetSeason?.episodes?.find((e: any) => e.episode === episode);
-      if (targetEpisode) episodeId = targetEpisode.id;
+      if (episodeId) {
+        const watchUrl = `${BASE_URL}/meta/tmdb/watch/${episodeId}`;
+        const watchResponse = await axios.get(watchUrl, { timeout: 8000 });
+        const sources = watchResponse.data.sources;
+
+        if (sources && sources.length > 0) {
+          const m3u8Source = sources.find((s: StreamSource) => s.quality === 'auto') || sources[0];
+          console.log(`[DirectStream] Stratégie 1: Succès !`);
+          return {
+            url: m3u8Source.url,
+            referer: watchResponse.data.headers?.Referer,
+            subtitles: watchResponse.data.subtitles
+          };
+        }
+      }
+    } catch (error) {
+      // console.warn("[DirectStream] Stratégie 1 échouée ou timeout.");
     }
+    return null;
+  };
 
-    if (episodeId) {
-      const watchUrl = `${BASE_URL}/meta/tmdb/watch/${episodeId}`;
-      const watchResponse = await axios.get(watchUrl, { timeout: 8000 });
-      const sources = watchResponse.data.sources;
+  // --- STRATÉGIE 2 : Fallback via Recherche FlixHQ ---
+  const strategy2 = async (): Promise<DirectStreamResult | null> => {
+    if (!targetTitle) return null;
+
+    try {
+      // console.log(`[DirectStream] Stratégie 2 (FlixHQ): Recherche pour "${targetTitle}"...`);
+      const searchUrl = `${BASE_URL}/movies/flixhq/${encodeURIComponent(targetTitle)}`;
+      const searchRes = await axios.get(searchUrl, { timeout: 6000 });
+      const searchResults = searchRes.data.results;
+
+      if (!searchResults || searchResults.length === 0) {
+        console.warn("[DirectStream] Stratégie 2: Aucun résultat de recherche.");
+        return null;
+      }
+
+      // Filtrage intelligent avec tolérance d'année (+/- 1 an)
+      const match = searchResults.find((r: any) => {
+        const rYearStr = r.releaseDate?.split('-')[0] || r.releaseDate;
+        const rYear = rYearStr ? parseInt(rYearStr) : 0;
+        
+        const yearMatch = targetYear > 0 && rYear > 0 
+          ? Math.abs(rYear - targetYear) <= 1 
+          : true; // Si pas d'année, on ignore ce critère (risqué mais permissif)
+
+        const typeMatch = r.type === (type === 'movie' ? 'Movie' : 'TV Series');
+        const titleMatch = r.title.toLowerCase().includes(targetTitle.toLowerCase());
+
+        return typeMatch && yearMatch && titleMatch;
+      });
+
+      if (!match) {
+        console.warn("[DirectStream] Stratégie 2: Pas de correspondance trouvée après filtrage.");
+        return null;
+      }
+
+      // console.log(`[DirectStream] Stratégie 2: Correspondance trouvée -> ${match.title} (${match.id})`);
+
+      const infoUrl = `${BASE_URL}/movies/flixhq/info?id=${match.id}`;
+      const infoRes = await axios.get(infoUrl, { timeout: 6000 });
+      const mediaInfo = infoRes.data;
+
+      let episodeId = '';
+      if (type === 'movie') {
+        episodeId = mediaInfo.episodes?.[0]?.id;
+      } else {
+        const targetEp = mediaInfo.episodes?.find((e: any) => e.season === season && e.number === episode);
+        if (targetEp) episodeId = targetEp.id;
+      }
+
+      if (!episodeId) return null;
+
+      const watchUrl = `${BASE_URL}/movies/flixhq/watch?episodeId=${episodeId}&mediaId=${match.id}`;
+      const watchRes = await axios.get(watchUrl, { timeout: 8000 });
+      const sources = watchRes.data.sources;
 
       if (sources && sources.length > 0) {
         const m3u8Source = sources.find((s: StreamSource) => s.quality === 'auto') || sources[0];
+        console.log(`[DirectStream] Stratégie 2: Succès !`);
         return {
           url: m3u8Source.url,
-          referer: watchResponse.data.headers?.Referer,
-          subtitles: watchResponse.data.subtitles
+          referer: watchRes.data.headers?.Referer,
+          subtitles: watchRes.data.subtitles
         };
       }
+    } catch (error) {
+      // console.warn("[DirectStream] Stratégie 2 échouée.");
     }
-  } catch (error) {
-    console.warn("[DirectStream] Stratégie 1 échouée, passage à la Stratégie 2 (Fallback FlixHQ)");
-  }
-
-  // --- STRATÉGIE 2 : Fallback via Recherche FlixHQ (Plus robuste pour les IDs) ---
-  try {
-    // Si on n'a pas pu récupérer les infos via Consumet (Stratégie 1 échouée totalement),
-    // et qu'on ne les a pas reçues en props, on essaie via l'API TMDB officielle si la clé est présente.
-    if (!fetchedTitle || !fetchedYear) {
-      if (TMDB_API_KEY) {
-        const tmdbDetailsUrl = `https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
-        const tmdbRes = await axios.get(tmdbDetailsUrl);
-        fetchedTitle = tmdbRes.data.title || tmdbRes.data.name;
-        fetchedYear = (tmdbRes.data.release_date || tmdbRes.data.first_air_date)?.split('-')[0];
-        originalTitle = tmdbRes.data.original_title || tmdbRes.data.original_name;
-      } else {
-        console.warn("[DirectStream] Pas de métadonnées (titre/année) et pas de clé TMDB. Impossible d'utiliser le fallback.");
-        return null;
-      }
-    }
-
-    console.log(`[DirectStream] Stratégie 2: Recherche FlixHQ pour "${fetchedTitle}" (${fetchedYear})`);
-    
-    // 2. Rechercher sur FlixHQ via Consumet
-    // On essaie d'abord avec le titre anglais, puis original si différent
-    let searchResults = [];
-    try {
-      const searchUrl = `${BASE_URL}/movies/flixhq/${encodeURIComponent(cleanTitle(fetchedTitle))}`;
-      const searchRes = await axios.get(searchUrl, { timeout: 5000 });
-      searchResults = searchRes.data.results;
-    } catch (e) {
-      // Si la recherche échoue, on continue
-    }
-
-    if ((!searchResults || searchResults.length === 0) && originalTitle && originalTitle !== fetchedTitle) {
-       try {
-        const searchUrl = `${BASE_URL}/movies/flixhq/${encodeURIComponent(cleanTitle(originalTitle))}`;
-        const searchRes = await axios.get(searchUrl, { timeout: 5000 });
-        searchResults = searchRes.data.results;
-       } catch (e) {}
-    }
-
-    if (!searchResults || searchResults.length === 0) {
-      console.warn("[DirectStream] Aucun résultat trouvé sur FlixHQ.");
-      return null;
-    }
-
-    // 3. Filtrer pour trouver le bon média (Année + Titre proche)
-    // FlixHQ retourne 'releaseDate' ou 'type'
-    const match = searchResults.find((r: any) => {
-      const rYear = r.releaseDate?.split('-')[0] || r.releaseDate;
-      // Correspondance stricte sur l'année si disponible, sinon on prend le premier résultat pertinent
-      return rYear === fetchedYear || (r.type === (type === 'movie' ? 'Movie' : 'TV Series') && r.title.toLowerCase().includes(fetchedTitle.toLowerCase()));
-    });
-
-    if (!match) {
-      console.warn("[DirectStream] Pas de correspondance exacte trouvée.");
-      return null;
-    }
-
-    console.log(`[DirectStream] Correspondance trouvée: ${match.title} (${match.id})`);
-
-    // 4. Récupérer les infos détaillées du média trouvé (pour avoir les IDs d'épisodes internes)
-    const infoUrl = `${BASE_URL}/movies/flixhq/info?id=${match.id}`;
-    const infoRes = await axios.get(infoUrl, { timeout: 5000 });
-    const mediaInfo = infoRes.data;
-
-    let episodeId = '';
-
-    if (type === 'movie') {
-      episodeId = mediaInfo.episodes?.[0]?.id;
-    } else {
-      // Pour les séries, trouver la bonne saison et épisode
-      // FlixHQ structure: episodes: [{ id, number, season, title }]
-      const targetEp = mediaInfo.episodes?.find((e: any) => e.season === season && e.number === episode);
-      if (targetEp) episodeId = targetEp.id;
-    }
-
-    if (!episodeId) {
-      console.warn("[DirectStream] Épisode introuvable dans les infos FlixHQ.");
-      return null;
-    }
-
-    // 5. Récupérer le lien de streaming final
-    // FlixHQ requiert souvent mediaId ET episodeId
-    const watchUrl = `${BASE_URL}/movies/flixhq/watch?episodeId=${episodeId}&mediaId=${match.id}`;
-    const watchRes = await axios.get(watchUrl, { timeout: 8000 });
-    const sources = watchRes.data.sources;
-
-    if (!sources || sources.length === 0) return null;
-
-    const m3u8Source = sources.find((s: StreamSource) => s.quality === 'auto') || sources[0];
-
-    return {
-      url: m3u8Source.url,
-      referer: watchRes.data.headers?.Referer,
-      subtitles: watchRes.data.subtitles
-    };
-
-  } catch (error) {
-    console.error("[DirectStream] Erreur globale Stratégie 2:", error);
     return null;
-  }
+  };
+
+  // Exécution parallèle : On lance les deux, mais on priorise le résultat de la Stratégie 1 s'il arrive vite.
+  // Cependant, pour simplifier et être le plus rapide possible, on prend le premier qui réussit.
+  // Promise.any serait idéal mais on veut essayer S1, et si S1 fail, S2.
+  // Mais ici on veut la vitesse. Si S2 trouve avant S1, pourquoi pas ?
+  // Sauf que S1 est souvent de meilleure qualité (TMDB mapping).
+  
+  // On lance les deux en parallèle
+  const [res1, res2] = await Promise.allSettled([strategy1(), strategy2()]);
+
+  // On privilégie le résultat 1 s'il existe
+  if (res1.status === 'fulfilled' && res1.value) return res1.value;
+  if (res2.status === 'fulfilled' && res2.value) return res2.value;
+
+  return null;
 };

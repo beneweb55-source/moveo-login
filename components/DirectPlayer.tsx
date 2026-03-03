@@ -110,15 +110,18 @@ const DirectPlayer: React.FC<DirectPlayerProps> = ({ tmdbId, type, season, episo
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-black text-white gap-4 p-6 text-center">
         <AlertCircle className="w-12 h-12 text-red-500" />
-        <h3 className="text-lg font-bold">Oups !</h3>
-        <p className="text-zinc-400 max-w-md">{error}</p>
-        <p className="text-xs text-zinc-500 mt-2">Le serveur direct peut être surchargé ou le lien a expiré.</p>
+        <h3 className="text-lg font-bold">Flux direct indisponible</h3>
+        <p className="text-zinc-400 max-w-md text-sm">
+          {error}
+          <br/>
+          Ce contenu est peut-être trop récent (2025-2026) ou non hébergé sur nos serveurs rapides.
+        </p>
         <button 
           onClick={onClose}
-          className="mt-4 px-6 py-2 bg-[#E50914] hover:bg-red-700 text-white rounded-full font-medium transition-colors flex items-center gap-2"
+          className="mt-4 px-6 py-3 bg-[#E50914] hover:bg-red-700 text-white rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg shadow-red-900/20 animate-pulse"
         >
           <RefreshCw className="w-4 h-4" />
-          Utiliser les lecteurs standards
+          Basculer sur les lecteurs standards
         </button>
       </div>
     );
