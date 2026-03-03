@@ -287,6 +287,7 @@ export default function TvDetails() {
                         season={selectedSeason} 
                         episode={selectedEpisode}
                         title={data?.name}
+                        originalTitle={data?.original_name}
                         year={year ? String(year) : undefined}
                     />
                 </div>

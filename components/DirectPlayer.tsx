@@ -11,11 +11,12 @@ interface DirectPlayerProps {
   season?: number;
   episode?: number;
   title?: string;
+  originalTitle?: string;
   year?: string;
   onClose?: () => void; // Callback pour revenir au mode standard en cas d'erreur
 }
 
-const DirectPlayer: React.FC<DirectPlayerProps> = ({ tmdbId, type, season, episode, title, year, onClose }) => {
+const DirectPlayer: React.FC<DirectPlayerProps> = ({ tmdbId, type, season, episode, title, originalTitle, year, onClose }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +28,7 @@ const DirectPlayer: React.FC<DirectPlayerProps> = ({ tmdbId, type, season, episo
       setLoading(true);
       setError(null);
       try {
-        const result = await getDirectStreamUrl(tmdbId, type, season, episode, title, year);
+        const result = await getDirectStreamUrl(tmdbId, type, season, episode, title, originalTitle, year);
         
         if (!isMounted) return;
 
