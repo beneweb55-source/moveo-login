@@ -190,29 +190,29 @@ export const getDirectStreamUrl = async (
         }
       };
 
-      // 1. Essai par défaut
-      let watchData = await tryWatch();
-      
-      // 2. Si échec, essai avec UpCloud
-      if (!watchData || !watchData.sources || watchData.sources.length === 0) {
-        watchData = await tryWatch('upcloud');
-      }
+      // Liste des serveurs à tenter
+      const servers = [undefined, 'vidcloud', 'upcloud', 'vidstream', 'mixdrop', 'megacloud'];
+      let watchData = null;
 
-      // 3. Si échec, essai avec VidCloud
-      if (!watchData || !watchData.sources || watchData.sources.length === 0) {
-        watchData = await tryWatch('vidcloud');
+      for (const server of servers) {
+          watchData = await tryWatch(server);
+          if (watchData && watchData.sources && watchData.sources.length > 0) {
+              console.log(`[DirectStream] ${provider}: Succès sur serveur ${server || 'default'}`);
+              break;
+          }
+          // Petit délai pour ne pas spammer l'API
+          await new Promise(r => setTimeout(r, 300));
       }
 
       if (watchData && watchData.sources && watchData.sources.length > 0) {
         const m3u8Source = watchData.sources.find((s: StreamSource) => s.quality === 'auto') || watchData.sources[0];
-        console.log(`[DirectStream] ${provider}: Succès !`);
         return {
           url: m3u8Source.url,
           referer: watchData.headers?.Referer,
           subtitles: watchData.subtitles
         };
       } else {
-          console.warn(`[DirectStream] ${provider}: Sources vides pour ${bestMatch.title}`);
+          console.warn(`[DirectStream] ${provider}: Sources vides pour ${bestMatch.title} (après essai de tous les serveurs)`);
       }
     } catch (error) {
        console.warn(`[DirectStream] ${provider}: Erreur info/watch`);
