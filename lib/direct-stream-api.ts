@@ -100,7 +100,7 @@ export const getDirectStreamUrl = async (
     const searchAndFind = async (searchQuery: string) => {
       try {
         const searchUrl = `${BASE_URL}/movies/${provider}/${encodeURIComponent(searchQuery)}`;
-        const searchRes = await axios.get(searchUrl, { timeout: 6000 });
+        const searchRes = await axios.get(searchUrl, { timeout: 10000 });
         const searchResults = searchRes.data.results;
 
         if (!searchResults || searchResults.length === 0) {
@@ -128,11 +128,6 @@ export const getDirectStreamUrl = async (
           const rTitleClean = cleanTitle(r.title).toLowerCase();
           const tTitleClean = searchQuery.toLowerCase();
           const titleMatch = rTitleClean.includes(tTitleClean) || tTitleClean.includes(rTitleClean);
-
-          // Debug du premier échec si on ne trouve rien
-          // if (!typeMatch || !yearMatch || !titleMatch) {
-          //    console.log(`[DirectStream] ${provider} REJET: "${r.title}" (${rYear}, ${rType}) vs Target: "${targetTitle}" (${targetYear}, ${type})`);
-          // }
 
           return typeMatch && yearMatch && titleMatch;
         });
@@ -168,7 +163,7 @@ export const getDirectStreamUrl = async (
 
     try {
       const infoUrl = `${BASE_URL}/movies/${provider}/info?id=${bestMatch.id}`;
-      const infoRes = await axios.get(infoUrl, { timeout: 6000 });
+      const infoRes = await axios.get(infoUrl, { timeout: 10000 });
       const mediaInfo = infoRes.data;
 
       let episodeId = '';
@@ -188,7 +183,7 @@ export const getDirectStreamUrl = async (
       const tryWatch = async (server?: string) => {
         try {
             const url = `${BASE_URL}/movies/${provider}/watch?episodeId=${episodeId}&mediaId=${bestMatch.id}${server ? `&server=${server}` : ''}`;
-            const res = await axios.get(url, { timeout: 8000 });
+            const res = await axios.get(url, { timeout: 15000 });
             return res.data;
         } catch (e) {
             return null;
@@ -226,7 +221,7 @@ export const getDirectStreamUrl = async (
   };
 
   // Liste des providers à utiliser (basé sur la doc utilisateur)
-  const providers = ['flixhq', 'goku', 'sflix', 'himovies'];
+  const providers = ['flixhq', 'goku', 'sflix', 'himovies', 'zoechip', 'vidsrc'];
 
   // Exécution parallèle avec "Fastest Win" (Promise.any maison pour gérer les nulls)
   const strategies = [
