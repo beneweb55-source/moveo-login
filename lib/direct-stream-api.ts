@@ -4,6 +4,7 @@ import axios from 'axios';
 // Sera définie via la variable d'environnement NEXT_PUBLIC_CONSUMET_API_URL
 // Fallback sur l'URL fournie par l'utilisateur si la variable n'est pas définie
 const BASE_URL = process.env.NEXT_PUBLIC_CONSUMET_API_URL || "https://mon-api-stream.onrender.com";
+const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 
 interface StreamSource {
   url: string;
@@ -14,7 +15,13 @@ interface StreamSource {
 interface DirectStreamResult {
   url: string;
   referer?: string;
+  subtitles?: { url: string; lang: string }[];
 }
+
+// Fonction utilitaire pour nettoyer les titres pour la recherche (enlève les caractères spéciaux)
+const cleanTitle = (title: string) => {
+  return title.replace(/[:&]/g, '').replace(/\s+/g, ' ').trim();
+};
 
 export const getDirectStreamUrl = async (
   tmdbId: string, 
@@ -27,53 +34,136 @@ export const getDirectStreamUrl = async (
     return null;
   }
 
+  // --- STRATÉGIE 1 : Via meta/tmdb (Rapide mais peut échouer sur les IDs) ---
   try {
-    // 1. Recherche des infos du média via TMDB pour obtenir l'ID compatible Consumet
-    // On utilise le provider 'tmdb' de Consumet qui est un méta-provider fiable
+    console.log(`[DirectStream] Stratégie 1: meta/tmdb/${tmdbId}`);
     const infoUrl = `${BASE_URL}/meta/tmdb/${tmdbId}`;
-    
-    const infoResponse = await axios.get(infoUrl, { timeout: 10000 }); // Timeout 10s comme demandé
+    const infoResponse = await axios.get(infoUrl, { timeout: 5000 });
     const data = infoResponse.data;
+
+    let episodeId = '';
+    let mediaId = data.id; // Pour meta/tmdb, l'ID du média est souvent l'ID TMDB ou mappé
+
+    if (type === 'movie') {
+      episodeId = data.episodeId;
+    } else if (type === 'tv' && season && episode) {
+      const targetSeason = data.seasons?.find((s: any) => s.season === season);
+      const targetEpisode = targetSeason?.episodes?.find((e: any) => e.episode === episode);
+      if (targetEpisode) episodeId = targetEpisode.id;
+    }
+
+    if (episodeId) {
+      const watchUrl = `${BASE_URL}/meta/tmdb/watch/${episodeId}`;
+      const watchResponse = await axios.get(watchUrl, { timeout: 8000 });
+      const sources = watchResponse.data.sources;
+
+      if (sources && sources.length > 0) {
+        const m3u8Source = sources.find((s: StreamSource) => s.quality === 'auto') || sources[0];
+        return {
+          url: m3u8Source.url,
+          referer: watchResponse.data.headers?.Referer,
+          subtitles: watchResponse.data.subtitles
+        };
+      }
+    }
+  } catch (error) {
+    console.warn("[DirectStream] Stratégie 1 échouée, passage à la Stratégie 2 (Fallback FlixHQ)");
+  }
+
+  // --- STRATÉGIE 2 : Fallback via Recherche FlixHQ (Plus robuste pour les IDs) ---
+  try {
+    if (!TMDB_API_KEY) {
+      console.warn("[DirectStream] Pas de clé TMDB, impossible d'utiliser le fallback.");
+      return null;
+    }
+
+    // 1. Récupérer le titre exact et l'année via TMDB officiel
+    const tmdbDetailsUrl = `https://api.themoviedb.org/3/${type}/${tmdbId}?api_key=${TMDB_API_KEY}&language=en-US`;
+    const tmdbRes = await axios.get(tmdbDetailsUrl);
+    const title = tmdbRes.data.title || tmdbRes.data.name;
+    const year = (tmdbRes.data.release_date || tmdbRes.data.first_air_date)?.split('-')[0];
+    const originalTitle = tmdbRes.data.original_title || tmdbRes.data.original_name;
+
+    console.log(`[DirectStream] Stratégie 2: Recherche FlixHQ pour "${title}" (${year})`);
+
+    // 2. Rechercher sur FlixHQ via Consumet
+    // On essaie d'abord avec le titre anglais, puis original si différent
+    let searchResults = [];
+    try {
+      const searchUrl = `${BASE_URL}/movies/flixhq/${encodeURIComponent(cleanTitle(title))}`;
+      const searchRes = await axios.get(searchUrl, { timeout: 5000 });
+      searchResults = searchRes.data.results;
+    } catch (e) {
+      // Si la recherche échoue, on continue
+    }
+
+    if ((!searchResults || searchResults.length === 0) && originalTitle && originalTitle !== title) {
+       try {
+        const searchUrl = `${BASE_URL}/movies/flixhq/${encodeURIComponent(cleanTitle(originalTitle))}`;
+        const searchRes = await axios.get(searchUrl, { timeout: 5000 });
+        searchResults = searchRes.data.results;
+       } catch (e) {}
+    }
+
+    if (!searchResults || searchResults.length === 0) {
+      console.warn("[DirectStream] Aucun résultat trouvé sur FlixHQ.");
+      return null;
+    }
+
+    // 3. Filtrer pour trouver le bon média (Année + Titre proche)
+    // FlixHQ retourne 'releaseDate' ou 'type'
+    const match = searchResults.find((r: any) => {
+      const rYear = r.releaseDate?.split('-')[0] || r.releaseDate;
+      // Correspondance stricte sur l'année si disponible, sinon on prend le premier résultat pertinent
+      return rYear === year || (r.type === (type === 'movie' ? 'Movie' : 'TV Series') && r.title.toLowerCase().includes(title.toLowerCase()));
+    });
+
+    if (!match) {
+      console.warn("[DirectStream] Pas de correspondance exacte trouvée.");
+      return null;
+    }
+
+    console.log(`[DirectStream] Correspondance trouvée: ${match.title} (${match.id})`);
+
+    // 4. Récupérer les infos détaillées du média trouvé (pour avoir les IDs d'épisodes internes)
+    const infoUrl = `${BASE_URL}/movies/flixhq/info?id=${match.id}`;
+    const infoRes = await axios.get(infoUrl, { timeout: 5000 });
+    const mediaInfo = infoRes.data;
 
     let episodeId = '';
 
     if (type === 'movie') {
-      // Pour un film, l'episodeId est souvent le même que l'ID du film dans la réponse
-      episodeId = data.episodeId || data.id;
-    } else if (type === 'tv' && season && episode) {
-      // Pour une série, il faut trouver l'épisode spécifique
-      const targetSeason = data.seasons?.find((s: any) => s.season === season);
-      const targetEpisode = targetSeason?.episodes?.find((e: any) => e.episode === episode);
-      
-      if (targetEpisode) {
-        episodeId = targetEpisode.id;
-      }
+      episodeId = mediaInfo.episodes?.[0]?.id;
+    } else {
+      // Pour les séries, trouver la bonne saison et épisode
+      // FlixHQ structure: episodes: [{ id, number, season, title }]
+      const targetEp = mediaInfo.episodes?.find((e: any) => e.season === season && e.number === episode);
+      if (targetEp) episodeId = targetEp.id;
     }
 
     if (!episodeId) {
-      console.warn("Direct Stream API: Impossible de trouver l'ID de l'épisode/film.");
+      console.warn("[DirectStream] Épisode introuvable dans les infos FlixHQ.");
       return null;
     }
 
-    // 2. Récupération des sources de streaming
-    const watchUrl = `${BASE_URL}/meta/tmdb/watch/${episodeId}`;
-    const watchResponse = await axios.get(watchUrl, { timeout: 10000 });
-    const sources = watchResponse.data.sources;
+    // 5. Récupérer le lien de streaming final
+    // FlixHQ requiert souvent mediaId ET episodeId
+    const watchUrl = `${BASE_URL}/movies/flixhq/watch?episodeId=${episodeId}&mediaId=${match.id}`;
+    const watchRes = await axios.get(watchUrl, { timeout: 8000 });
+    const sources = watchRes.data.sources;
 
-    if (!sources || sources.length === 0) {
-      return null;
-    }
+    if (!sources || sources.length === 0) return null;
 
-    // On cherche de préférence une source M3U8 (HLS) et la meilleure qualité "auto" ou la plus haute
     const m3u8Source = sources.find((s: StreamSource) => s.quality === 'auto') || sources[0];
 
     return {
       url: m3u8Source.url,
-      referer: watchResponse.data.headers?.Referer
+      referer: watchRes.data.headers?.Referer,
+      subtitles: watchRes.data.subtitles
     };
 
   } catch (error) {
-    console.error("Direct Stream API Error:", error);
+    console.error("[DirectStream] Erreur globale Stratégie 2:", error);
     return null;
   }
 };
