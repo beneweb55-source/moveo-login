@@ -103,7 +103,12 @@ export const getDirectStreamUrl = async (
         const searchRes = await axios.get(searchUrl, { timeout: 6000 });
         const searchResults = searchRes.data.results;
 
-        if (!searchResults || searchResults.length === 0) return null;
+        if (!searchResults || searchResults.length === 0) {
+            console.log(`[DirectStream] ${provider}: 0 résultat pour "${searchQuery}"`);
+            return null;
+        }
+
+        console.log(`[DirectStream] ${provider}: ${searchResults.length} résultats pour "${searchQuery}". Analyse...`);
 
         // Filtrage intelligent
         const match = searchResults.find((r: any) => {
@@ -124,11 +129,22 @@ export const getDirectStreamUrl = async (
           const tTitleClean = searchQuery.toLowerCase();
           const titleMatch = rTitleClean.includes(tTitleClean) || tTitleClean.includes(rTitleClean);
 
+          // Debug du premier échec si on ne trouve rien
+          // if (!typeMatch || !yearMatch || !titleMatch) {
+          //    console.log(`[DirectStream] ${provider} REJET: "${r.title}" (${rYear}, ${rType}) vs Target: "${targetTitle}" (${targetYear}, ${type})`);
+          // }
+
           return typeMatch && yearMatch && titleMatch;
         });
 
+        if (!match && searchResults.length > 0) {
+             const first = searchResults[0];
+             console.log(`[DirectStream] ${provider}: Aucun match parmi ${searchResults.length} résultats. Ex (1er): "${first.title}" (${first.releaseDate}, ${first.type})`);
+        }
+
         return match || null;
       } catch (e) {
+        console.warn(`[DirectStream] ${provider}: Erreur recherche (${e instanceof Error ? e.message : 'Unknown'})`);
         return null;
       }
     };
@@ -163,7 +179,10 @@ export const getDirectStreamUrl = async (
         if (targetEp) episodeId = targetEp.id;
       }
 
-      if (!episodeId) return null;
+      if (!episodeId) {
+          console.warn(`[DirectStream] ${provider}: Pas d'épisode trouvé pour S${season} E${episode} (MediaID: ${bestMatch.id})`);
+          return null;
+      }
 
       // Fonction helper pour tenter de lire le flux avec retry sur les serveurs
       const tryWatch = async (server?: string) => {
@@ -197,9 +216,11 @@ export const getDirectStreamUrl = async (
           referer: watchData.headers?.Referer,
           subtitles: watchData.subtitles
         };
+      } else {
+          console.warn(`[DirectStream] ${provider}: Sources vides pour ${bestMatch.title}`);
       }
     } catch (error) {
-       // Error handling
+       console.warn(`[DirectStream] ${provider}: Erreur info/watch`);
     }
     return null;
   };
@@ -207,18 +228,38 @@ export const getDirectStreamUrl = async (
   // Liste des providers à utiliser (basé sur la doc utilisateur)
   const providers = ['flixhq', 'goku', 'sflix', 'himovies'];
 
-  // Exécution parallèle : On lance TMDB + tous les providers
+  // Exécution parallèle avec "Fastest Win" (Promise.any maison pour gérer les nulls)
   const strategies = [
       strategy1(),
       ...providers.map(p => runProviderStrategy(p))
   ];
 
-  const results = await Promise.allSettled(strategies);
+  // Helper pour retourner le premier résultat non-null rapidement
+  const asyncSome = (promises: Promise<DirectStreamResult | null>[]): Promise<DirectStreamResult | null> => {
+    return new Promise((resolve) => {
+        let finishedCount = 0;
+        let resolved = false;
+        
+        if (promises.length === 0) resolve(null);
 
-  // On retourne le premier résultat positif
-  for (const res of results) {
-      if (res.status === 'fulfilled' && res.value) return res.value;
-  }
+        promises.forEach(p => {
+            p.then(val => {
+                if (resolved) return;
+                if (val !== null) {
+                    resolved = true;
+                    resolve(val);
+                } else {
+                    finishedCount++;
+                    if (finishedCount === promises.length) resolve(null);
+                }
+            }).catch(() => {
+                if (resolved) return;
+                finishedCount++;
+                if (finishedCount === promises.length) resolve(null);
+            });
+        });
+    });
+  };
 
-  return null;
+  return asyncSome(strategies);
 };
