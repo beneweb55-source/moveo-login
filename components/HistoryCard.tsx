@@ -14,7 +14,7 @@ const HistoryCard = ({ item }: HistoryCardProps) => {
   const router = useRouter();
 
   const posterUrl = item.poster_path
-    ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
+    ? (item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`)
     : "https://picsum.photos/seed/poster/400/600";
 
   const handleResume = (e: React.MouseEvent) => {

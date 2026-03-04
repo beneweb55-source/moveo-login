@@ -290,6 +290,7 @@ export default function TvDetails() {
                         originalTitle={data?.original_name}
                         year={year ? String(year) : undefined}
                         genres={data?.genres}
+                        posterPath={data?.poster_path}
                     />
                 </div>
             </div>

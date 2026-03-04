@@ -217,6 +217,7 @@ export default function MovieDetails() {
                         originalTitle={data?.original_title}
                         year={year ? String(year) : undefined}
                         genres={data?.genres}
+                        posterPath={data?.poster_path}
                     />
                 </div>
             </div>
