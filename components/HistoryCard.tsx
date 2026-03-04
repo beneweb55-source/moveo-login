@@ -34,7 +34,7 @@ const HistoryCard = ({ item }: HistoryCardProps) => {
           src={posterUrl}
           alt={item.title}
           fill
-          className="object-cover transition-transform duration-300 ease-in-out opacity-80 group-hover/card:opacity-100"
+          className="object-cover transition-transform duration-300 ease-in-out group-hover/card:scale-105"
           referrerPolicy="no-referrer"
         />
         
