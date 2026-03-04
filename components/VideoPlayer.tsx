@@ -100,25 +100,26 @@ const SERVERS = [
   },
 ];
 
-// Fonction utilitaire de test (Pre-Flight Check)
+// Fonction utilitaire de test (Pre-Flight Check via API Route)
 const checkServerHealth = async (url: string): Promise<boolean> => {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5s timeout pour être rapide
+    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout global pour l'appel API
 
-    const response = await fetch(url, {
-      method: 'HEAD', // Plus léger que GET
-      mode: 'no-cors', // Indispensable pour les iframes cross-origin
+    // On passe par notre route API pour contourner les problèmes de CORS et avoir un vrai status code
+    const response = await fetch(`/api/check-server?url=${encodeURIComponent(url)}`, {
       signal: controller.signal,
     });
     
     clearTimeout(timeoutId);
-    // En mode no-cors, on ne peut pas lire le status (c'est opaque),
-    // mais si ça ne throw pas, c'est que le serveur a répondu (même une 404).
-    // C'est le mieux qu'on puisse faire sans proxy server-side.
-    return true;
+
+    if (response.ok) {
+      const data = await response.json();
+      return data.status === 'ok';
+    }
+    
+    return false;
   } catch (error) {
-    // Erreur réseau, timeout, ou DNS failure
     return false;
   }
 };
@@ -129,7 +130,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
   const [checkingServerName, setCheckingServerName] = useState<string>("");
   const [allServersFailed, setAllServersFailed] = useState(false);
 
-  // Logique de sélection intelligente au montage
+  // Logique de sélection intelligente au montage (Parallélisée)
   useEffect(() => {
     let isMounted = true;
 
@@ -150,28 +151,42 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
         }
       }
 
-      // 2. Tester les serveurs un par un
-      for (const index of serverOrder) {
+      // 2. Tester les serveurs par lots (Batch processing) pour plus de rapidité
+      const BATCH_SIZE = 3;
+      
+      for (let i = 0; i < serverOrder.length; i += BATCH_SIZE) {
         if (!isMounted) return;
+
+        const batchIndices = serverOrder.slice(i, i + BATCH_SIZE);
+        const batchServers = batchIndices.map(index => SERVERS[index]);
         
-        const server = SERVERS[index];
-        setCheckingServerName(server.name);
+        setCheckingServerName(batchServers.map(s => s.name).join(", "));
 
-        const url = server.url(type, id, season, episode);
-        const isHealthy = await checkServerHealth(url);
+        // Lancer les tests en parallèle pour ce lot
+        const promises = batchIndices.map(async (index) => {
+          const server = SERVERS[index];
+          const url = server.url(type, id, season, episode);
+          const isHealthy = await checkServerHealth(url);
+          return { index, isHealthy, name: server.name };
+        });
 
-        if (isHealthy) {
+        const results = await Promise.all(promises);
+
+        // Trouver le premier serveur valide dans ce lot (en respectant l'ordre de priorité original du lot)
+        const validResult = results.find(r => r.isHealthy);
+
+        if (validResult) {
           if (!isMounted) return;
           
-          console.log(`[SmartPlayer] Serveur validé : ${server.name}`);
-          setCurrentServer(index);
+          console.log(`[SmartPlayer] Serveur validé (Batch) : ${validResult.name}`);
+          setCurrentServer(validResult.index);
           setIsChecking(false);
           
           // Sauvegarder ce serveur comme fonctionnel pour la prochaine fois
-          localStorage.setItem("preferredServer", server.name);
+          localStorage.setItem("preferredServer", validResult.name);
           return; // On a trouvé, on arrête tout
         } else {
-          console.warn(`[SmartPlayer] Serveur échoué : ${server.name}`);
+          console.warn(`[SmartPlayer] Lot échoué : ${batchServers.map(s => s.name).join(", ")}`);
         }
       }
 
