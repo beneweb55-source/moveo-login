@@ -25,15 +25,6 @@ const SERVERS = [
         : `https://vidsrc.to/embed/tv/${id}/${s}/${e}`,
   },
   {
-    name: "VidSrc.rip",
-    group: "Recommended",
-    icon: Server,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://vidsrc.rip/embed/movie/${id}`
-        : `https://vidsrc.rip/embed/tv/${id}/${s}/${e}`,
-  },
-  {
     name: "VidSrc.me",
     group: "Recommended",
     icon: Globe,
