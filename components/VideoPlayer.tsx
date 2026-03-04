@@ -42,11 +42,21 @@ const SERVERS = [
         ? `https://www.2embed.cc/embed/${id}`
         : `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
   },
+  {
+    name: "AutoEmbed",
+    group: "Recommended",
+    icon: Server,
+    url: (type: string, id: string, s?: number, e?: number) =>
+      type === "movie"
+        ? `https://player.autoembed.cc/embed/movie/${id}`
+        : `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
+  },
   // --- GROUPE 2 : Nouveaux challengers ---
   {
     name: "VidLink",
     group: "Alternative",
     icon: Zap,
+    warning: "Désactivez Adblock pour ce lecteur",
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
         ? `https://vidlink.pro/movie/${id}`
@@ -61,15 +71,6 @@ const SERVERS = [
         ? `https://embed.smashystream.com/playere.php?tmdb=${id}`
         : `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${s}&episode=${e}`,
   },
-  {
-    name: "VidBinge",
-    group: "Alternative",
-    icon: Film,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://vidbinge.dev/embed/movie/${id}`
-        : `https://vidbinge.dev/embed/tv/${id}/${s}/${e}`,
-  },
   // --- GROUPE 3 : Les Anciens ---
   {
     name: "MoviesAPI",
@@ -79,15 +80,6 @@ const SERVERS = [
       type === "movie"
         ? `https://moviesapi.club/movie/${id}`
         : `https://moviesapi.club/tv/${id}-${s}-${e}`,
-  },
-  {
-    name: "AutoEmbed",
-    group: "Legacy",
-    icon: Server,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://player.autoembed.cc/embed/movie?tmdb=${id}`
-        : `https://player.autoembed.cc/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
 ];
 
@@ -120,6 +112,40 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
   const [isChecking, setIsChecking] = useState(true);
   const [checkingServerName, setCheckingServerName] = useState<string>("");
   const [allServersFailed, setAllServersFailed] = useState(false);
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [isSwitching, setIsSwitching] = useState(false);
+
+  // Watchdog pour surveiller le chargement de l'iframe
+  useEffect(() => {
+    if (currentServer === null || isChecking || iframeLoaded) return;
+
+    const timeoutId = setTimeout(() => {
+      // Si après 6s l'iframe n'a pas chargé, on passe au suivant
+      console.warn(`[SmartPlayer] Timeout (6s) sur le serveur ${SERVERS[currentServer].name}. Changement automatique...`);
+      setIsSwitching(true);
+      
+      // Petit délai pour afficher le message avant de changer
+      setTimeout(() => {
+        const nextIndex = (currentServer + 1) % SERVERS.length;
+        // On évite de boucler à l'infini si on revient au début et qu'on a déjà tout testé, 
+        // mais ici on suppose que le pre-flight a déjà filtré les morts.
+        // On passe juste au suivant dans la liste.
+        setCurrentServer(nextIndex);
+        localStorage.setItem("preferredServer", SERVERS[nextIndex].name);
+        setIsSwitching(false);
+        setIframeLoaded(false); // Reset pour le nouveau serveur
+      }, 1500);
+
+    }, 6000);
+
+    return () => clearTimeout(timeoutId);
+  }, [currentServer, isChecking, iframeLoaded]);
+
+  // Reset iframeLoaded quand on change de serveur manuellement ou automatiquement
+  useEffect(() => {
+    setIframeLoaded(false);
+    setIsSwitching(false);
+  }, [currentServer]);
 
   // Logique de sélection intelligente au montage (Parallélisée)
   useEffect(() => {
@@ -129,6 +155,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
       setIsChecking(true);
       setAllServersFailed(false);
       setCurrentServer(null);
+      setIframeLoaded(false);
 
       // 1. Récupérer la préférence utilisateur
       const savedServerName = localStorage.getItem("preferredServer");
@@ -210,6 +237,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
           </div>
         )}
 
+        {/* CAS 1.5 : Changement automatique (Watchdog) */}
+        {isSwitching && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-sm text-white transition-all duration-300">
+            <Loader2 className="w-10 h-10 text-orange-500 animate-spin mb-3" />
+            <h3 className="text-lg font-bold text-orange-500">Serveur lent détecté</h3>
+            <p className="text-zinc-300 text-sm mt-1">Changement automatique vers une autre source...</p>
+          </div>
+        )}
+
         {/* CAS 2 : Tous les serveurs ont échoué */}
         {!isChecking && allServersFailed && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950 text-white p-6 text-center">
@@ -223,13 +259,38 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
 
         {/* CAS 3 : Serveur trouvé et validé */}
         {!isChecking && currentServer !== null && (
-          <iframe
-            src={videoUrl}
-            className="w-full h-full"
-            allowFullScreen
-            referrerPolicy="no-referrer"
-            title="Video Player"
-          />
+          <>
+            {SERVERS[currentServer].warning && (
+              <div className="absolute top-0 left-0 right-0 z-10 bg-yellow-500/90 text-black text-xs font-bold px-4 py-2 text-center backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-500">
+                ⚠️ {SERVERS[currentServer].warning}
+              </div>
+            )}
+            <iframe
+              src={videoUrl}
+              className="w-full h-full"
+              allowFullScreen
+              referrerPolicy="no-referrer"
+              title="Video Player"
+              onLoad={() => {
+                console.log(`[SmartPlayer] Iframe chargée pour ${SERVERS[currentServer].name}`);
+                setIframeLoaded(true);
+              }}
+              onError={() => {
+                 // Note: onError ne se déclenche pas souvent pour les iframes cross-origin, 
+                 // mais on le met au cas où.
+                 console.error(`[SmartPlayer] Erreur iframe pour ${SERVERS[currentServer].name}`);
+                 // On force le switch immédiatement
+                 setIsSwitching(true);
+                 setTimeout(() => {
+                   const nextIndex = (currentServer + 1) % SERVERS.length;
+                   setCurrentServer(nextIndex);
+                   localStorage.setItem("preferredServer", SERVERS[nextIndex].name);
+                   setIsSwitching(false);
+                   setIframeLoaded(false);
+                 }, 1000);
+              }}
+            />
+          </>
         )}
       </div>
 
