@@ -180,6 +180,8 @@ const Header = () => {
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/")}>{t.nav.home}</li>
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/animes")}>Animes</li>
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/kdrama")}>K-Dramas</li>
           {user && (
             <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/my-list")}>My List</li>
           )}
@@ -407,6 +409,8 @@ const Header = () => {
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/"); setMobileMenu(false); }}>{t.nav.home}</li>
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
+              <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/animes"); setMobileMenu(false); }}>Animes</li>
+              <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/kdrama"); setMobileMenu(false); }}>K-Dramas</li>
               {user && (
                 <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/my-list"); setMobileMenu(false); }}>My List</li>
               )}

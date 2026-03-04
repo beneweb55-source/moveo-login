@@ -6,6 +6,7 @@ import HeroBanner from "@/components/HeroBanner";
 import FeaturedGrid from "@/components/FeaturedGrid";
 import Carousel from "@/components/Carousel";
 import CTA from "@/components/CTA";
+import HistorySection from "@/components/HistorySection";
 import { fetchDataFromApi } from "@/utils/api";
 import { getApiConfiguration, getGenres } from "@/store/homeSlice";
 import { useLanguage } from "@/context/LanguageContext";
@@ -83,6 +84,8 @@ export default function Home() {
         
         {/* Other Sections - Carousels */}
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+          <HistorySection />
+
           <Carousel 
             title={t.home.top10} 
             data={topFrance.slice(0, 10)} 

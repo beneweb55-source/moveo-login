@@ -5,11 +5,12 @@ import MovieCard from "./MovieCard";
 interface CarouselProps {
   data: any[];
   loading: boolean;
-  endpoint: string;
+  endpoint?: string;
   title?: string;
+  renderItem?: (item: any) => React.ReactNode;
 }
 
-const Carousel = ({ data, loading, endpoint, title }: CarouselProps) => {
+const Carousel = ({ data, loading, endpoint, title, renderItem }: CarouselProps) => {
   const carouselContainer = useRef<HTMLDivElement>(null);
 
   const navigation = (dir: string) => {
@@ -65,7 +66,7 @@ const Carousel = ({ data, loading, endpoint, title }: CarouselProps) => {
           >
             {data?.map((item) => (
               <div key={item.id} className="w-[140px] md:w-[calc(25%-18px)] lg:w-[calc(20%-19px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
-                <MovieCard data={item} mediaType={endpoint} />
+                {renderItem ? renderItem(item) : <MovieCard data={item} mediaType={endpoint} />}
               </div>
             ))}
           </div>

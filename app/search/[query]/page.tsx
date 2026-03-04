@@ -9,6 +9,8 @@ import MovieCard from "@/components/MovieCard";
 import Spinner from "@/components/Spinner";
 import { useLanguage } from "@/context/LanguageContext";
 
+import { motion } from "motion/react";
+
 const SearchResult = () => {
   const [data, setData] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
@@ -60,7 +62,7 @@ const SearchResult = () => {
                 {t.search.resultsFor} &apos;{decodeURIComponent(query as string)}&apos;
               </div>
               <InfiniteScroll
-                className="flex flex-wrap gap-4 md:gap-5"
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8"
                 dataLength={data?.results?.length || []}
                 next={fetchNextPageData}
                 hasMore={pageNum <= data?.total_pages}
@@ -69,10 +71,16 @@ const SearchResult = () => {
                 {data?.results.map((item: any, index: number) => {
                   if (item.media_type === "person") return null;
                   return (
-                    <MovieCard
-                      key={item.id || index}
-                      data={item}
-                    />
+                    <motion.div
+                      key={`${item.id}-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index % 10 * 0.05 }}
+                    >
+                      <MovieCard
+                        data={item}
+                      />
+                    </motion.div>
                   );
                 })}
               </InfiniteScroll>

@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ExternalLink, Server, Zap, Globe, Film, Loader2, AlertCircle } from "lucide-react";
+
+import { saveWatchHistory, getWatchHistory } from "@/utils/historyManager";
 
 interface VideoPlayerProps {
   id: string;
@@ -11,6 +13,8 @@ interface VideoPlayerProps {
   title?: string;
   originalTitle?: string;
   year?: string;
+  genres?: { id: number; name: string }[];
+  posterPath?: string;
 }
 
 const SERVERS = [
@@ -107,13 +111,15 @@ const checkServerHealth = async (url: string): Promise<boolean> => {
   }
 };
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, genres, title, posterPath }) => {
   const [currentServer, setCurrentServer] = useState<number | null>(null);
   const [isChecking, setIsChecking] = useState(true);
   const [checkingServerName, setCheckingServerName] = useState<string>("");
   const [allServersFailed, setAllServersFailed] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
+
+  const isAnime = genres?.some(g => g.id === 16);
 
   // Watchdog pour surveiller le chargement de l'iframe
   useEffect(() => {
@@ -142,10 +148,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
   }, [currentServer, isChecking, iframeLoaded]);
 
   // Reset iframeLoaded quand on change de serveur manuellement ou automatiquement
-  useEffect(() => {
-    setIframeLoaded(false);
-    setIsSwitching(false);
-  }, [currentServer]);
+  // useEffect(() => {
+  //   setIframeLoaded(false);
+  //   setIsSwitching(false);
+  // }, [currentServer]);
 
   // Logique de sélection intelligente au montage (Parallélisée)
   useEffect(() => {
@@ -157,8 +163,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
       setCurrentServer(null);
       setIframeLoaded(false);
 
-      // 1. Récupérer la préférence utilisateur
-      const savedServerName = localStorage.getItem("preferredServer");
+      // 1. Récupérer la préférence utilisateur (Historique spécifique > Préférence globale)
+      const history = getWatchHistory();
+      const historyItem = history.find((item) => item.id === id);
+      const savedServerName = historyItem?.provider || localStorage.getItem("preferredServer");
+      
       let serverOrder = [...SERVERS.map((_, i) => i)]; // Liste des index [0, 1, 2...]
 
       // Si une préférence existe, on la met en premier dans la liste à tester
@@ -202,6 +211,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
           
           // Sauvegarder ce serveur comme fonctionnel pour la prochaine fois
           localStorage.setItem("preferredServer", validResult.name);
+          
+          // Sauvegarder dans l'historique
+          if (title) {
+            saveWatchHistory({
+              id,
+              type,
+              title,
+              poster_path: posterPath || "",
+              season,
+              episode,
+              provider: validResult.name,
+              last_watched: Date.now(),
+            });
+          }
+          
           return; // On a trouvé, on arrête tout
         } else {
           console.warn(`[SmartPlayer] Lot échoué : ${batchServers.map(s => s.name).join(", ")}`);
@@ -219,7 +243,83 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
     findBestServer();
 
     return () => { isMounted = false; };
-  }, [id, type, season, episode]);
+  }, [id, type, season, episode, title, posterPath]);
+
+  const lastSaveTime = useRef(0);
+
+  // Listen for messages from iframe (for progress tracking)
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.data) return;
+      
+      // Try to extract currentTime and duration from various common formats
+      let currentTime = 0;
+      let duration = 0;
+      let eventType = "";
+
+      // Format 1: { event: "timeupdate", data: { currentTime, duration } }
+      if (event.data.event === "timeupdate" && event.data.data) {
+        currentTime = event.data.data.currentTime;
+        duration = event.data.data.duration;
+        eventType = "timeupdate";
+      }
+      // Format 2: { type: "MEDIA_DATA", data: { currentTime, duration } }
+      else if (event.data.type === "MEDIA_DATA" && event.data.data) {
+        currentTime = event.data.data.currentTime;
+        duration = event.data.data.duration;
+        eventType = "timeupdate";
+      }
+      // Format 3: { type: "timeupdate", currentTime, duration } (Direct)
+      else if (event.data.type === "timeupdate") {
+        currentTime = event.data.currentTime;
+        duration = event.data.duration;
+        eventType = "timeupdate";
+      }
+
+      if (eventType === "timeupdate" && duration > 0 && title && currentServer !== null) {
+        const now = Date.now();
+        // Throttle updates to every 5 seconds
+        if (now - lastSaveTime.current > 5000) {
+          saveWatchHistory({
+            id,
+            type,
+            title,
+            poster_path: posterPath || "",
+            season,
+            episode,
+            provider: SERVERS[currentServer].name,
+            last_watched: now,
+            timestamp: currentTime,
+            duration: duration
+          });
+          lastSaveTime.current = now;
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [id, type, title, posterPath, season, episode, currentServer]);
+
+  // Mettre à jour l'historique périodiquement (toutes les minutes) pour le "last_watched"
+  useEffect(() => {
+    if (currentServer === null || !title) return;
+
+    const interval = setInterval(() => {
+      saveWatchHistory({
+        id,
+        type,
+        title,
+        poster_path: posterPath || "",
+        season,
+        episode,
+        provider: SERVERS[currentServer].name,
+        last_watched: Date.now(),
+      });
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [currentServer, id, type, title, posterPath, season, episode]);
 
   const videoUrl = currentServer !== null ? SERVERS[currentServer].url(type, id, season, episode) : "";
 
@@ -252,7 +352,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
             <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
             <h3 className="text-xl font-bold mb-2">Aucune source disponible</h3>
             <p className="text-zinc-400 max-w-md mb-6">
-              Désolé, aucun serveur de lecture n'est accessible pour ce contenu actuellement.
+              Désolé, aucun serveur de lecture n&apos;est accessible pour ce contenu actuellement.
             </p>
           </div>
         )}
@@ -330,6 +430,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
                   onClick={() => {
                     setCurrentServer(index);
                     localStorage.setItem("preferredServer", server.name);
+                    setIframeLoaded(false);
+                    setIsSwitching(false);
                   }}
                   className={`
                     relative flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-300
@@ -364,9 +466,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
                   onClick={() => {
                     setCurrentServer(index);
                     localStorage.setItem("preferredServer", server.name);
+                    setIframeLoaded(false);
+                    setIsSwitching(false);
                   }}
                   className={`
-                    flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-medium text-xs transition-all duration-300
+                    relative flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-medium text-xs transition-all duration-300
                     ${isActive 
                       ? "bg-zinc-800 text-white border border-[#E50914] shadow-[0_0_15px_rgba(229,9,20,0.15)]" 
                       : "bg-zinc-900/50 text-zinc-500 border border-zinc-800/50 hover:bg-zinc-900 hover:text-zinc-300 hover:border-zinc-700"
@@ -374,6 +478,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) 
                   `}
                 >
                   {server.name}
+                  {server.name === "VidLink" && isAnime && (
+                    <span className="absolute -top-2 -right-2 bg-[#E50914] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-20">
+                      VOSTFR
+                    </span>
+                  )}
                 </button>
               );
             })}

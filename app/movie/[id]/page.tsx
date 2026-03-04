@@ -216,6 +216,7 @@ export default function MovieDetails() {
                         title={data?.title}
                         originalTitle={data?.original_title}
                         year={year ? String(year) : undefined}
+                        genres={data?.genres}
                     />
                 </div>
             </div>
