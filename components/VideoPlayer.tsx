@@ -42,6 +42,15 @@ const SERVERS = [
         ? `https://vidsrc.me/embed/movie?tmdb=${id}`
         : `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
+  {
+    name: "2Embed",
+    group: "Recommended",
+    icon: Globe,
+    url: (type: string, id: string, s?: number, e?: number) =>
+      type === "movie"
+        ? `https://www.2embed.cc/embed/${id}`
+        : `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
+  },
   // --- GROUPE 2 : Nouveaux challengers ---
   {
     name: "VidLink",
