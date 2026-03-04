@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { ExternalLink, Server, Zap, Globe, Film, Rocket, AlertCircle, CheckCircle } from "lucide-react";
-import DirectPlayer from "./DirectPlayer";
+import React, { useState, useEffect } from "react";
+import { ExternalLink, Server, Zap, Globe, Film, Loader2, AlertCircle } from "lucide-react";
 
 interface VideoPlayerProps {
   id: string;
@@ -15,7 +14,7 @@ interface VideoPlayerProps {
 }
 
 const SERVERS = [
-  // --- PRIORITÉ 1 : Les Leaders ---
+  // --- GROUPE 1 : Les Plus Fiables ---
   {
     name: "VidSrc.to",
     group: "Recommended",
@@ -26,6 +25,15 @@ const SERVERS = [
         : `https://vidsrc.to/embed/tv/${id}/${s}/${e}`,
   },
   {
+    name: "VidSrc.rip",
+    group: "Recommended",
+    icon: Server,
+    url: (type: string, id: string, s?: number, e?: number) =>
+      type === "movie"
+        ? `https://vidsrc.rip/embed/movie/${id}`
+        : `https://vidsrc.rip/embed/tv/${id}/${s}/${e}`,
+  },
+  {
     name: "VidSrc.me",
     group: "Recommended",
     icon: Globe,
@@ -34,25 +42,7 @@ const SERVERS = [
         ? `https://vidsrc.me/embed/movie?tmdb=${id}`
         : `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
-  {
-    name: "2Embed",
-    group: "Recommended",
-    icon: Server,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://www.2embed.cc/embed/${id}`
-        : `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
-  },
-  // --- PRIORITÉ 2 : Les Alternatives ---
-  {
-    name: "VidSrc.rip",
-    group: "Alternative",
-    icon: Server,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://vidsrc.rip/embed/movie/${id}`
-        : `https://vidsrc.rip/embed/tv/${id}/${s}/${e}`,
-  },
+  // --- GROUPE 2 : Nouveaux challengers ---
   {
     name: "VidLink",
     group: "Alternative",
@@ -80,7 +70,7 @@ const SERVERS = [
         ? `https://vidbinge.dev/embed/movie/${id}`
         : `https://vidbinge.dev/embed/tv/${id}/${s}/${e}`,
   },
-  // --- PRIORITÉ 3 : Les Anciens ---
+  // --- GROUPE 3 : Les Anciens ---
   {
     name: "MoviesAPI",
     group: "Legacy",
@@ -101,127 +91,130 @@ const SERVERS = [
   },
 ];
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, title, originalTitle, year }) => {
-  const [currentServer, setCurrentServer] = useState(0);
-  const [isDirectMode, setIsDirectMode] = useState(false);
-  const [failedServers, setFailedServers] = useState<number[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [autoSwitchEnabled, setAutoSwitchEnabled] = useState(true);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+// Fonction utilitaire de test (Pre-Flight Check)
+const checkServerHealth = async (url: string): Promise<boolean> => {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500); // 2.5s timeout pour être rapide
 
-  // 1. Initialisation intelligente au montage
-  useEffect(() => {
-    const savedServerName = localStorage.getItem("lastWorkingServer");
-    if (savedServerName) {
-      const index = SERVERS.findIndex(s => s.name === savedServerName);
-      if (index !== -1) {
-        console.log(`[SmartPlayer] Serveur favori trouvé: ${savedServerName}`);
-        setCurrentServer(index);
-        return;
-      }
-    }
-    // Sinon, on commence par le premier de la liste (VidSrc.to)
-    setCurrentServer(0);
-  }, []);
-
-  // Reset state quand l'ID change (nouveau film/épisode)
-  useEffect(() => {
-    setFailedServers([]);
-    setIsLoading(true);
-    setAutoSwitchEnabled(true);
-  }, [id, season, episode]);
-
-  const videoUrl = SERVERS[currentServer].url(type, id, season, episode);
-
-  const handleIframeLoad = () => {
-    setIsLoading(false);
-    // Si ça charge, on considère que c'est un succès (pour l'instant)
-    // On sauvegarde ce serveur comme "favori" pour la prochaine fois
-    if (!failedServers.includes(currentServer)) {
-      localStorage.setItem("lastWorkingServer", SERVERS[currentServer].name);
-      console.log(`[SmartPlayer] Serveur ${SERVERS[currentServer].name} chargé avec succès. Sauvegardé.`);
-    }
-  };
-
-  const handleIframeError = () => {
-    console.warn(`[SmartPlayer] Erreur de chargement sur ${SERVERS[currentServer].name}`);
-    handleServerFailure();
-  };
-
-  const handleServerFailure = React.useCallback(() => {
-    if (!autoSwitchEnabled) return;
-
-    // Marquer comme échoué
-    setFailedServers(prev => {
-      if (!prev.includes(currentServer)) {
-        return [...prev, currentServer];
-      }
-      return prev;
+    const response = await fetch(url, {
+      method: 'HEAD', // Plus léger que GET
+      mode: 'no-cors', // Indispensable pour les iframes cross-origin
+      signal: controller.signal,
     });
-
-    // Trouver le prochain serveur non échoué
-    // On cherche simplement le suivant dans la liste
-    const nextServerIndex = SERVERS.findIndex((_, idx) => idx > currentServer);
     
-    if (nextServerIndex !== -1) {
-      console.log(`[SmartPlayer] Bascule automatique vers ${SERVERS[nextServerIndex].name}`);
-      setCurrentServer(nextServerIndex);
-      setIsLoading(true);
-    } else {
-      console.log(`[SmartPlayer] Tous les serveurs ont été tentés.`);
-      setAutoSwitchEnabled(false); // On arrête d'essayer automatiquement
-    }
-  }, [autoSwitchEnabled, currentServer]);
+    clearTimeout(timeoutId);
+    // En mode no-cors, on ne peut pas lire le status (c'est opaque),
+    // mais si ça ne throw pas, c'est que le serveur a répondu (même une 404).
+    // C'est le mieux qu'on puisse faire sans proxy server-side.
+    return true;
+  } catch (error) {
+    // Erreur réseau, timeout, ou DNS failure
+    return false;
+  }
+};
 
-  // Timeout de sécurité : si l'iframe ne charge pas après 8 secondes, on considère ça comme un échec
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode }) => {
+  const [currentServer, setCurrentServer] = useState<number | null>(null);
+  const [isChecking, setIsChecking] = useState(true);
+  const [checkingServerName, setCheckingServerName] = useState<string>("");
+  const [allServersFailed, setAllServersFailed] = useState(false);
+
+  // Logique de sélection intelligente au montage
   useEffect(() => {
-    if (!isLoading || !autoSwitchEnabled || isDirectMode) return;
+    let isMounted = true;
 
-    const timeoutId = setTimeout(() => {
-      console.warn(`[SmartPlayer] Timeout sur ${SERVERS[currentServer].name} (8s)`);
-      handleServerFailure();
-    }, 8000);
+    const findBestServer = async () => {
+      setIsChecking(true);
+      setAllServersFailed(false);
+      setCurrentServer(null);
 
-    return () => clearTimeout(timeoutId);
-  }, [currentServer, isLoading, autoSwitchEnabled, isDirectMode, handleServerFailure]);
+      // 1. Récupérer la préférence utilisateur
+      const savedServerName = localStorage.getItem("preferredServer");
+      let serverOrder = [...SERVERS.map((_, i) => i)]; // Liste des index [0, 1, 2...]
+
+      // Si une préférence existe, on la met en premier dans la liste à tester
+      if (savedServerName) {
+        const prefIndex = SERVERS.findIndex(s => s.name === savedServerName);
+        if (prefIndex !== -1) {
+          serverOrder = [prefIndex, ...serverOrder.filter(i => i !== prefIndex)];
+        }
+      }
+
+      // 2. Tester les serveurs un par un
+      for (const index of serverOrder) {
+        if (!isMounted) return;
+        
+        const server = SERVERS[index];
+        setCheckingServerName(server.name);
+
+        const url = server.url(type, id, season, episode);
+        const isHealthy = await checkServerHealth(url);
+
+        if (isHealthy) {
+          if (!isMounted) return;
+          
+          console.log(`[SmartPlayer] Serveur validé : ${server.name}`);
+          setCurrentServer(index);
+          setIsChecking(false);
+          
+          // Sauvegarder ce serveur comme fonctionnel pour la prochaine fois
+          localStorage.setItem("preferredServer", server.name);
+          return; // On a trouvé, on arrête tout
+        } else {
+          console.warn(`[SmartPlayer] Serveur échoué : ${server.name}`);
+        }
+      }
+
+      // 3. Si on arrive ici, aucun serveur n'a répondu
+      if (isMounted) {
+        console.error("[SmartPlayer] Aucun serveur iframe n'est accessible.");
+        setAllServersFailed(true);
+        setIsChecking(false);
+      }
+    };
+
+    findBestServer();
+
+    return () => { isMounted = false; };
+  }, [id, type, season, episode]);
+
+  const videoUrl = currentServer !== null ? SERVERS[currentServer].url(type, id, season, episode) : "";
 
   return (
     <div className="w-full max-w-5xl mx-auto mt-8 mb-12">
       {/* Video Player Container */}
       <div className="relative w-full aspect-video bg-[#0A0A0A] rounded-xl overflow-hidden shadow-[0_0_40px_-10px_rgba(0,0,0,0.5)] border border-zinc-800 mb-8 group">
-        {isDirectMode ? (
-          <DirectPlayer
-            tmdbId={id}
-            type={type}
-            season={season}
-            episode={episode}
-            title={title}
-            originalTitle={originalTitle}
-            year={year}
-            onClose={() => setIsDirectMode(false)}
+        
+        {/* CAS 1 : En cours de vérification (Pre-Flight Check) */}
+        {isChecking && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950 text-white">
+            <Loader2 className="w-12 h-12 text-[#E50914] animate-spin mb-4" />
+            <h3 className="text-lg font-bold animate-pulse">Recherche du meilleur serveur...</h3>
+            <p className="text-zinc-500 text-sm mt-2">Test de {checkingServerName}</p>
+          </div>
+        )}
+
+        {/* CAS 2 : Tous les serveurs ont échoué */}
+        {!isChecking && allServersFailed && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950 text-white p-6 text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
+            <h3 className="text-xl font-bold mb-2">Aucune source disponible</h3>
+            <p className="text-zinc-400 max-w-md mb-6">
+              Désolé, aucun serveur de lecture n'est accessible pour ce contenu actuellement.
+            </p>
+          </div>
+        )}
+
+        {/* CAS 3 : Serveur trouvé et validé */}
+        {!isChecking && currentServer !== null && (
+          <iframe
+            src={videoUrl}
+            className="w-full h-full"
+            allowFullScreen
+            referrerPolicy="no-referrer"
+            title="Video Player"
           />
-        ) : (
-          <>
-            {isLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-zinc-900 z-10">
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 border-2 border-[#E50914] border-t-transparent rounded-full animate-spin" />
-                  <p className="text-xs text-zinc-400 animate-pulse">Connexion à {SERVERS[currentServer].name}...</p>
-                </div>
-              </div>
-            )}
-            <iframe
-              ref={iframeRef}
-              key={videoUrl} // Force reload on URL change
-              src={videoUrl}
-              className="w-full h-full"
-              allowFullScreen
-              referrerPolicy="no-referrer"
-              title="Video Player"
-              onLoad={handleIframeLoad}
-              onError={handleIframeError}
-            />
-          </>
         )}
       </div>
 
@@ -233,7 +226,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ti
             <span className="w-1 h-6 bg-[#E50914] rounded-full"></span>
             Sources de lecture
           </h3>
-          {!isDirectMode && (
+          {currentServer !== null && (
             <a
               href={videoUrl}
               target="_blank"
@@ -247,43 +240,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ti
         </div>
 
         {/* Recommended Servers */}
-        <div className={`space-y-3 transition-opacity duration-300 ${isDirectMode ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
-          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1 flex items-center gap-2">
-            Recommandés
-            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-700">Auto-test</span>
-          </h4>
+        <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
+          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Recommandés</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {SERVERS.filter(s => s.group === "Recommended").map((server) => {
               const index = SERVERS.indexOf(server);
-              const isActive = currentServer === index && !isDirectMode;
-              const isFailed = failedServers.includes(index);
+              const isActive = currentServer === index;
               const Icon = server.icon;
               
               return (
                 <button
                   key={server.name}
                   onClick={() => {
-                    setIsDirectMode(false);
                     setCurrentServer(index);
-                    setAutoSwitchEnabled(false); // Manual override disables auto-switch
+                    localStorage.setItem("preferredServer", server.name);
                   }}
-                  disabled={isFailed}
                   className={`
                     relative flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-300
                     ${isActive 
                       ? "bg-zinc-800 text-white border-2 border-[#E50914] shadow-[0_0_20px_rgba(229,9,20,0.2)]" 
-                      : isFailed
-                        ? "bg-zinc-900/30 text-zinc-600 border border-zinc-800/30 cursor-not-allowed"
-                        : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700"
+                      : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700"
                     }
                   `}
                 >
                   {isActive && (
                     <div className="absolute inset-0 bg-[#E50914]/5 rounded-lg animate-pulse" />
                   )}
-                  <Icon className={`w-4 h-4 ${isActive ? "text-[#E50914]" : isFailed ? "text-zinc-700" : "text-zinc-500"}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? "text-[#E50914]" : "text-zinc-500"}`} />
                   <span className="relative z-10">{server.name}</span>
-                  {isFailed && <AlertCircle className="w-3 h-3 text-red-900 absolute top-2 right-2" />}
                 </button>
               );
             })}
@@ -291,30 +275,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ti
         </div>
 
         {/* Alternative Servers */}
-        <div className={`space-y-3 transition-opacity duration-300 ${isDirectMode ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
+        <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
           <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Alternatifs</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {SERVERS.filter(s => s.group !== "Recommended").map((server) => {
               const index = SERVERS.indexOf(server);
-              const isActive = currentServer === index && !isDirectMode;
-              const isFailed = failedServers.includes(index);
+              const isActive = currentServer === index;
               
               return (
                 <button
                   key={server.name}
                   onClick={() => {
-                    setIsDirectMode(false);
                     setCurrentServer(index);
-                    setAutoSwitchEnabled(false);
+                    localStorage.setItem("preferredServer", server.name);
                   }}
-                  disabled={isFailed}
                   className={`
                     flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-medium text-xs transition-all duration-300
                     ${isActive 
                       ? "bg-zinc-800 text-white border border-[#E50914] shadow-[0_0_15px_rgba(229,9,20,0.15)]" 
-                      : isFailed
-                        ? "bg-zinc-900/30 text-zinc-600 border border-zinc-800/30 cursor-not-allowed"
-                        : "bg-zinc-900/50 text-zinc-500 border border-zinc-800/50 hover:bg-zinc-900 hover:text-zinc-300 hover:border-zinc-700"
+                      : "bg-zinc-900/50 text-zinc-500 border border-zinc-800/50 hover:bg-zinc-900 hover:text-zinc-300 hover:border-zinc-700"
                     }
                   `}
                 >
@@ -323,27 +302,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ti
               );
             })}
           </div>
-        </div>
-
-        {/* Mode Direct Button (Dernier recours) */}
-        <div className="pt-4 border-t border-zinc-800">
-          <button
-            onClick={() => setIsDirectMode(true)}
-            className={`
-              w-full sm:w-auto flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-sm transition-all duration-300
-              ${isDirectMode
-                ? "bg-gradient-to-r from-[#E50914] to-red-600 text-white shadow-[0_0_30px_rgba(229,9,20,0.4)] scale-[1.02]"
-                : "bg-zinc-900 text-zinc-300 border border-zinc-700 hover:border-[#E50914] hover:text-white hover:bg-zinc-800"
-              }
-            `}
-          >
-            <Rocket className={`w-5 h-5 ${isDirectMode ? "animate-pulse" : ""}`} />
-            <div className="flex flex-col items-start">
-              <span>Mode Direct (Voe/Uqload)</span>
-              <span className="text-[10px] font-normal opacity-70">Utiliser si les lecteurs ci-dessus ne fonctionnent pas</span>
-            </div>
-            {isDirectMode && <span className="ml-2 text-xs bg-white/20 px-2 py-0.5 rounded-full">ACTIF</span>}
-          </button>
         </div>
       </div>
     </div>
