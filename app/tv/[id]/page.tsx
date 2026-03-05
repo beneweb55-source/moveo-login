@@ -6,7 +6,7 @@ import { fetchDataFromApi } from "@/utils/api";
 import ContentWrapper from "@/components/ContentWrapper";
 import VideoPlayer from "@/components/VideoPlayer";
 import ActionButtons from "@/components/ActionButtons";
-import { Star, ArrowLeft, Calendar, Layers, Play, Info, ChevronDown, Tv } from "lucide-react";
+import { Star, ArrowLeft, Calendar, Layers, Play, Info, ChevronDown, Tv, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { motion, useScroll, useTransform } from "motion/react";
 
@@ -15,6 +15,7 @@ export default function TvDetails() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<HTMLDivElement>(null);
   
   const [selectedSeason, setSelectedSeason] = useState(1);
@@ -70,6 +71,10 @@ export default function TvDetails() {
 
   const scrollToPlayer = () => {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleHardRefresh = () => {
+    setPlayerKey(prev => prev + 1);
   };
 
   if (loading) {
@@ -244,44 +249,56 @@ export default function TvDetails() {
                         <h2 className="text-3xl font-bold">Lecture en cours</h2>
                     </div>
 
-                    {/* Selectors */}
-                    <div className="flex flex-wrap gap-4">
-                        {/* Season Selector */}
-                        <div className="relative group">
-                            <select
-                                value={selectedSeason}
-                                onChange={(e) => setSelectedSeason(Number(e.target.value))}
-                                className="appearance-none bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-12 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px]"
-                            >
-                                {availableSeasons.map((season: any) => (
-                                    <option key={season.id} value={season.season_number}>
-                                        Saison {season.season_number}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-white transition-colors" />
-                        </div>
+                    <div className="flex flex-wrap items-center gap-4">
+                        <button 
+                            onClick={handleHardRefresh}
+                            className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-full text-xs font-medium transition-all duration-300 border border-white/5 hover:border-white/20 group"
+                            title="Recharger le lecteur en cas de problème"
+                        >
+                            <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
+                            <span>Recharger</span>
+                        </button>
 
-                        {/* Episode Selector */}
-                        <div className="relative group">
-                            <select
-                                value={selectedEpisode}
-                                onChange={(e) => setSelectedEpisode(Number(e.target.value))}
-                                className="appearance-none bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-12 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px]"
-                            >
-                                {Array.from({ length: episodesCount }, (_, i) => i + 1).map((ep) => (
-                                    <option key={ep} value={ep}>
-                                        Épisode {ep}
-                                    </option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-white transition-colors" />
+                        {/* Selectors */}
+                        <div className="flex flex-wrap gap-4">
+                            {/* Season Selector */}
+                            <div className="relative group">
+                                <select
+                                    value={selectedSeason}
+                                    onChange={(e) => setSelectedSeason(Number(e.target.value))}
+                                    className="appearance-none bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-12 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px]"
+                                >
+                                    {availableSeasons.map((season: any) => (
+                                        <option key={season.id} value={season.season_number}>
+                                            Saison {season.season_number}
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-white transition-colors" />
+                            </div>
+
+                            {/* Episode Selector */}
+                            <div className="relative group">
+                                <select
+                                    value={selectedEpisode}
+                                    onChange={(e) => setSelectedEpisode(Number(e.target.value))}
+                                    className="appearance-none bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-12 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px]"
+                                >
+                                    {Array.from({ length: episodesCount }, (_, i) => i + 1).map((ep) => (
+                                        <option key={ep} value={ep}>
+                                            Épisode {ep}
+                                        </option>
+                                    ))}
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-white transition-colors" />
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div className="bg-[#141414] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <VideoPlayer 
+                        key={playerKey}
                         id={id as string} 
                         type="tv" 
                         season={selectedSeason} 

@@ -6,7 +6,7 @@ import { fetchDataFromApi } from "@/utils/api";
 import ContentWrapper from "@/components/ContentWrapper";
 import VideoPlayer from "@/components/VideoPlayer";
 import ActionButtons from "@/components/ActionButtons";
-import { Star, ArrowLeft, Clock, Calendar, Play, Film } from "lucide-react";
+import { Star, ArrowLeft, Clock, Calendar, Play, Film, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import { motion, useScroll, useTransform } from "motion/react";
 
@@ -15,6 +15,7 @@ export default function MovieDetails() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<HTMLDivElement>(null);
 
   const { scrollY } = useScroll();
@@ -37,6 +38,10 @@ export default function MovieDetails() {
 
   const scrollToPlayer = () => {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleHardRefresh = () => {
+    setPlayerKey(prev => prev + 1);
   };
 
   if (loading) {
@@ -204,13 +209,25 @@ export default function MovieDetails() {
       <div ref={playerRef} className="relative z-20 bg-[#0A0A0A]">
         <ContentWrapper>
             <div className="py-20 border-t border-white/5">
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="w-1 h-8 bg-[#E50914] rounded-full" />
-                    <h2 className="text-3xl font-bold">Lecture en cours</h2>
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="w-1 h-8 bg-[#E50914] rounded-full" />
+                        <h2 className="text-3xl font-bold">Lecture en cours</h2>
+                    </div>
+                    
+                    <button 
+                        onClick={handleHardRefresh}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-full text-xs font-medium transition-all duration-300 border border-white/5 hover:border-white/20 group"
+                        title="Recharger le lecteur en cas de problème"
+                    >
+                        <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
+                        <span>Recharger le lecteur</span>
+                    </button>
                 </div>
 
                 <div className="bg-[#141414] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <VideoPlayer 
+                        key={playerKey}
                         id={id as string} 
                         type="movie" 
                         title={data?.title}
