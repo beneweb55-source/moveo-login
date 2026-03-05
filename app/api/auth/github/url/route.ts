@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
-  const clientId = process.env.GITHUB_CLIENT_ID || 'Iv23linYWgjf3Gy6FgOR';
-  const redirectUri = `${process.env.APP_URL}/api/auth/github/callback`;
+export async function GET(req: Request) {
+  const clientId = process.env.GITHUB_CLIENT_ID;
+  const appUrl = process.env.APP_URL;
+  
+  if (!clientId) {
+    return NextResponse.json({ error: 'GitHub Client ID not configured' }, { status: 500 });
+  }
+
+  if (!appUrl) {
+    return NextResponse.json({ error: 'APP_URL environment variable is not set' }, { status: 500 });
+  }
+  
+  const redirectUri = `${appUrl}/api/auth/github/callback`;
   
   const params = new URLSearchParams({
     client_id: clientId,

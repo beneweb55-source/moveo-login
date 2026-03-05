@@ -31,6 +31,40 @@ export default function LoginPage() {
     fetchBackground();
   }, []);
 
+  const handleGoogleLogin = async () => {
+    try {
+      const res = await fetch('/api/auth/google/url');
+      const { url } = await res.json();
+      
+      const width = 600;
+      const height = 700;
+      const left = window.screen.width / 2 - width / 2;
+      const top = window.screen.height / 2 - height / 2;
+      
+      const popup = window.open(
+        url,
+        'google_oauth',
+        `width=${width},height=${height},top=${top},left=${left}`
+      );
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        
+        if (event.data.type === 'OAUTH_AUTH_SUCCESS') {
+          window.removeEventListener('message', handleMessage);
+          popup?.close();
+          router.push('/');
+          router.refresh();
+        }
+      };
+
+      window.addEventListener('message', handleMessage);
+    } catch (error) {
+      console.error('Google login failed:', error);
+      setError('Google login failed. Please try again.');
+    }
+  };
+
   const handleGitHubLogin = async () => {
     try {
       const res = await fetch('/api/auth/github/url');
@@ -234,6 +268,7 @@ export default function LoginPage() {
             <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
+                onClick={handleGoogleLogin}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-white/20 transition-all duration-200"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">

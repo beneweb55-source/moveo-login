@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password VARCHAR(255),
   github_id VARCHAR(255) UNIQUE,
+  google_id VARCHAR(255) UNIQUE,
   avatar_url VARCHAR(500),
   banner_url VARCHAR(500),
   bio TEXT,

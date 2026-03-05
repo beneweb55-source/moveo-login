@@ -10,25 +10,23 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Missing code' }, { status: 400 });
   }
 
-  const clientId = process.env.GITHUB_CLIENT_ID;
-  const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-
-  if (!clientId || !clientSecret) {
-    return NextResponse.json({ error: 'GitHub credentials not configured' }, { status: 500 });
-  }
+  const clientId = process.env.GOOGLE_CLIENT_ID || '630042598048-to0breshebpts9pmbke6kqnt8pth3n0l.apps.googleusercontent.com';
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
+  const redirectUri = `${process.env.APP_URL}/api/auth/google/callback`;
 
   try {
     // Exchange code for access token
-    const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: JSON.stringify({
+      body: new URLSearchParams({
+        code,
         client_id: clientId,
         client_secret: clientSecret,
-        code,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
       }),
     });
 
@@ -41,7 +39,7 @@ export async function GET(req: Request) {
     const accessToken = tokenData.access_token;
 
     // Fetch user info
-    const userResponse = await fetch('https://api.github.com/user', {
+    const userResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -49,35 +47,25 @@ export async function GET(req: Request) {
 
     const userData = await userResponse.json();
 
-    // Fetch user email (if private)
-    const emailResponse = await fetch('https://api.github.com/user/emails', {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
-    
-    const emails = await emailResponse.json();
-    const primaryEmail = emails.find((e: any) => e.primary && e.verified)?.email || userData.email;
-
-    if (!primaryEmail) {
-      throw new Error('No verified email found');
+    if (!userData.email) {
+      throw new Error('No email found in Google profile');
     }
 
     // Find or create user
     let user;
-    const existingUser = await pool.query('SELECT * FROM users WHERE github_id = $1 OR email = $2', [userData.id.toString(), primaryEmail]);
+    const existingUser = await pool.query('SELECT * FROM users WHERE google_id = $1 OR email = $2', [userData.id, userData.email]);
 
     if (existingUser.rows.length > 0) {
       user = existingUser.rows[0];
-      // Update github_id if missing (e.g. user signed up with email first)
-      if (!user.github_id) {
-        await pool.query('UPDATE users SET github_id = $1, avatar_url = COALESCE(avatar_url, $2) WHERE id = $3', [userData.id.toString(), userData.avatar_url, user.id]);
+      // Update google_id if missing
+      if (!user.google_id) {
+        await pool.query('UPDATE users SET google_id = $1, avatar_url = COALESCE(avatar_url, $2) WHERE id = $3', [userData.id, userData.picture, user.id]);
       }
     } else {
       // Create new user
       const result = await pool.query(
-        'INSERT INTO users (name, email, github_id, avatar_url) VALUES ($1, $2, $3, $4) RETURNING *',
-        [userData.name || userData.login, primaryEmail, userData.id.toString(), userData.avatar_url]
+        'INSERT INTO users (name, email, google_id, avatar_url) VALUES ($1, $2, $3, $4) RETURNING *',
+        [userData.name, userData.email, userData.id, userData.picture]
       );
       user = result.rows[0];
     }
@@ -124,7 +112,7 @@ export async function GET(req: Request) {
     return response;
 
   } catch (error: any) {
-    console.error('GitHub auth error:', error);
+    console.error('Google auth error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

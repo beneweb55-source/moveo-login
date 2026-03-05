@@ -35,10 +35,11 @@ export async function POST(req: Request) {
 
     // Set cookie
     const response = NextResponse.json({ user: { id: user.id, name: user.name, email: user.email }, message: 'Logged in successfully' }, { status: 200 });
+    // MUST use SameSite=None and Secure=True for cross-origin iframe support
     response.cookies.set('auth_token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: true, // Required for SameSite=None
+      sameSite: 'none', // Required for cross-origin iframe
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
     });
