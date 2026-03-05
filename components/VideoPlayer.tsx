@@ -99,20 +99,6 @@ const SERVERS = [
 // Fonction utilitaire de test (Pre-Flight Check via API Route)
 const checkServerHealth = async (url: string): Promise<boolean> => {
   try {
-    // 1. Client-side Reachability Check (Ping)
-    // Vérifie si le client peut atteindre le serveur (filtre VPN, AdBlock, DNS)
-    const clientController = new AbortController();
-    const clientTimeout = setTimeout(() => clientController.abort(), 2000);
-    
-    // Mode 'no-cors' permet de vérifier la connectivité réseau sans lire la réponse
-    await fetch(url, { 
-      mode: 'no-cors', 
-      method: 'HEAD', 
-      signal: clientController.signal 
-    });
-    clearTimeout(clientTimeout);
-
-    // 2. Server-side Status Check (Validation du contenu via API)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout global pour l'appel API
 
@@ -257,8 +243,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
 
       // 3. Si on arrive ici, aucun serveur n'a répondu
       if (isMounted) {
-        console.error("[SmartPlayer] Aucun serveur iframe n'est accessible.");
-        setAllServersFailed(true);
+        console.warn("[SmartPlayer] Aucun serveur validé. Fallback sur le premier choix.");
+        // Au lieu d'afficher l'erreur, on force le premier serveur de la liste (qui est le préféré si dispo)
+        setCurrentServer(serverOrder[0]);
+        setAllServersFailed(false);
         setIsChecking(false);
       }
     };
@@ -369,19 +357,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
           </div>
         )}
 
-        {/* CAS 2 : Tous les serveurs ont échoué */}
-        {!isChecking && allServersFailed && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950 text-white p-6 text-center">
-            <AlertCircle className="w-16 h-16 text-red-500 mb-4" />
-            <h3 className="text-xl font-bold mb-2">Aucune source disponible</h3>
-            <p className="text-zinc-400 max-w-md mb-6">
-              Désolé, aucun serveur de lecture n&apos;est accessible pour ce contenu actuellement.
-              <br/><br/>
-              <span className="text-xs text-zinc-500">Conseil : Si vous utilisez un VPN ou un bloqueur de publicité, essayez de le désactiver.</span>
-            </p>
-          </div>
-        )}
-
         {/* CAS 3 : Serveur trouvé et validé */}
         {!isChecking && currentServer !== null && (
           <>
@@ -392,7 +367,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
             )}
             <iframe
               src={videoUrl}
-              className="w-full h-full bg-black"
+              className="w-full h-full"
               allowFullScreen
               referrerPolicy="no-referrer"
               title="Video Player"
