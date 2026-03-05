@@ -14,7 +14,6 @@ async function migrate() {
   try {
     console.log('Running migration...');
     await pool.query(`
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS github_id VARCHAR(255) UNIQUE;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;
       ALTER TABLE users ALTER COLUMN password DROP NOT NULL;
     `);
