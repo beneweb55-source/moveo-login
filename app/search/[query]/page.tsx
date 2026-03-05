@@ -20,7 +20,7 @@ const SearchResult = () => {
   
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-    fetchDataFromApi(`/search/multi?query=${encodeURIComponent(query as string)}&page=${pageNum}&language=${langParam}&include_adult=false`).then(
+    fetchDataFromApi(`/search/multi?query=${query}&page=${pageNum}&language=${langParam}&include_adult=false`).then(
       (res) => {
         if (data?.results) {
           setData({
@@ -39,7 +39,7 @@ const SearchResult = () => {
     const fetchInitialData = () => {
       setLoading(true);
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-      fetchDataFromApi(`/search/multi?query=${encodeURIComponent(query as string)}&page=1&language=${langParam}&include_adult=false`).then(
+      fetchDataFromApi(`/search/multi?query=${query}&page=1&language=${langParam}&include_adult=false`).then(
         (res) => {
           setData(res);
           setPageNum(2);
@@ -63,7 +63,7 @@ const SearchResult = () => {
               </div>
               <InfiniteScroll
                 className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8"
-                dataLength={data?.results?.length || 0}
+                dataLength={data?.results?.length || []}
                 next={fetchNextPageData}
                 hasMore={pageNum <= data?.total_pages}
                 loader={<Spinner />}
