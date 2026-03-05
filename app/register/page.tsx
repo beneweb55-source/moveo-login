@@ -16,6 +16,7 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [background, setBackground] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState('');
   const router = useRouter();
   const { t } = useLanguage();
 
@@ -70,6 +71,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
       const res = await fetch('/api/auth/register', {
@@ -79,18 +81,12 @@ export default function RegisterPage() {
       });
 
       if (res.ok) {
-        // Auto login after registration
-        const loginRes = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
-        if (loginRes.ok) {
-          router.push('/');
-          router.refresh();
-        } else {
-          router.push('/login');
-        }
+        const data = await res.json();
+        setSuccessMessage(data.message || 'Registration successful. Please check your email to verify your account.');
+        // Clear form
+        setName('');
+        setEmail('');
+        setPassword('');
       } else {
         const data = await res.json();
         setError(data.error || 'Failed to register');
@@ -154,6 +150,17 @@ export default function RegisterPage() {
               >
                 <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
                 {error}
+              </motion.div>
+            )}
+
+            {successMessage && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="rounded-lg bg-green-500/10 p-4 text-sm text-green-400 border border-green-500/20 flex items-center gap-2"
+              >
+                <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                {successMessage}
               </motion.div>
             )}
 

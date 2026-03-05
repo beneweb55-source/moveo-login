@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS users (
   banner_url VARCHAR(500),
   bio TEXT,
   role VARCHAR(50) DEFAULT 'Membre',
+  email_verified BOOLEAN DEFAULT FALSE,
+  verification_token VARCHAR(255),
+  verification_token_expires TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
