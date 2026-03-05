@@ -9,6 +9,7 @@ import Spinner from "@/components/Spinner";
 import { useLanguage } from "@/context/LanguageContext";
 import { ChevronDown } from "lucide-react";
 import { motion } from "motion/react";
+import HeroBanner from "@/components/HeroBanner";
 
 const sortOptions = [
   { value: "popularity.desc", label: "Popularité" },
@@ -76,9 +77,11 @@ const Animes = () => {
   };
 
   return (
-    <div className="min-h-screen pt-[100px] pb-10 bg-[#0A0A0A]">
-      <ContentWrapper>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+    <div className="min-h-screen bg-[#0A0A0A]">
+      <HeroBanner endpoint="/discover/tv" params={{ with_genres: "16", with_original_language: "ja" }} />
+      <div className="pt-10 pb-10">
+        <ContentWrapper>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <h1 className="text-3xl md:text-4xl font-bold text-white capitalize tracking-tight">
             Animes
           </h1>
@@ -158,6 +161,7 @@ const Animes = () => {
           </>
         )}
       </ContentWrapper>
+      </div>
     </div>
   );
 };

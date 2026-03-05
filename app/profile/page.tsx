@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Trash2, Heart, Bookmark, Eye, User, Settings } from 'lucide-react';
+import { Loader2, Trash2, Heart, Bookmark, Eye, User, Settings, Edit2, Save, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -20,6 +20,10 @@ function ProfileContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [listItems, setListItems] = useState<ListItem[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', bio: '', avatar_url: '', banner_url: '' });
+  const [saving, setSaving] = useState(false);
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as 'watchlist' | 'favorites' | 'watched' | 'settings' | null;
@@ -38,6 +42,12 @@ function ProfileContent() {
         if (userRes.ok) {
           const userData = await userRes.json();
           setUser(userData.user);
+          setEditForm({
+            name: userData.user.name || '',
+            bio: userData.user.bio || '',
+            avatar_url: userData.user.avatar_url || '',
+            banner_url: userData.user.banner_url || ''
+          });
           
           const listRes = await fetch('/api/user/list');
           if (listRes.ok) {
@@ -56,6 +66,27 @@ function ProfileContent() {
     };
     fetchData();
   }, [router]);
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setUser(data.user);
+        setIsEditing(false);
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const removeItem = async (mediaType: string, mediaId: string, listType: string) => {
     try {
@@ -93,45 +124,115 @@ function ProfileContent() {
     <div className="min-h-screen bg-[#0A0A0A] pt-24 px-4 sm:px-6 lg:px-8 pb-20">
       <div className="max-w-6xl mx-auto">
         
-        {/* Profile Header */}
-        <div className="flex flex-col items-center mb-12">
-          <div className="w-32 h-32 rounded-full bg-gradient-to-tr from-[#E50914] to-orange-500 flex items-center justify-center mb-4 shadow-[0_0_30px_rgba(229,9,20,0.3)] border-4 border-[#141414]">
-            <span className="text-5xl font-bold text-white uppercase">{user.name.charAt(0)}</span>
-          </div>
-          <h1 className="text-3xl font-bold text-white mb-1">{user.name}</h1>
-          <p className="text-white/50">{user.email}</p>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-[#141414] border border-white/10 rounded-2xl p-6 flex items-center gap-4 transition-transform hover:scale-105">
-            <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center">
-              <Bookmark className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <p className="text-white/50 text-sm font-medium uppercase tracking-wider">Watchlist</p>
-              <p className="text-3xl font-bold text-white">{watchlist.length}</p>
-            </div>
-          </div>
-          
-          <div className="bg-[#141414] border border-pink-500/20 rounded-2xl p-6 flex items-center gap-4 transition-transform hover:scale-105">
-            <div className="w-14 h-14 rounded-full bg-pink-500/10 flex items-center justify-center">
-              <Heart className="w-7 h-7 text-pink-500" />
-            </div>
-            <div>
-              <p className="text-pink-500/70 text-sm font-medium uppercase tracking-wider">Favoris</p>
-              <p className="text-3xl font-bold text-white">{favorites.length}</p>
-            </div>
+        {/* Profile Card */}
+        <div className="bg-[#141414] rounded-3xl overflow-hidden border border-white/10 shadow-2xl mb-12 max-w-sm mx-auto">
+          {/* Banner */}
+          <div className="relative h-32 w-full bg-gradient-to-r from-red-900 to-black">
+             {user.banner_url && (
+               <Image 
+                 src={user.banner_url} 
+                 alt="Banner" 
+                 fill 
+                 className="object-cover opacity-60"
+                 referrerPolicy="no-referrer"
+               />
+             )}
+             {/* Edit Button (Top Right) */}
+             {!isEditing && (
+               <button 
+                 onClick={() => setIsEditing(true)}
+                 className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white/70 hover:text-white transition-colors backdrop-blur-sm"
+               >
+                 <Edit2 className="w-4 h-4" />
+               </button>
+             )}
           </div>
 
-          <div className="bg-[#141414] border border-emerald-500/20 rounded-2xl p-6 flex items-center gap-4 transition-transform hover:scale-105">
-            <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center">
-              <Eye className="w-7 h-7 text-emerald-500" />
+          {/* Avatar & Info */}
+          <div className="px-6 pb-8 relative flex flex-col items-center -mt-16">
+            <div className="relative w-32 h-32 rounded-full border-4 border-[#141414] bg-[#141414] overflow-hidden shadow-xl mb-4">
+              {user.avatar_url ? (
+                <Image 
+                  src={user.avatar_url} 
+                  alt={user.name} 
+                  fill 
+                  className="object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-tr from-[#E50914] to-orange-500 flex items-center justify-center">
+                  <span className="text-5xl font-bold text-white uppercase">{user.name.charAt(0)}</span>
+                </div>
+              )}
             </div>
-            <div>
-              <p className="text-emerald-500/70 text-sm font-medium uppercase tracking-wider">Vus</p>
-              <p className="text-3xl font-bold text-white">{watched.length}</p>
-            </div>
+
+            {isEditing ? (
+              <div className="w-full space-y-4">
+                 <input
+                    type="text"
+                    value={editForm.name}
+                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                    className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-center font-bold text-xl w-full focus:border-[#E50914] outline-none"
+                    placeholder="Nom"
+                  />
+                  <input
+                    type="text"
+                    value={editForm.avatar_url}
+                    onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
+                    className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-xs w-full focus:border-[#E50914] outline-none"
+                    placeholder="Avatar URL"
+                  />
+                  <input
+                    type="text"
+                    value={editForm.banner_url}
+                    onChange={(e) => setEditForm({ ...editForm, banner_url: e.target.value })}
+                    className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-xs w-full focus:border-[#E50914] outline-none"
+                    placeholder="Bannière URL"
+                  />
+                  <div className="flex justify-center gap-2 mt-4">
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                      className="px-4 py-2 bg-[#E50914] text-white rounded-full text-sm font-medium hover:bg-red-700 transition-colors"
+                    >
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+                    </button>
+                    <button
+                      onClick={() => setIsEditing(false)}
+                      className="px-4 py-2 bg-white/10 text-white rounded-full text-sm font-medium hover:bg-white/20 transition-colors"
+                    >
+                      Annuler
+                    </button>
+                  </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-white mb-1">{user.name}</h2>
+                <p className="text-white/50 text-sm mb-4">{user.email}</p>
+                
+                <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg mb-6">
+                  <span className="text-xs font-bold text-white/70 uppercase tracking-wider">
+                    {user.role || 'MEMBRE'}
+                  </span>
+                </div>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-3 w-full border-t border-white/10 pt-6">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">{watched.length}</p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">VUS</p>
+                  </div>
+                  <div className="text-center border-l border-r border-white/10">
+                    <p className="text-2xl font-bold text-white">0 <span className="text-sm font-normal text-white/50">min</span></p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">TEMPS</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-white">{watchlist.length}</p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">LISTE</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -185,20 +286,79 @@ function ProfileContent() {
 
         {/* Content Grid */}
         {activeTab === 'settings' ? (
-          <div className="bg-[#141414] rounded-2xl border border-white/10 overflow-hidden max-w-3xl">
-            <div className="p-6 sm:p-8 space-y-6">
+          <div className="bg-[#141414] rounded-2xl border border-white/10 overflow-hidden max-w-3xl mx-auto">
+            <div className="p-6 sm:p-8 space-y-8">
               <div>
-                <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider">Account Information</h3>
-                <div className="mt-4 space-y-4">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-white/5">
-                    <span className="text-white/70">Name</span>
-                    <span className="text-white font-medium mt-1 sm:mt-0">{user.name}</span>
+                <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider mb-6">Informations du Compte</h3>
+                
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
+                    <label className="text-white/70 font-medium">Avatar URL</label>
+                    <div className="sm:col-span-2">
+                       {isEditing ? (
+                         <input
+                           type="text"
+                           value={editForm.avatar_url}
+                           onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
+                           className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none text-sm"
+                           placeholder="https://example.com/avatar.jpg"
+                         />
+                       ) : (
+                         <span className="text-white/50 text-sm truncate block">{user.avatar_url || 'Aucun avatar défini'}</span>
+                       )}
+                    </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between py-3 border-b border-white/5">
-                    <span className="text-white/70">Email</span>
-                    <span className="text-white font-medium mt-1 sm:mt-0">{user.email}</span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
+                    <label className="text-white/70 font-medium">Bannière URL</label>
+                    <div className="sm:col-span-2">
+                       {isEditing ? (
+                         <input
+                           type="text"
+                           value={editForm.banner_url}
+                           onChange={(e) => setEditForm({ ...editForm, banner_url: e.target.value })}
+                           className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none text-sm"
+                           placeholder="https://example.com/banner.jpg"
+                         />
+                       ) : (
+                         <span className="text-white/50 text-sm truncate block">{user.banner_url || 'Aucune bannière définie'}</span>
+                       )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
+                    <label className="text-white/70 font-medium">Nom d&apos;utilisateur</label>
+                    <div className="sm:col-span-2">
+                      <span className="text-white font-medium">{user.name}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
+                    <label className="text-white/70 font-medium">Email</label>
+                    <div className="sm:col-span-2">
+                      <span className="text-white font-medium">{user.email}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start py-4 border-b border-white/5">
+                    <label className="text-white/70 font-medium pt-2">Bio</label>
+                    <div className="sm:col-span-2">
+                      <span className="text-white/80 italic">{user.bio || 'Aucune bio définie'}</span>
+                    </div>
                   </div>
                 </div>
+
+                {!isEditing && (
+                  <div className="mt-8 flex justify-end">
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full font-medium transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Modifier le profil
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -8,7 +8,7 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { useSelector } from "react-redux";
 import { useLanguage } from "@/context/LanguageContext";
 
-const HeroBanner = () => {
+const HeroBanner = ({ endpoint, params }: { endpoint?: string, params?: any }) => {
   const [background, setBackground] = useState("");
   const [movie, setMovie] = useState<any>(null);
   const router = useRouter();
@@ -21,7 +21,10 @@ const HeroBanner = () => {
 
   useEffect(() => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-    fetchDataFromApi("/trending/all/day", { language: langParam }).then((res) => {
+    const fetchEndpoint = endpoint || "/trending/all/day";
+    const fetchParams = { language: langParam, ...params };
+
+    fetchDataFromApi(fetchEndpoint, fetchParams).then((res) => {
       const results = res?.results || [];
       if (results.length > 0) {
         // Pick random from top 5
@@ -36,11 +39,11 @@ const HeroBanner = () => {
         setMovie(randomMovie);
       }
     });
-  }, [language]);
+  }, [language, endpoint, params]);
 
   const getGenreNames = (genreIds: number[]) => {
     if (!genreIds || !genres) return [];
-    return genreIds.map((id) => genres[id]).filter((g) => g);
+    return genreIds.map((id: number) => genres[id]).filter((g: any) => g);
   };
 
   const movieGenres = movie ? getGenreNames(movie.genre_ids) : [];

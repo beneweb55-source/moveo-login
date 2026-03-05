@@ -197,10 +197,10 @@ const Header = () => {
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/")}>{t.nav.home}</li>
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
-          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/animes")}>Animes</li>
-          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/kdrama")}>K-Dramas</li>
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/animes")}>{t.nav.animes}</li>
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/kdrama")}>{t.nav.kdramas}</li>
           {user && (
-            <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/my-list")}>My List</li>
+            <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/my-list")}>{t.nav.myList}</li>
           )}
         </ul>
 
@@ -334,32 +334,32 @@ const Header = () => {
                     <div className="flex flex-col">
                       <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
                         <User className="w-4 h-4" />
-                        Profil
+                        {t.nav.profile}
                       </Link>
                       <Link href="/profile?tab=watchlist" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
                         <div className="flex items-center gap-3">
                           <Bookmark className="w-4 h-4" />
-                          Watchlist
+                          {t.nav.watchlist}
                         </div>
                         <span className="bg-white/10 text-white text-xs py-0.5 px-2 rounded-full">{stats.watchlist}</span>
                       </Link>
                       <Link href="/profile?tab=favorites" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
                         <div className="flex items-center gap-3">
                           <Heart className="w-4 h-4" />
-                          Favoris
+                          {t.nav.favorites}
                         </div>
                         <span className="bg-pink-500/20 text-pink-400 text-xs py-0.5 px-2 rounded-full">{stats.favorites}</span>
                       </Link>
                       <Link href="/profile?tab=watched" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
                         <div className="flex items-center gap-3">
                           <Eye className="w-4 h-4" />
-                          Déjà vu
+                          {t.nav.watched}
                         </div>
                         <span className="bg-emerald-500/20 text-emerald-400 text-xs py-0.5 px-2 rounded-full">{stats.watched}</span>
                       </Link>
                       <Link href="/profile?tab=settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
                         <Settings className="w-4 h-4" />
-                        Paramètres
+                        {t.nav.settings}
                       </Link>
                     </div>
                     
@@ -369,7 +369,7 @@ const Header = () => {
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#E50914] hover:bg-[#E50914]/10 transition-colors"
                       >
                         <LogOut className="w-4 h-4" />
-                        Déconnexion
+                        {t.nav.logout}
                       </button>
                     </div>
                   </motion.div>
@@ -382,13 +382,13 @@ const Header = () => {
                 href="/login"
                 className="px-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium"
               >
-                Sign In
+                {t.nav.signIn}
               </Link>
               <Link
                 href="/register"
                 className="px-4 py-1.5 rounded-full bg-[#E50914] hover:bg-[#E50914]/90 transition-colors text-sm font-medium text-white"
               >
-                Sign Up
+                {t.nav.signUp}
               </Link>
             </div>
           )}
@@ -426,25 +426,25 @@ const Header = () => {
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/"); setMobileMenu(false); }}>{t.nav.home}</li>
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
-              <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/animes"); setMobileMenu(false); }}>Animes</li>
-              <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/kdrama"); setMobileMenu(false); }}>K-Dramas</li>
+              <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/animes"); setMobileMenu(false); }}>{t.nav.animes}</li>
+              <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/kdrama"); setMobileMenu(false); }}>{t.nav.kdramas}</li>
               {user && (
-                <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/my-list"); setMobileMenu(false); }}>My List</li>
+                <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/my-list"); setMobileMenu(false); }}>{t.nav.myList}</li>
               )}
               
               <div className="h-px bg-white/10 my-2" />
               
               {user ? (
                 <>
-                  <li className="text-white/50 text-sm font-normal">Signed in as {user.name}</li>
+                  <li className="text-white/50 text-sm font-normal">{t.nav.signedInAs} {user.name}</li>
                   <li className="cursor-pointer text-red-400 hover:text-red-300 transition-colors flex items-center gap-2" onClick={() => { handleLogout(); setMobileMenu(false); }}>
-                    <LogOut className="w-5 h-5" /> Logout
+                    <LogOut className="w-5 h-5" /> {t.nav.logout}
                   </li>
                 </>
               ) : (
                 <>
-                  <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/login"); setMobileMenu(false); }}>Sign In</li>
-                  <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/register"); setMobileMenu(false); }}>Sign Up</li>
+                  <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/login"); setMobileMenu(false); }}>{t.nav.signIn}</li>
+                  <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/register"); setMobileMenu(false); }}>{t.nav.signUp}</li>
                 </>
               )}
             </ul>
