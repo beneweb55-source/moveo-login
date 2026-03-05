@@ -6,8 +6,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   let origin = searchParams.get('origin');
   
-  // Fallback to headers if origin is missing or literally the string "undefined"
-  if (!origin || origin === 'undefined') {
+  // Use APP_URL if available, otherwise fallback to request headers
+  if (process.env.APP_URL) {
+    origin = process.env.APP_URL;
+  } else if (!origin || origin === 'undefined') {
     const protocol = req.headers.get('x-forwarded-proto') || 'https';
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
     origin = host ? `${protocol}://${host}` : 'http://localhost:3000';

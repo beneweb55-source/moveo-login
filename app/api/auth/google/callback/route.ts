@@ -18,7 +18,9 @@ export async function GET(req: NextRequest) {
   
   // Use the origin passed in the state parameter, or fallback to request headers
   let origin = state;
-  if (!origin || origin === 'undefined') {
+  if (process.env.APP_URL) {
+    origin = process.env.APP_URL;
+  } else if (!origin || origin === 'undefined') {
     const protocol = req.headers.get('x-forwarded-proto') || 'https';
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
     origin = host ? `${protocol}://${host}` : 'http://localhost:3000';
