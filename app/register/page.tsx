@@ -35,7 +35,8 @@ export default function RegisterPage() {
 
   const handleGoogleLogin = async () => {
     try {
-      const res = await fetch('/api/auth/google/url');
+      const origin = window.location.origin;
+      const res = await fetch(`/api/auth/google/url?origin=${encodeURIComponent(origin)}`);
       const { url } = await res.json();
       
       const width = 600;

@@ -15,6 +15,32 @@ export async function POST(req: Request) {
     // Check if user already exists
     const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userCheck.rows.length > 0) {
+      const existingUser = userCheck.rows[0];
+      
+      // If user exists but is not verified, resend the verification email
+      if (!existingUser.email_verified) {
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        // Generate new verification token
+        const verificationToken = uuidv4();
+        const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+        
+        // Update user with new token and password
+        await pool.query(
+          'UPDATE users SET password = $1, verification_token = $2, verification_token_expires = $3 WHERE id = $4',
+          [hashedPassword, verificationToken, verificationTokenExpires, existingUser.id]
+        );
+        
+        // Send verification email
+        await sendVerificationEmail(email, verificationToken);
+        
+        return NextResponse.json({ 
+          message: 'Account already exists but is not verified. A new verification email has been sent.' 
+        }, { status: 200 });
+      }
+      
       return NextResponse.json({ error: 'User already exists' }, { status: 409 });
     }
 

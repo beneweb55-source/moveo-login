@@ -1,10 +1,13 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
 
-export async function GET(req: Request) {
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const code = searchParams.get('code');
+  const state = searchParams.get('state');
 
   if (!code) {
     return NextResponse.json({ error: 'Missing code' }, { status: 400 });
@@ -12,7 +15,16 @@ export async function GET(req: Request) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID || '630042598048-to0breshebpts9pmbke6kqnt8pth3n0l.apps.googleusercontent.com';
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
-  const redirectUri = `${process.env.APP_URL}/api/auth/google/callback`;
+  
+  // Use the origin passed in the state parameter, or fallback to request headers
+  let origin = state;
+  if (!origin || origin === 'undefined') {
+    const protocol = req.headers.get('x-forwarded-proto') || 'https';
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    origin = host ? `${protocol}://${host}` : 'http://localhost:3000';
+  }
+  
+  const redirectUri = `${origin}/api/auth/google/callback`;
 
   try {
     // Exchange code for access token
