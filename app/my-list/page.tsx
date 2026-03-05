@@ -14,7 +14,7 @@ export default function MyList() {
   useEffect(() => {
     const fetchList = async () => {
       try {
-        const res = await fetch('/api/user/list');
+        const res = await fetch('/api/user/list?list_type=watchlist');
         if (res.ok) {
           const data = await res.json();
           setList(data.list);

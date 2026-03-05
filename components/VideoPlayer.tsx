@@ -99,6 +99,20 @@ const SERVERS = [
 // Fonction utilitaire de test (Pre-Flight Check via API Route)
 const checkServerHealth = async (url: string): Promise<boolean> => {
   try {
+    // 1. Client-side Reachability Check (Ping)
+    // Vérifie si le client peut atteindre le serveur (filtre VPN, AdBlock, DNS)
+    const clientController = new AbortController();
+    const clientTimeout = setTimeout(() => clientController.abort(), 2000);
+    
+    // Mode 'no-cors' permet de vérifier la connectivité réseau sans lire la réponse
+    await fetch(url, { 
+      mode: 'no-cors', 
+      method: 'HEAD', 
+      signal: clientController.signal 
+    });
+    clearTimeout(clientTimeout);
+
+    // 2. Server-side Status Check (Validation du contenu via API)
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout global pour l'appel API
 
@@ -362,6 +376,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
             <h3 className="text-xl font-bold mb-2">Aucune source disponible</h3>
             <p className="text-zinc-400 max-w-md mb-6">
               Désolé, aucun serveur de lecture n&apos;est accessible pour ce contenu actuellement.
+              <br/><br/>
+              <span className="text-xs text-zinc-500">Conseil : Si vous utilisez un VPN ou un bloqueur de publicité, essayez de le désactiver.</span>
             </p>
           </div>
         )}
@@ -376,7 +392,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
             )}
             <iframe
               src={videoUrl}
-              className="w-full h-full"
+              className="w-full h-full bg-black"
               allowFullScreen
               referrerPolicy="no-referrer"
               title="Video Player"
