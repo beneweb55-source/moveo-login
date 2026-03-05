@@ -24,6 +24,22 @@ function ProfileContent() {
   const [editForm, setEditForm] = useState({ name: '', bio: '', avatar_url: '', banner_url: '' });
   const [saving, setSaving] = useState(false);
   
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar_url' | 'banner_url') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 3 * 1024 * 1024) {
+      alert('Le fichier est trop volumineux (max 3MB)');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEditForm({ ...editForm, [field]: reader.result as string });
+    };
+    reader.readAsDataURL(file);
+  };
+  
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as 'watchlist' | 'favorites' | 'watched' | 'settings' | null;
@@ -128,9 +144,9 @@ function ProfileContent() {
         <div className="bg-[#141414] rounded-3xl overflow-hidden border border-white/10 shadow-2xl mb-12 max-w-sm mx-auto">
           {/* Banner */}
           <div className="relative h-32 w-full bg-gradient-to-r from-red-900 to-black">
-             {user.banner_url && (
+             {(isEditing ? editForm.banner_url : user.banner_url) && (
                <Image 
-                 src={user.banner_url} 
+                 src={isEditing ? editForm.banner_url : user.banner_url} 
                  alt="Banner" 
                  fill 
                  className="object-cover opacity-60"
@@ -151,9 +167,9 @@ function ProfileContent() {
           {/* Avatar & Info */}
           <div className="px-6 pb-8 relative flex flex-col items-center -mt-16">
             <div className="relative w-32 h-32 rounded-full border-4 border-[#141414] bg-[#141414] overflow-hidden shadow-xl mb-4">
-              {user.avatar_url ? (
+              {(isEditing ? editForm.avatar_url : user.avatar_url) ? (
                 <Image 
-                  src={user.avatar_url} 
+                  src={isEditing ? editForm.avatar_url : user.avatar_url} 
                   alt={user.name} 
                   fill 
                   className="object-cover"
@@ -161,7 +177,7 @@ function ProfileContent() {
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-tr from-[#E50914] to-orange-500 flex items-center justify-center">
-                  <span className="text-5xl font-bold text-white uppercase">{user.name.charAt(0)}</span>
+                  <span className="text-5xl font-bold text-white uppercase">{(isEditing ? editForm.name : user.name).charAt(0)}</span>
                 </div>
               )}
             </div>
@@ -175,20 +191,24 @@ function ProfileContent() {
                     className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-center font-bold text-xl w-full focus:border-[#E50914] outline-none"
                     placeholder="Nom"
                   />
-                  <input
-                    type="text"
-                    value={editForm.avatar_url}
-                    onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
-                    className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-xs w-full focus:border-[#E50914] outline-none"
-                    placeholder="Avatar URL"
-                  />
-                  <input
-                    type="text"
-                    value={editForm.banner_url}
-                    onChange={(e) => setEditForm({ ...editForm, banner_url: e.target.value })}
-                    className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-xs w-full focus:border-[#E50914] outline-none"
-                    placeholder="Bannière URL"
-                  />
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs text-white/50">Photo de profil (max 3MB)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, 'avatar_url')}
+                      className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-xs w-full focus:border-[#E50914] outline-none file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs text-white/50">Bannière (max 3MB)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, 'banner_url')}
+                      className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-xs w-full focus:border-[#E50914] outline-none file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
+                    />
+                  </div>
                   <div className="flex justify-center gap-2 mt-4">
                     <button
                       onClick={handleSaveProfile}
@@ -293,35 +313,47 @@ function ProfileContent() {
                 
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
-                    <label className="text-white/70 font-medium">Avatar URL</label>
+                    <label className="text-white/70 font-medium">Avatar</label>
                     <div className="sm:col-span-2">
                        {isEditing ? (
-                         <input
-                           type="text"
-                           value={editForm.avatar_url}
-                           onChange={(e) => setEditForm({ ...editForm, avatar_url: e.target.value })}
-                           className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none text-sm"
-                           placeholder="https://example.com/avatar.jpg"
-                         />
+                         <div className="flex items-center gap-4">
+                           {editForm.avatar_url && (
+                             <div className="w-12 h-12 rounded-full overflow-hidden relative flex-shrink-0">
+                               <Image src={editForm.avatar_url} alt="Avatar preview" fill className="object-cover" />
+                             </div>
+                           )}
+                           <input
+                             type="file"
+                             accept="image/*"
+                             onChange={(e) => handleFileUpload(e, 'avatar_url')}
+                             className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#E50914] file:text-white hover:file:bg-red-700"
+                           />
+                         </div>
                        ) : (
-                         <span className="text-white/50 text-sm truncate block">{user.avatar_url || 'Aucun avatar défini'}</span>
+                         <span className="text-white/50 text-sm truncate block">{user.avatar_url ? 'Avatar personnalisé défini' : 'Aucun avatar défini'}</span>
                        )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
-                    <label className="text-white/70 font-medium">Bannière URL</label>
+                    <label className="text-white/70 font-medium">Bannière</label>
                     <div className="sm:col-span-2">
                        {isEditing ? (
-                         <input
-                           type="text"
-                           value={editForm.banner_url}
-                           onChange={(e) => setEditForm({ ...editForm, banner_url: e.target.value })}
-                           className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none text-sm"
-                           placeholder="https://example.com/banner.jpg"
-                         />
+                         <div className="flex flex-col gap-2">
+                           {editForm.banner_url && (
+                             <div className="w-full h-20 rounded-lg overflow-hidden relative">
+                               <Image src={editForm.banner_url} alt="Banner preview" fill className="object-cover" />
+                             </div>
+                           )}
+                           <input
+                             type="file"
+                             accept="image/*"
+                             onChange={(e) => handleFileUpload(e, 'banner_url')}
+                             className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#E50914] file:text-white hover:file:bg-red-700"
+                           />
+                         </div>
                        ) : (
-                         <span className="text-white/50 text-sm truncate block">{user.banner_url || 'Aucune bannière définie'}</span>
+                         <span className="text-white/50 text-sm truncate block">{user.banner_url ? 'Bannière personnalisée définie' : 'Aucune bannière définie'}</span>
                        )}
                     </div>
                   </div>

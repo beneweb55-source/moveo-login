@@ -307,9 +307,15 @@ const Header = () => {
                 onClick={() => setShowUserDropdown(!showUserDropdown)}
                 className="flex items-center gap-2 hover:bg-white/5 p-1.5 rounded-full transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E50914] to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
-                  {user.name?.charAt(0).toUpperCase() || 'U'}
-                </div>
+                {user.avatar_url ? (
+                  <div className="w-8 h-8 rounded-full overflow-hidden relative shadow-lg">
+                    <Image src={user.avatar_url} alt={user.name} fill className="object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E50914] to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                    {user.name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                )}
                 <span className="text-sm font-medium text-white/90 mr-1">
                   {user.name}
                 </span>
