@@ -119,7 +119,15 @@ const Header = () => {
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
         const res = await fetch(`/api/tmdb-proxy?q=${encodeURIComponent(query)}&language=${langParam}`);
         const data = await res.json();
-        setResults((data.results || []).slice(0, 5)); // Show top 5 results
+        const filteredResults = (data.results || []).filter((item: any) => {
+          return (
+            item.poster_path && // Must have a poster
+            (item.release_date || item.first_air_date) && // Must have a date
+            item.media_type !== 'person' && // Exclude people
+            item.vote_count > 0 // Exclude unrated/unknown items
+          );
+        });
+        setResults(filteredResults.slice(0, 5)); // Show top 5 results
       } catch (err) {
         console.error(err);
       } finally {
