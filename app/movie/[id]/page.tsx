@@ -10,9 +10,13 @@ import { Star, ArrowLeft, Clock, Calendar, Play, Film, RefreshCw } from "lucide-
 import Image from "next/image";
 import { motion, useScroll, useTransform } from "motion/react";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 export default function MovieDetails() {
   const { id } = useParams();
   const router = useRouter();
+  const { language, t } = useLanguage();
+  const langParam = language === "fr" ? "fr-FR" : "en-US";
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [playerKey, setPlayerKey] = useState(0);
@@ -25,7 +29,7 @@ export default function MovieDetails() {
     const fetchDetails = async () => {
       setLoading(true);
       try {
-        const res = await fetchDataFromApi(`/movie/${id}`);
+        const res = await fetchDataFromApi(`/movie/${id}`, { language: langParam });
         setData(res);
       } catch (error) {
         console.error("Error fetching details:", error);
@@ -34,7 +38,7 @@ export default function MovieDetails() {
       }
     };
     fetchDetails();
-  }, [id]);
+  }, [id, langParam]);
 
   const scrollToPlayer = () => {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -80,7 +84,7 @@ export default function MovieDetails() {
           className="pointer-events-auto flex items-center gap-2 bg-white/10 hover:bg-[#E50914] text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium hidden sm:inline">Retour</span>
+          <span className="font-medium hidden sm:inline">{t.details.back}</span>
         </button>
       </motion.nav>
 
@@ -179,7 +183,7 @@ export default function MovieDetails() {
                                 className="flex items-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group"
                             >
                                 <Play className="w-5 h-5 fill-current" />
-                                <span>Bande-annonce</span>
+                                <span>{t.details.watch}</span>
                             </button>
 
                             <ActionButtons
@@ -193,7 +197,7 @@ export default function MovieDetails() {
                         {/* Synopsis */}
                         <div className="max-w-3xl">
                             <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
-                                Synopsis
+                                {t.details.synopsis}
                             </h3>
                             <p className="text-lg text-white/70 leading-relaxed">
                                 {data?.overview}
@@ -212,16 +216,16 @@ export default function MovieDetails() {
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
                         <div className="w-1 h-8 bg-[#E50914] rounded-full" />
-                        <h2 className="text-3xl font-bold">Lecture en cours</h2>
+                        <h2 className="text-3xl font-bold">{t.details.nowPlaying}</h2>
                     </div>
                     
                     <button 
                         onClick={handleHardRefresh}
                         className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-full text-xs font-medium transition-all duration-300 border border-white/5 hover:border-white/20 group"
-                        title="Recharger le lecteur en cas de problème"
+                        title={t.details.reloadPlayer}
                     >
                         <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
-                        <span>Recharger le lecteur</span>
+                        <span>{t.details.reload}</span>
                     </button>
                 </div>
 

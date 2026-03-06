@@ -10,9 +10,13 @@ import { Star, ArrowLeft, Calendar, Layers, Play, Info, ChevronDown, Tv, Refresh
 import Image from "next/image";
 import { motion, useScroll, useTransform } from "motion/react";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 export default function TvDetails() {
   const { id } = useParams();
   const router = useRouter();
+  const { language, t } = useLanguage();
+  const langParam = language === "fr" ? "fr-FR" : "en-US";
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [playerKey, setPlayerKey] = useState(0);
@@ -29,7 +33,7 @@ export default function TvDetails() {
     const fetchDetails = async () => {
       setLoading(true);
       try {
-        const res = await fetchDataFromApi(`/tv/${id}`);
+        const res = await fetchDataFromApi(`/tv/${id}`, { language: langParam });
         setData(res);
         
         const firstSeason = res.seasons?.find((s: any) => s.season_number === 1) || res.seasons?.[0];
@@ -44,14 +48,14 @@ export default function TvDetails() {
       }
     };
     fetchDetails();
-  }, [id]);
+  }, [id, langParam]);
 
   useEffect(() => {
     if (!data || selectedSeason === undefined) return;
     
     const fetchSeasonDetails = async () => {
       try {
-        const res = await fetchDataFromApi(`/tv/${id}/season/${selectedSeason}`);
+        const res = await fetchDataFromApi(`/tv/${id}/season/${selectedSeason}`, { language: langParam });
         if (res && res.episodes) {
           setEpisodesCount(res.episodes.length);
           setSelectedEpisode(1);
@@ -67,7 +71,7 @@ export default function TvDetails() {
     };
     
     fetchSeasonDetails();
-  }, [selectedSeason, id, data]);
+  }, [selectedSeason, id, data, langParam]);
 
   const scrollToPlayer = () => {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -112,7 +116,7 @@ export default function TvDetails() {
           className="pointer-events-auto flex items-center gap-2 bg-white/10 hover:bg-[#E50914] text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 group"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium hidden sm:inline">Retour</span>
+          <span className="font-medium hidden sm:inline">{t.details.back}</span>
         </button>
       </motion.nav>
 
@@ -201,7 +205,7 @@ export default function TvDetails() {
                             {data?.number_of_seasons && (
                                 <div className="flex items-center gap-2">
                                     <Layers className="w-4 h-4 text-[#E50914]" />
-                                    <span>{data.number_of_seasons} Saison{data.number_of_seasons > 1 ? 's' : ''}</span>
+                                    <span>{data.number_of_seasons} {t.details.season}{data.number_of_seasons > 1 ? 's' : ''}</span>
                                 </div>
                             )}
                         </div>
@@ -213,7 +217,7 @@ export default function TvDetails() {
                                 className="flex items-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group"
                             >
                                 <Play className="w-5 h-5 fill-current" />
-                                <span>Regarder</span>
+                                <span>{t.details.watch}</span>
                             </button>
 
                             <ActionButtons
@@ -227,7 +231,7 @@ export default function TvDetails() {
                         {/* Synopsis */}
                         <div className="max-w-3xl">
                             <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
-                                Synopsis
+                                {t.details.synopsis}
                             </h3>
                             <p className="text-lg text-white/70 leading-relaxed">
                                 {data?.overview}
@@ -246,17 +250,17 @@ export default function TvDetails() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                     <div className="flex items-center gap-4">
                         <div className="w-1 h-8 bg-[#E50914] rounded-full" />
-                        <h2 className="text-3xl font-bold">Lecture en cours</h2>
+                        <h2 className="text-3xl font-bold">{t.details.nowPlaying}</h2>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4">
                         <button 
                             onClick={handleHardRefresh}
                             className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-full text-xs font-medium transition-all duration-300 border border-white/5 hover:border-white/20 group"
-                            title="Recharger le lecteur en cas de problème"
+                            title={t.details.reloadPlayer}
                         >
                             <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />
-                            <span>Recharger</span>
+                            <span>{t.details.reload}</span>
                         </button>
 
                         {/* Selectors */}
@@ -270,7 +274,7 @@ export default function TvDetails() {
                                 >
                                     {availableSeasons.map((season: any) => (
                                         <option key={season.id} value={season.season_number}>
-                                            Saison {season.season_number}
+                                            {t.details.season} {season.season_number}
                                         </option>
                                     ))}
                                 </select>
@@ -286,7 +290,7 @@ export default function TvDetails() {
                                 >
                                     {Array.from({ length: episodesCount }, (_, i) => i + 1).map((ep) => (
                                         <option key={ep} value={ep}>
-                                            Épisode {ep}
+                                            {t.details.episode} {ep}
                                         </option>
                                     ))}
                                 </select>

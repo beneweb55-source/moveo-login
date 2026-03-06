@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ExternalLink, Server, Zap, Globe, Film, Loader2, AlertCircle } from "lucide-react";
 
 import { saveWatchHistory, getWatchHistory } from "@/utils/historyManager";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface VideoPlayerProps {
   id: string;
@@ -60,7 +61,7 @@ const SERVERS = [
     name: "VidLink",
     group: "Alternative",
     icon: Zap,
-    warning: "Désactivez Adblock pour ce lecteur",
+    warningKey: "disableAdblock",
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie"
         ? `https://vidlink.pro/movie/${id}`
@@ -121,6 +122,7 @@ const checkServerHealth = async (url: string): Promise<boolean> => {
 };
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, genres, title, posterPath }) => {
+  const { t } = useLanguage();
   const [currentServer, setCurrentServer] = useState<number | null>(null);
   const [isChecking, setIsChecking] = useState(true);
   const [checkingServerName, setCheckingServerName] = useState<string>("");
@@ -343,8 +345,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         {isChecking && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950 text-white">
             <Loader2 className="w-12 h-12 text-[#E50914] animate-spin mb-4" />
-            <h3 className="text-lg font-bold animate-pulse">Recherche du meilleur serveur...</h3>
-            <p className="text-zinc-500 text-sm mt-2">Test de {checkingServerName}</p>
+            <h3 className="text-lg font-bold animate-pulse">{t.details.searchingServer}</h3>
+            <p className="text-zinc-500 text-sm mt-2">{t.details.testing} {checkingServerName}</p>
           </div>
         )}
 
@@ -352,17 +354,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         {isSwitching && (
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-sm text-white transition-all duration-300">
             <Loader2 className="w-10 h-10 text-orange-500 animate-spin mb-3" />
-            <h3 className="text-lg font-bold text-orange-500">Serveur lent détecté</h3>
-            <p className="text-zinc-300 text-sm mt-1">Changement automatique vers une autre source...</p>
+            <h3 className="text-lg font-bold text-orange-500">{t.details.slowServerDetected}</h3>
+            <p className="text-zinc-300 text-sm mt-1">{t.details.autoSwitching}</p>
           </div>
         )}
 
         {/* CAS 3 : Serveur trouvé et validé */}
         {!isChecking && currentServer !== null && (
           <>
-            {SERVERS[currentServer].warning && (
+            {(SERVERS[currentServer] as any).warningKey && (
               <div className="absolute top-0 left-0 right-0 z-10 bg-yellow-500/90 text-black text-xs font-bold px-4 py-2 text-center backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-500">
-                ⚠️ {SERVERS[currentServer].warning}
+                ⚠️ {(t.details as any)[(SERVERS[currentServer] as any).warningKey]}
               </div>
             )}
             <iframe
@@ -400,7 +402,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
             <span className="w-1 h-6 bg-[#E50914] rounded-full"></span>
-            Sources de lecture
+            {t.details.playbackSources}
           </h3>
           {currentServer !== null && (
             <a
@@ -409,7 +411,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-300 hover:text-white hover:border-[#E50914] hover:bg-zinc-800 transition-all duration-300 group"
             >
-              <span>OUVRIR DANS UN NOUVEL ONGLET</span>
+              <span>{t.details.openInNewTab}</span>
               <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
             </a>
           )}
@@ -417,7 +419,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
 
         {/* Recommended Servers */}
         <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
-          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Recommandés</h4>
+          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.recommended}</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {SERVERS.filter(s => s.group === "Recommended").map((server) => {
               const index = SERVERS.indexOf(server);
@@ -434,7 +436,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
                     setIsSwitching(false);
                   }}
                   className={`
-                    relative flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium text-sm transition-all duration-300
+                    relative flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-lg font-medium text-sm transition-all duration-300
                     ${isActive 
                       ? "bg-zinc-800 text-white border-2 border-[#E50914] shadow-[0_0_20px_rgba(229,9,20,0.2)]" 
                       : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700"
@@ -444,8 +446,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
                   {isActive && (
                     <div className="absolute inset-0 bg-[#E50914]/5 rounded-lg animate-pulse" />
                   )}
-                  <Icon className={`w-4 h-4 ${isActive ? "text-[#E50914]" : "text-zinc-500"}`} />
-                  <span className="relative z-10">{server.name}</span>
+                  <div className="flex items-center gap-2 relative z-10">
+                    <Icon className={`w-4 h-4 ${isActive ? "text-[#E50914]" : "text-zinc-500"}`} />
+                    <span>{server.name}</span>
+                  </div>
+                  
+                  {/* Badges intuitifs */}
+                  <div className="flex items-center gap-1.5 mt-1 relative z-10">
+                    {server.name === "2Embed" && (
+                      <>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">VF/VO</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-300 border border-zinc-600/50" title={t.details.internalServerChoice}>⚙️ Multi</span>
+                      </>
+                    )}
+                    {(server.name === "VidSrc.to" || server.name === "VidSrc.me" || server.name === "AutoEmbed") && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">VO/EN</span>
+                    )}
+                    {(server.name === "VidSrc.to" || server.name === "VidSrc.me") && isAnime && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" title={t.details.wrongEpisodeWarning}>⚠️ Erreurs</span>
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -454,7 +474,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
 
         {/* Alternative Servers */}
         <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
-          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">Alternatifs</h4>
+          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.alternative}</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
             {SERVERS.filter(s => s.group !== "Recommended").map((server) => {
               const index = SERVERS.indexOf(server);
@@ -470,19 +490,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
                     setIsSwitching(false);
                   }}
                   className={`
-                    relative flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg font-medium text-xs transition-all duration-300
+                    relative flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-lg font-medium text-xs transition-all duration-300
                     ${isActive 
                       ? "bg-zinc-800 text-white border border-[#E50914] shadow-[0_0_15px_rgba(229,9,20,0.15)]" 
                       : "bg-zinc-900/50 text-zinc-500 border border-zinc-800/50 hover:bg-zinc-900 hover:text-zinc-300 hover:border-zinc-700"
                     }
                   `}
                 >
-                  {server.name}
-                  {server.name === "VidLink" && isAnime && (
-                    <span className="absolute -top-2 -right-2 bg-[#E50914] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm z-20">
-                      VOSTFR
-                    </span>
-                  )}
+                  <span className="relative z-10">{server.name}</span>
+                  
+                  {/* Badges intuitifs */}
+                  <div className="flex items-center gap-1 mt-0.5 relative z-10">
+                    {server.name === "Frembed" && (
+                      <>
+                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">VF/VO</span>
+                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-zinc-700/50 text-zinc-300 border border-zinc-600/50" title={t.details.internalServerChoice}>⚙️ Multi</span>
+                      </>
+                    )}
+                    {server.name === "VidLink" && isAnime && (
+                      <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/30">VOSTFR</span>
+                    )}
+                  </div>
                 </button>
               );
             })}
