@@ -17,7 +17,7 @@ export async function GET() {
 
     // Fetch fresh user data from database
     const result = await pool.query(
-      'SELECT id, name, email, bio, avatar_url, banner_url, role, created_at FROM users WHERE id = $1',
+      'SELECT id, name, email, bio, avatar_url, banner_url, role, created_at, twitter_url, instagram_url, website_url FROM users WHERE id = $1',
       [payload.userId]
     );
 

@@ -59,8 +59,26 @@ const Header = () => {
     const handleListUpdated = () => {
       if (user) fetchStats();
     };
+    const handleProfileUpdated = () => {
+      const fetchUser = async () => {
+        try {
+          const res = await fetch('/api/auth/me');
+          if (res.ok) {
+            const data = await res.json();
+            setUser(data.user);
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      fetchUser();
+    };
     window.addEventListener('list-updated', handleListUpdated);
-    return () => window.removeEventListener('list-updated', handleListUpdated);
+    window.addEventListener('profile-updated', handleProfileUpdated);
+    return () => {
+      window.removeEventListener('list-updated', handleListUpdated);
+      window.removeEventListener('profile-updated', handleProfileUpdated);
+    };
   }, [user]);
 
   useEffect(() => {

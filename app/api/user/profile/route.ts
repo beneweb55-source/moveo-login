@@ -23,7 +23,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, bio, avatar_url, banner_url } = await req.json();
+    const { name, bio, avatar_url, banner_url, twitter_url, instagram_url, website_url } = await req.json();
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -31,10 +31,10 @@ export async function PUT(req: Request) {
 
     const result = await pool.query(
       `UPDATE users 
-       SET name = $1, bio = $2, avatar_url = $3, banner_url = $4
-       WHERE id = $5
-       RETURNING id, name, email, bio, avatar_url, banner_url, role`,
-      [name, bio || null, avatar_url || null, banner_url || null, user.userId]
+       SET name = $1, bio = $2, avatar_url = $3, banner_url = $4, twitter_url = $5, instagram_url = $6, website_url = $7
+       WHERE id = $8
+       RETURNING id, name, email, bio, avatar_url, banner_url, role, twitter_url, instagram_url, website_url`,
+      [name, bio || null, avatar_url || null, banner_url || null, twitter_url || null, instagram_url || null, website_url || null, user.userId]
     );
 
     if (result.rows.length === 0) {
