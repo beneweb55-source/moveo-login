@@ -4,6 +4,16 @@ import pool from '@/lib/db';
 export async function GET() {
   try {
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS watch_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        media_type VARCHAR(50) NOT NULL,
+        media_id INTEGER NOT NULL,
+        minutes_watched INTEGER DEFAULT 0,
+        last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, media_type, media_id)
+      );
+      
       ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(255) UNIQUE;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255);

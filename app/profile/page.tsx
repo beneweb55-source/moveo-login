@@ -20,6 +20,7 @@ function ProfileContent() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [listItems, setListItems] = useState<ListItem[]>([]);
+  const [watchTime, setWatchTime] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({ name: '', bio: '', avatar_url: '', banner_url: '', twitter_url: '', instagram_url: '', website_url: '' });
   const [saving, setSaving] = useState(false);
@@ -76,6 +77,12 @@ function ProfileContent() {
           if (listRes.ok) {
             const listData = await listRes.json();
             setListItems(listData.list || []);
+          }
+
+          const statsRes = await fetch('/api/profile/stats');
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            setWatchTime(statsData.stats.watchTime || 0);
           }
         } else {
           router.push('/login');
@@ -199,6 +206,16 @@ function ProfileContent() {
   const watched = listItems.filter(item => item.list_type === 'watched');
 
   const currentList = activeTab === 'watchlist' ? watchlist : activeTab === 'favorites' ? favorites : watched;
+
+  const formatWatchTime = (minutes: number) => {
+    if (minutes < 60) return `${minutes} min`;
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (hours < 24) return `${hours} h ${remainingMinutes} min`;
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `${days} j ${remainingHours} h`;
+  };
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] pt-24 px-4 sm:px-6 lg:px-8 pb-20">
@@ -342,7 +359,7 @@ function ProfileContent() {
                     <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">VUS</p>
                   </div>
                   <div className="text-center border-l border-r border-white/10">
-                    <p className="text-2xl font-bold text-white">0 <span className="text-sm font-normal text-white/50">min</span></p>
+                    <p className="text-2xl font-bold text-white">{formatWatchTime(watchTime)}</p>
                     <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">TEMPS</p>
                   </div>
                   <div className="text-center">

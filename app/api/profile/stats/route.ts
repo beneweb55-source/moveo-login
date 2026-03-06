@@ -31,10 +31,21 @@ export async function GET(req: Request) {
       [user.userId]
     );
 
+    // Get total watch time
+    const watchTimeResult = await pool.query(
+      `SELECT SUM(minutes_watched) as total_minutes
+       FROM watch_history
+       WHERE user_id = $1`,
+      [user.userId]
+    );
+
+    const totalMinutes = watchTimeResult.rows[0]?.total_minutes || 0;
+
     const stats = {
       watchlist: 0,
       favorites: 0,
-      watched: 0
+      watched: 0,
+      watchTime: totalMinutes
     };
 
     result.rows.forEach(row => {

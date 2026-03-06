@@ -11,6 +11,7 @@ import Image from "next/image";
 import { motion, useScroll, useTransform } from "motion/react";
 
 import { useLanguage } from "@/context/LanguageContext";
+import WatchTimer from "@/components/WatchTimer";
 
 export default function MovieDetails() {
   const { id } = useParams();
@@ -73,6 +74,7 @@ export default function MovieDetails() {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] selection:text-white pb-20">
+      <WatchTimer mediaType="movie" mediaId={id as string} />
       {/* Navigation */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
