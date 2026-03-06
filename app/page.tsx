@@ -54,10 +54,15 @@ export default function Home() {
           fetchDataFromApi("/tv/top_rated", { language: langParam }),
         ]);
 
-        setTrending(trendingRes?.results || []);
-        setTopFrance(topFranceRes?.results || []);
-        setPopularMovies(popularRes?.results || []);
-        setTopRatedTv(topRatedTvRes?.results || []);
+        let rawTrending = trendingRes?.results || [];
+        let rawTopFrance = topFranceRes?.results || [];
+        let rawPopularMovies = popularRes?.results || [];
+        let rawTopRatedTv = topRatedTvRes?.results || [];
+
+        setTrending(rawTrending);
+        setTopFrance(rawTopFrance);
+        setPopularMovies(rawPopularMovies);
+        setTopRatedTv(rawTopRatedTv);
       } catch (error) {
         console.error("Failed to fetch homepage data:", error);
       } finally {

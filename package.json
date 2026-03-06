@@ -10,7 +10,6 @@
     "clean": "next clean"
   },
   "dependencies": {
-    "@google/genai": "^1.44.0",
     "@hookform/resolvers": "^5.2.1",
     "@reduxjs/toolkit": "^2.11.2",
     "autoprefixer": "^10.4.21",

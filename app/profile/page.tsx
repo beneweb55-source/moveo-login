@@ -27,10 +27,6 @@ function ProfileContent() {
   const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
-  const [recommendationsFetched, setRecommendationsFetched] = useState(false);
-  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
   
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar_url' | 'banner_url') => {
     const file = e.target.files?.[0];
@@ -50,43 +46,14 @@ function ProfileContent() {
   
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab') as 'watchlist' | 'favorites' | 'watched' | 'settings' | 'recommendations' | null;
-  const [activeTab, setActiveTab] = useState<'watchlist' | 'favorites' | 'watched' | 'settings' | 'recommendations'>(tabParam || 'watchlist');
+  const tabParam = searchParams.get('tab') as 'watchlist' | 'favorites' | 'watched' | 'settings' | null;
+  const [activeTab, setActiveTab] = useState<'watchlist' | 'favorites' | 'watched' | 'settings'>(tabParam || 'watchlist');
 
   useEffect(() => {
     if (tabParam) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
-
-  useEffect(() => {
-    const fetchRecommendations = async () => {
-      if (recommendationsFetched) return;
-      setLoadingRecommendations(true);
-      setRecommendationsError(null);
-      try {
-        const res = await fetch('/api/ai/recommendations');
-        const data = await res.json();
-        if (res.ok) {
-          setRecommendations(data.recommendations || []);
-          setRecommendationsFetched(true);
-        } else {
-          setRecommendationsError(data.error || 'Erreur lors de la récupération des recommandations');
-          setRecommendationsFetched(true);
-        }
-      } catch (error) {
-        console.error('Error fetching recommendations:', error);
-        setRecommendationsError('Erreur de connexion au serveur');
-        setRecommendationsFetched(true);
-      } finally {
-        setLoadingRecommendations(false);
-      }
-    };
-
-    if (activeTab === 'recommendations') {
-      fetchRecommendations();
-    }
-  }, [activeTab, recommendationsFetched]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -424,17 +391,6 @@ function ProfileContent() {
             )}
           </button>
           <button
-            onClick={() => { setActiveTab('recommendations'); router.push('/profile?tab=recommendations', { scroll: false }); }}
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors relative ${
-              activeTab === 'recommendations' ? 'text-white' : 'text-white/50 hover:text-white/80'
-            }`}
-          >
-            Recommandations IA
-            {activeTab === 'recommendations' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full" />
-            )}
-          </button>
-          <button
             onClick={() => { setActiveTab('settings'); router.push('/profile?tab=settings', { scroll: false }); }}
             className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors relative ${
               activeTab === 'settings' ? 'text-white' : 'text-white/50 hover:text-white/80'
@@ -709,82 +665,6 @@ function ProfileContent() {
                 </div>
               </div>
             </div>
-          </div>
-        ) : activeTab === 'recommendations' ? (
-          <div className="space-y-6">
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-6 mb-8">
-              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                <span className="text-blue-400">✨</span> Recommandations Personnalisées par IA
-              </h3>
-              <p className="text-white/70">
-                Notre intelligence artificielle analyse votre historique de visionnage et vos favoris pour vous proposer des films et séries qui correspondent exactement à vos goûts.
-              </p>
-            </div>
-
-            {loadingRecommendations ? (
-              <div className="flex justify-center py-20">
-                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
-              </div>
-            ) : recommendationsError ? (
-              <div className="text-center py-20 bg-red-500/10 rounded-2xl border border-red-500/20">
-                <p className="text-red-400 mb-4">{recommendationsError}</p>
-                <button 
-                  onClick={() => {
-                    setRecommendationsFetched(false);
-                    setRecommendationsError(null);
-                  }}
-                  className="px-4 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors"
-                >
-                  Réessayer
-                </button>
-              </div>
-            ) : recommendations.length === 0 ? (
-              <div className="text-center py-20 bg-[#141414] rounded-2xl border border-white/5">
-                <p className="text-white/50">
-                  Ajoutez plus de films à vos favoris ou à votre historique pour obtenir des recommandations.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {recommendations.map((item: any, index: number) => (
-                  <div key={index} className="bg-[#141414] rounded-xl overflow-hidden border border-white/10 flex flex-col">
-                    <div className="relative aspect-video w-full">
-                      {item.poster_path ? (
-                        <Image
-                          src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
-                          alt={item.title}
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                          <span className="text-white/30 text-sm">Pas d&apos;image</span>
-                        </div>
-                      )}
-                      <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-1">
-                        <span className="text-green-400 font-bold">{item.match_percentage}%</span>
-                        <span className="text-white/70 text-xs uppercase">Match</span>
-                      </div>
-                    </div>
-                    <div className="p-5 flex flex-col flex-1">
-                      <h4 className="text-lg font-bold text-white mb-1">{item.title}</h4>
-                      <p className="text-xs text-white/50 uppercase tracking-wider mb-3">
-                        {item.media_type === 'movie' ? 'Film' : 'Série'} • {item.release_date?.substring(0, 4)}
-                      </p>
-                      <p className="text-sm text-white/80 italic mb-4 flex-1">
-                        &quot;{item.reason}&quot;
-                      </p>
-                      <Link
-                        href={`/${item.media_type}/${item.id}`}
-                        className="w-full py-2 bg-white/10 hover:bg-white/20 text-white text-center rounded-lg font-medium transition-colors"
-                      >
-                        Voir les détails
-                      </Link>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         ) : currentList.length === 0 ? (
           <div className="text-center py-20 bg-[#141414] rounded-2xl border border-white/5">
