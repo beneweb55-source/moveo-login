@@ -59,10 +59,79 @@ export default function Home() {
         let rawPopularMovies = popularRes?.results || [];
         let rawTopRatedTv = topRatedTvRes?.results || [];
 
-        setTrending(rawTrending);
-        setTopFrance(rawTopFrance);
-        setPopularMovies(rawPopularMovies);
-        setTopRatedTv(rawTopRatedTv);
+        // Intelligent Sorting Logic
+        const calculateScore = (item: any, userGenres: Set<number>) => {
+          let score = 0;
+
+          // 1. Base Rules
+          const releaseDateStr = item.release_date || item.first_air_date;
+          if (releaseDateStr) {
+            const releaseDate = new Date(releaseDateStr);
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+            if (releaseDate > sixMonthsAgo) {
+              score += 12;
+            }
+          }
+
+          if (item.vote_average > 7.5) {
+            score += 8;
+          }
+
+          if (item.vote_count < 5000) {
+            score -= 15;
+          }
+
+          // Documentary (99), Family (10751), Kids (10762)
+          const genreIds = item.genre_ids || [];
+          if (genreIds.some((id: number) => [99, 10751, 10762].includes(id))) {
+            score -= 25;
+          }
+
+          // 2. User Preferences
+          if (userGenres.size > 0) {
+            const hasCommonGenre = genreIds.some((id: number) => userGenres.has(id));
+            if (hasCommonGenre) {
+              score += 15;
+            }
+          }
+
+          return score;
+        };
+
+        const sortItems = (items: any[], userGenres: Set<number>) => {
+          if (!items || items.length === 0) return [];
+          return [...items].sort((a, b) => {
+            const scoreA = calculateScore(a, userGenres);
+            const scoreB = calculateScore(b, userGenres);
+            return scoreB - scoreA;
+          });
+        };
+
+        let userGenres = new Set<number>();
+        try {
+          const userListRes = await fetch('/api/user/list');
+          if (userListRes.ok) {
+            const data = await userListRes.json();
+            const userList = data.list || [];
+            const watchedOrFavIds = new Set(userList.map((i: any) => i.media_id.toString()));
+
+            // Scan all fetched items to find user's genres
+            const allItems = [...rawTrending, ...rawTopFrance, ...rawPopularMovies, ...rawTopRatedTv];
+            allItems.forEach(item => {
+              if (watchedOrFavIds.has(item.id.toString())) {
+                item.genre_ids?.forEach((id: number) => userGenres.add(id));
+              }
+            });
+          }
+        } catch (e) {
+          // Ignore error, proceed without user prefs
+        }
+
+        setTrending(sortItems(rawTrending, userGenres));
+        setTopFrance(sortItems(rawTopFrance, userGenres));
+        setPopularMovies(sortItems(rawPopularMovies, userGenres));
+        setTopRatedTv(sortItems(rawTopRatedTv, userGenres));
       } catch (error) {
         console.error("Failed to fetch homepage data:", error);
       } finally {
