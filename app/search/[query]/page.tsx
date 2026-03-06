@@ -11,21 +11,39 @@ import { useLanguage } from "@/context/LanguageContext";
 
 import { motion } from "motion/react";
 
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
+
 const SearchResult = () => {
   const [data, setData] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
+  const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
+
   const { query } = useParams();
   const { language, t } = useLanguage();
+
+  // Fetch Watched IDs on mount
+  useEffect(() => {
+    getUserWatchedIds().then(ids => setWatchedIds(ids));
+  }, []);
   
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
     fetchDataFromApi(`/search/multi?query=${encodeURIComponent(query as string)}&page=${pageNum}&language=${langParam}&include_adult=false`).then(
       (res) => {
         if (data?.results) {
+          // Extract new genres
+          const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
+          const updatedUserGenres = new Set([...userGenres, ...newGenres]);
+          setUserGenres(updatedUserGenres);
+
+          // Sort new results
+          const sortedNewResults = sortItems(res.results, updatedUserGenres);
+
           setData({
             ...data,
-            results: [...data?.results, ...res.results],
+            results: [...data?.results, ...sortedNewResults],
           });
         } else {
           setData(res);
@@ -41,6 +59,16 @@ const SearchResult = () => {
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
       fetchDataFromApi(`/search/multi?query=${encodeURIComponent(query as string)}&page=1&language=${langParam}&include_adult=false`).then(
         (res) => {
+          // Extract new genres from this batch
+          const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
+          const updatedUserGenres = new Set([...userGenres, ...newGenres]);
+          setUserGenres(updatedUserGenres);
+
+          // Sort
+          if (res?.results) {
+              res.results = sortItems(res.results, updatedUserGenres);
+          }
+
           setData(res);
           setPageNum(2);
           setLoading(false);
@@ -49,7 +77,7 @@ const SearchResult = () => {
     };
 
     fetchInitialData();
-  }, [query, language]);
+  }, [query, language, watchedIds]);
 
   return (
     <div className="min-h-[700px] pt-[100px]">

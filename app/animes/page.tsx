@@ -17,14 +17,23 @@ const sortOptions = [
   { value: "first_air_date.desc", label: "Date de sortie" },
 ];
 
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
+
 const Animes = () => {
   const [data, setData] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
   const [loading, setLoading] = useState(false);
   const [mediaType, setMediaType] = useState<"tv" | "movie">("tv");
   const [sortBy, setSortBy] = useState<string>("popularity.desc");
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
+  const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
   
   const { language } = useLanguage();
+
+  // Fetch Watched IDs on mount
+  useEffect(() => {
+    getUserWatchedIds().then(ids => setWatchedIds(ids));
+  }, []);
 
   // Fetch Initial Data
   useEffect(() => {
@@ -42,6 +51,16 @@ const Animes = () => {
       };
       
       fetchDataFromApi(`/discover/${mediaType}`, params).then((res) => {
+        // Extract new genres from this batch
+        const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
+        const updatedUserGenres = new Set([...userGenres, ...newGenres]);
+        setUserGenres(updatedUserGenres);
+
+        // Sort
+        if (res?.results) {
+            res.results = sortItems(res.results, updatedUserGenres);
+        }
+
         setData(res);
         setPageNum(2);
         setLoading(false);
@@ -49,7 +68,7 @@ const Animes = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, language, sortBy]);
+  }, [mediaType, language, sortBy, watchedIds]);
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -64,9 +83,17 @@ const Animes = () => {
     fetchDataFromApi(`/discover/${mediaType}`, params).then(
       (res) => {
         if (data?.results) {
+          // Extract new genres
+          const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
+          const updatedUserGenres = new Set([...userGenres, ...newGenres]);
+          setUserGenres(updatedUserGenres);
+
+          // Sort new results
+          const sortedNewResults = sortItems(res.results, updatedUserGenres);
+
           setData({
             ...data,
-            results: [...data?.results, ...res.results],
+            results: [...data?.results, ...sortedNewResults],
           });
         } else {
           setData(res);

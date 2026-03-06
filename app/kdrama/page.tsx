@@ -15,12 +15,20 @@ const sortOptions = [
   { value: "first_air_date.desc", label: "Date de sortie" },
 ];
 
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
+
 const KDramaPage = () => {
   const [data, setData] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
   const [loading, setLoading] = useState(false);
   const [mediaType, setMediaType] = useState<"tv" | "movie">("tv");
   const [sortBy, setSortBy] = useState("popularity.desc");
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
+  const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
+
+  useEffect(() => {
+    getUserWatchedIds().then(ids => setWatchedIds(ids));
+  }, []);
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -35,6 +43,17 @@ const KDramaPage = () => {
           sort_by: sortKey,
           page: 1,
         });
+
+        // Extract new genres from this batch
+        const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
+        const updatedUserGenres = new Set([...userGenres, ...newGenres]);
+        setUserGenres(updatedUserGenres);
+
+        // Sort
+        if (res?.results) {
+            res.results = sortItems(res.results, updatedUserGenres);
+        }
+
         setData(res);
         setPageNum(1);
       } catch (error) {
@@ -45,7 +64,7 @@ const KDramaPage = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, sortBy]);
+  }, [mediaType, sortBy, watchedIds]);
 
   const fetchNextPageData = async () => {
     try {
@@ -60,9 +79,17 @@ const KDramaPage = () => {
       });
       
       if (data?.results) {
+        // Extract new genres
+        const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
+        const updatedUserGenres = new Set([...userGenres, ...newGenres]);
+        setUserGenres(updatedUserGenres);
+
+        // Sort new results
+        const sortedNewResults = sortItems(res.results, updatedUserGenres);
+
         setData({
           ...data,
-          results: [...data.results, ...res.results],
+          results: [...data.results, ...sortedNewResults],
         });
       } else {
         setData(res);

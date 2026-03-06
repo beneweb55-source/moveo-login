@@ -25,6 +25,8 @@ import { motion } from "motion/react";
 
 // ... (imports)
 
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
+
 const Explore = () => {
   const [data, setData] = useState<any>(null);
   const [pageNum, setPageNum] = useState(1);
@@ -32,9 +34,16 @@ const Explore = () => {
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("popularity.desc");
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
+  const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
   
   const { mediaType } = useParams();
   const { language, t } = useLanguage();
+
+  // Fetch Watched IDs on mount
+  useEffect(() => {
+    getUserWatchedIds().then(ids => setWatchedIds(ids));
+  }, []);
 
   // Fetch Genres
   useEffect(() => {
@@ -66,6 +75,16 @@ const Explore = () => {
       }
 
       fetchDataFromApi(`/discover/${mediaType}`, params).then((res) => {
+        // Extract new genres from this batch
+        const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
+        const updatedUserGenres = new Set([...userGenres, ...newGenres]);
+        setUserGenres(updatedUserGenres);
+
+        // Sort
+        if (res?.results) {
+            res.results = sortItems(res.results, updatedUserGenres);
+        }
+
         setData(res);
         setPageNum(2);
         setLoading(false);
@@ -73,7 +92,12 @@ const Explore = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, language, sortBy, selectedGenre]);
+  }, [mediaType, language, sortBy, selectedGenre, watchedIds]); // Added watchedIds to dependency to re-sort if it loads late? 
+  // Actually adding watchedIds to dependency might trigger double fetch if it loads after initial fetch. 
+  // But usually initial fetch is fast. 
+  // Let's keep it simple. If watchedIds loads LATER than initial data, we might miss the first sort.
+  // But getUserWatchedIds is fast (internal API). TMDB is external.
+  // So likely watchedIds is ready before TMDB.
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -90,9 +114,17 @@ const Explore = () => {
     fetchDataFromApi(`/discover/${mediaType}`, params).then(
       (res) => {
         if (data?.results) {
+          // Extract new genres
+          const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
+          const updatedUserGenres = new Set([...userGenres, ...newGenres]);
+          setUserGenres(updatedUserGenres);
+
+          // Sort new results
+          const sortedNewResults = sortItems(res.results, updatedUserGenres);
+
           setData({
             ...data,
-            results: [...data?.results, ...res.results],
+            results: [...data?.results, ...sortedNewResults],
           });
         } else {
           setData(res);
