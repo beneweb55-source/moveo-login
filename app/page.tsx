@@ -63,38 +63,45 @@ export default function Home() {
         const calculateScore = (item: any, userGenres: Set<number>) => {
           let score = 0;
 
-          // 1. Base Rules
+          // 1. Recency & Availability
           const releaseDateStr = item.release_date || item.first_air_date;
           if (releaseDateStr) {
             const releaseDate = new Date(releaseDateStr);
-            const sixMonthsAgo = new Date();
-            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-            if (releaseDate > sixMonthsAgo) {
-              score += 12;
-            }
+            const now = new Date();
+            const diffTime = now.getTime() - releaseDate.getTime();
+            const diffDays = diffTime / (1000 * 3600 * 24);
+
+            // Boost very recent releases (last 3 months)
+            if (diffDays > 0 && diffDays <= 90) score += 15;
+            // Boost recent releases (last year)
+            else if (diffDays > 90 && diffDays <= 365) score += 10;
+            // Penalize future releases (not yet watchable)
+            else if (diffDays < 0) score -= 5;
           }
 
-          if (item.vote_average > 7.5) {
-            score += 8;
-          }
+          // 2. Rating (Quality Focus)
+          if (item.vote_average >= 8.0) score += 15;      // Excellent
+          else if (item.vote_average >= 7.0) score += 10; // Good
+          else if (item.vote_average < 5.0) score -= 10;  // Bad
 
-          if (item.vote_count < 5000) {
-            score -= 15;
-          }
+          // 3. Popularity (Social Proof)
+          // Only penalize very unknown content (< 100 votes)
+          if (item.vote_count < 100) score -= 20; 
+          // Bonus for established hits
+          else if (item.vote_count > 5000) score += 5;
 
-          // Documentary (99), Family (10751), Kids (10762)
-          const genreIds = item.genre_ids || [];
-          if (genreIds.some((id: number) => [99, 10751, 10762].includes(id))) {
-            score -= 25;
-          }
-
-          // 2. User Preferences
+          // 4. User Preferences (Personalization)
           if (userGenres.size > 0) {
-            const hasCommonGenre = genreIds.some((id: number) => userGenres.has(id));
-            if (hasCommonGenre) {
-              score += 15;
-            }
+            const genreIds = item.genre_ids || [];
+            // +10 points PER matching genre to heavily weight personal taste
+            const matchingGenres = genreIds.filter((id: number) => userGenres.has(id));
+            score += (matchingGenres.length * 10);
           }
+
+          // 5. Discovery Factor (Randomness)
+          // Add a random value between 0-15 to shuffle items with similar scores
+          // This ensures the list feels "fresh" on every reload
+          score += Math.random() * 15;
 
           return score;
         };
