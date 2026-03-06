@@ -3,16 +3,19 @@ import { auth } from '@/lib/auth';
 import pool from '@/lib/db';
 import { GoogleGenAI, Type } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
-
 export async function GET(req: Request) {
   try {
+    console.log('AI Recs: API Key present?', !!process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+    const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
+    
     const session = await auth();
     if (!session || !session.user) {
+      console.log('AI Recs: No session or user');
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const user = session.user;
+    console.log('AI Recs: User ID:', user.userId);
 
     // Récupérer l'historique de visionnage et les favoris de l'utilisateur
     const result = await pool.query(
@@ -21,6 +24,7 @@ export async function GET(req: Request) {
     );
 
     const userList = result.rows;
+    console.log('AI Recs: User list length:', userList.length);
 
     if (userList.length === 0) {
       return NextResponse.json({ recommendations: [] });
@@ -79,11 +83,18 @@ export async function GET(req: Request) {
     });
 
     const recommendationsText = response.text;
+    console.log('AI Recs: Raw response text:', recommendationsText);
     if (!recommendationsText) {
       throw new Error('Pas de réponse de Gemini');
     }
 
-    const recommendations = JSON.parse(recommendationsText);
+    // Nettoyer le texte si Gemini renvoie du markdown
+    const cleanedText = recommendationsText.replace(/```json/g, '').replace(/```/g, '').trim();
+    console.log('AI Recs: Cleaned response text:', cleanedText);
+
+    const recommendations = JSON.parse(cleanedText);
+    console.log('AI Recs: Parsed recommendations length:', recommendations.length);
+    console.log('AI Recs: TMDB API Key present?', !!process.env.NEXT_PUBLIC_TMDB_API_KEY);
 
     // Pour chaque recommandation, on va chercher les infos sur TMDB
     const enrichedRecommendations = await Promise.all(
@@ -103,6 +114,8 @@ export async function GET(req: Request) {
               overview: item.overview,
               release_date: item.release_date || item.first_air_date,
             };
+          } else {
+            console.log('AI Recs: No TMDB results for', rec.title, searchData);
           }
           return null;
         } catch (e) {
@@ -113,6 +126,7 @@ export async function GET(req: Request) {
     );
 
     const finalRecommendations = enrichedRecommendations.filter(item => item !== null && item.poster_path);
+    console.log('AI Recs: Final recommendations length:', finalRecommendations.length);
 
     return NextResponse.json({ recommendations: finalRecommendations });
   } catch (error) {
