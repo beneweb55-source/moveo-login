@@ -27,6 +27,9 @@ function ProfileContent() {
   const [passwordStatus, setPasswordStatus] = useState({ type: '', message: '' });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [recommendationsFetched, setRecommendationsFetched] = useState(false);
   
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar_url' | 'banner_url') => {
     const file = e.target.files?.[0];
@@ -46,14 +49,37 @@ function ProfileContent() {
   
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get('tab') as 'watchlist' | 'favorites' | 'watched' | 'settings' | null;
-  const [activeTab, setActiveTab] = useState<'watchlist' | 'favorites' | 'watched' | 'settings'>(tabParam || 'watchlist');
+  const tabParam = searchParams.get('tab') as 'watchlist' | 'favorites' | 'watched' | 'settings' | 'recommendations' | null;
+  const [activeTab, setActiveTab] = useState<'watchlist' | 'favorites' | 'watched' | 'settings' | 'recommendations'>(tabParam || 'watchlist');
 
   useEffect(() => {
     if (tabParam) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
+
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      if (recommendationsFetched) return;
+      setLoadingRecommendations(true);
+      try {
+        const res = await fetch('/api/ai/recommendations');
+        if (res.ok) {
+          const data = await res.json();
+          setRecommendations(data.recommendations || []);
+          setRecommendationsFetched(true);
+        }
+      } catch (error) {
+        console.error('Error fetching recommendations:', error);
+      } finally {
+        setLoadingRecommendations(false);
+      }
+    };
+
+    if (activeTab === 'recommendations') {
+      fetchRecommendations();
+    }
+  }, [activeTab, recommendationsFetched]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -207,7 +233,7 @@ function ProfileContent() {
         {/* Profile Card */}
         <div className="bg-[#141414] rounded-3xl overflow-hidden border border-white/10 shadow-2xl mb-12 max-w-sm mx-auto">
           {/* Banner */}
-          <div className="relative h-32 w-full bg-gradient-to-r from-red-900 to-black">
+          <div className="relative h-32 w-full bg-gradient-to-r from-red-900 to-black group">
              {(isEditing ? editForm.banner_url : user.banner_url) && (
                <Image 
                  src={isEditing ? editForm.banner_url : user.banner_url} 
@@ -226,11 +252,24 @@ function ProfileContent() {
                  <Edit2 className="w-4 h-4" />
                </button>
              )}
+             {isEditing && (
+               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3 backdrop-blur-sm">
+                 <label className="cursor-pointer p-2.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors shadow-lg">
+                   <Edit2 className="w-5 h-5 text-white" />
+                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'banner_url')} />
+                 </label>
+                 {editForm.banner_url && (
+                   <button onClick={() => setEditForm({ ...editForm, banner_url: '' })} className="p-2.5 bg-red-500/80 hover:bg-red-500 rounded-full transition-colors shadow-lg">
+                     <Trash2 className="w-5 h-5 text-white" />
+                   </button>
+                 )}
+               </div>
+             )}
           </div>
 
           {/* Avatar & Info */}
           <div className="px-6 pb-8 relative flex flex-col items-center -mt-16">
-            <div className="relative w-32 h-32 rounded-full border-4 border-[#141414] bg-[#141414] overflow-hidden shadow-xl mb-4">
+            <div className="relative w-32 h-32 rounded-full border-4 border-[#141414] bg-[#141414] overflow-hidden shadow-xl mb-4 group">
               {(isEditing ? editForm.avatar_url : user.avatar_url) ? (
                 <Image 
                   src={isEditing ? editForm.avatar_url : user.avatar_url} 
@@ -244,6 +283,19 @@ function ProfileContent() {
                   <span className="text-5xl font-bold text-white uppercase">{(isEditing ? editForm.name : user.name).charAt(0)}</span>
                 </div>
               )}
+              {isEditing && (
+               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2 backdrop-blur-sm">
+                 <label className="cursor-pointer p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors shadow-lg">
+                   <Edit2 className="w-4 h-4 text-white" />
+                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'avatar_url')} />
+                 </label>
+                 {editForm.avatar_url && (
+                   <button onClick={() => setEditForm({ ...editForm, avatar_url: '' })} className="p-2 bg-red-500/80 hover:bg-red-500 rounded-full transition-colors shadow-lg">
+                     <Trash2 className="w-4 h-4 text-white" />
+                   </button>
+                 )}
+               </div>
+              )}
             </div>
 
             {isEditing ? (
@@ -255,24 +307,6 @@ function ProfileContent() {
                     className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-center font-bold text-xl w-full focus:border-[#E50914] outline-none"
                     placeholder="Nom"
                   />
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-white/50">Photo de profil (max 3MB)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileUpload(e, 'avatar_url')}
-                      className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-xs w-full focus:border-[#E50914] outline-none file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-white/50">Bannière (max 3MB)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleFileUpload(e, 'banner_url')}
-                      className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-xs w-full focus:border-[#E50914] outline-none file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
-                    />
-                  </div>
                   <div className="flex justify-center gap-2 mt-4">
                     <button
                       onClick={handleSaveProfile}
@@ -383,6 +417,17 @@ function ProfileContent() {
             )}
           </button>
           <button
+            onClick={() => { setActiveTab('recommendations'); router.push('/profile?tab=recommendations', { scroll: false }); }}
+            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors relative ${
+              activeTab === 'recommendations' ? 'text-white' : 'text-white/50 hover:text-white/80'
+            }`}
+          >
+            Recommandations IA
+            {activeTab === 'recommendations' && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full" />
+            )}
+          </button>
+          <button
             onClick={() => { setActiveTab('settings'); router.push('/profile?tab=settings', { scroll: false }); }}
             className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors relative ${
               activeTab === 'settings' ? 'text-white' : 'text-white/50 hover:text-white/80'
@@ -408,17 +453,28 @@ function ProfileContent() {
                     <div className="sm:col-span-2">
                        {isEditing ? (
                          <div className="flex items-center gap-4">
-                           {editForm.avatar_url && (
-                             <div className="w-12 h-12 rounded-full overflow-hidden relative flex-shrink-0">
+                           <div className="w-12 h-12 rounded-full overflow-hidden relative flex-shrink-0 bg-white/5">
+                             {editForm.avatar_url ? (
                                <Image src={editForm.avatar_url} alt="Avatar preview" fill className="object-cover" />
-                             </div>
-                           )}
-                           <input
-                             type="file"
-                             accept="image/*"
-                             onChange={(e) => handleFileUpload(e, 'avatar_url')}
-                             className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#E50914] file:text-white hover:file:bg-red-700"
-                           />
+                             ) : (
+                               <div className="w-full h-full flex items-center justify-center text-white/30 text-xs">Vide</div>
+                             )}
+                           </div>
+                           <div className="flex-1 flex items-center gap-2">
+                             <label className="cursor-pointer bg-[#E50914] hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                               Choisir une image
+                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'avatar_url')} />
+                             </label>
+                             {editForm.avatar_url && (
+                               <button 
+                                 onClick={() => setEditForm({ ...editForm, avatar_url: '' })}
+                                 className="p-2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-full transition-colors"
+                                 title="Supprimer l'avatar"
+                               >
+                                 <Trash2 className="w-5 h-5" />
+                               </button>
+                             )}
+                           </div>
                          </div>
                        ) : (
                          <span className="text-white/50 text-sm truncate block">{user.avatar_url ? 'Avatar personnalisé défini' : 'Aucun avatar défini'}</span>
@@ -430,18 +486,29 @@ function ProfileContent() {
                     <label className="text-white/70 font-medium">Bannière</label>
                     <div className="sm:col-span-2">
                        {isEditing ? (
-                         <div className="flex flex-col gap-2">
-                           {editForm.banner_url && (
-                             <div className="w-full h-20 rounded-lg overflow-hidden relative">
+                         <div className="flex flex-col gap-3">
+                           <div className="w-full h-20 rounded-lg overflow-hidden relative bg-white/5">
+                             {editForm.banner_url ? (
                                <Image src={editForm.banner_url} alt="Banner preview" fill className="object-cover" />
-                             </div>
-                           )}
-                           <input
-                             type="file"
-                             accept="image/*"
-                             onChange={(e) => handleFileUpload(e, 'banner_url')}
-                             className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-[#E50914] file:text-white hover:file:bg-red-700"
-                           />
+                             ) : (
+                               <div className="w-full h-full flex items-center justify-center text-white/30 text-sm">Vide</div>
+                             )}
+                           </div>
+                           <div className="flex items-center gap-2">
+                             <label className="cursor-pointer bg-[#E50914] hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors">
+                               Choisir une image
+                               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'banner_url')} />
+                             </label>
+                             {editForm.banner_url && (
+                               <button 
+                                 onClick={() => setEditForm({ ...editForm, banner_url: '' })}
+                                 className="p-2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-full transition-colors"
+                                 title="Supprimer la bannière"
+                               >
+                                 <Trash2 className="w-5 h-5" />
+                               </button>
+                             )}
+                           </div>
                          </div>
                        ) : (
                          <span className="text-white/50 text-sm truncate block">{user.banner_url ? 'Bannière personnalisée définie' : 'Aucune bannière définie'}</span>
@@ -635,6 +702,69 @@ function ProfileContent() {
                 </div>
               </div>
             </div>
+          </div>
+        ) : activeTab === 'recommendations' ? (
+          <div className="space-y-6">
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-6 mb-8">
+              <h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                <span className="text-blue-400">✨</span> Recommandations Personnalisées par IA
+              </h3>
+              <p className="text-white/70">
+                Notre intelligence artificielle analyse votre historique de visionnage et vos favoris pour vous proposer des films et séries qui correspondent exactement à vos goûts.
+              </p>
+            </div>
+
+            {loadingRecommendations ? (
+              <div className="flex justify-center py-20">
+                <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+              </div>
+            ) : recommendations.length === 0 ? (
+              <div className="text-center py-20 bg-[#141414] rounded-2xl border border-white/5">
+                <p className="text-white/50">
+                  Ajoutez plus de films à vos favoris ou à votre historique pour obtenir des recommandations.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {recommendations.map((item: any, index: number) => (
+                  <div key={index} className="bg-[#141414] rounded-xl overflow-hidden border border-white/10 flex flex-col">
+                    <div className="relative aspect-video w-full">
+                      {item.poster_path ? (
+                        <Image
+                          src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                          <span className="text-white/30 text-sm">Pas d&apos;image</span>
+                        </div>
+                      )}
+                      <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-1">
+                        <span className="text-green-400 font-bold">{item.match_percentage}%</span>
+                        <span className="text-white/70 text-xs uppercase">Match</span>
+                      </div>
+                    </div>
+                    <div className="p-5 flex flex-col flex-1">
+                      <h4 className="text-lg font-bold text-white mb-1">{item.title}</h4>
+                      <p className="text-xs text-white/50 uppercase tracking-wider mb-3">
+                        {item.media_type === 'movie' ? 'Film' : 'Série'} • {item.release_date?.substring(0, 4)}
+                      </p>
+                      <p className="text-sm text-white/80 italic mb-4 flex-1">
+                        &quot;{item.reason}&quot;
+                      </p>
+                      <Link
+                        href={`/${item.media_type}/${item.id}`}
+                        className="w-full py-2 bg-white/10 hover:bg-white/20 text-white text-center rounded-lg font-medium transition-colors"
+                      >
+                        Voir les détails
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ) : currentList.length === 0 ? (
           <div className="text-center py-20 bg-[#141414] rounded-2xl border border-white/5">
