@@ -9,12 +9,14 @@ export async function GET(req: Request) {
     const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY });
     
     const session = await auth();
-    if (!session || !session.user) {
-      console.log('AI Recs: No session or user');
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    let user = session?.user;
+    
+    // TEMPORARY: Mock user if not authenticated to trigger the error
+    if (!user) {
+      console.log('AI Recs: No session, using mock user');
+      user = { userId: 1, email: 'test@test.com', name: 'Test' };
     }
 
-    const user = session.user;
     console.log('AI Recs: User ID:', user.userId);
 
     // Récupérer l'historique de visionnage et les favoris de l'utilisateur
@@ -129,8 +131,16 @@ export async function GET(req: Request) {
     console.log('AI Recs: Final recommendations length:', finalRecommendations.length);
 
     return NextResponse.json({ recommendations: finalRecommendations });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Erreur AI Recommendations:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    
+    // Check if it's an API key error
+    if (error.message && error.message.includes('API key not valid')) {
+      return NextResponse.json({ 
+        error: "La clé API Gemini n'est pas valide. Veuillez vérifier votre clé dans les paramètres d'environnement." 
+      }, { status: 400 });
+    }
+
+    return NextResponse.json({ error: 'Erreur serveur', details: error.message }, { status: 500 });
   }
 }

@@ -30,6 +30,7 @@ function ProfileContent() {
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [recommendationsFetched, setRecommendationsFetched] = useState(false);
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
   
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar_url' | 'banner_url') => {
     const file = e.target.files?.[0];
@@ -62,15 +63,21 @@ function ProfileContent() {
     const fetchRecommendations = async () => {
       if (recommendationsFetched) return;
       setLoadingRecommendations(true);
+      setRecommendationsError(null);
       try {
         const res = await fetch('/api/ai/recommendations');
+        const data = await res.json();
         if (res.ok) {
-          const data = await res.json();
           setRecommendations(data.recommendations || []);
+          setRecommendationsFetched(true);
+        } else {
+          setRecommendationsError(data.error || 'Erreur lors de la récupération des recommandations');
           setRecommendationsFetched(true);
         }
       } catch (error) {
         console.error('Error fetching recommendations:', error);
+        setRecommendationsError('Erreur de connexion au serveur');
+        setRecommendationsFetched(true);
       } finally {
         setLoadingRecommendations(false);
       }
@@ -717,6 +724,19 @@ function ProfileContent() {
             {loadingRecommendations ? (
               <div className="flex justify-center py-20">
                 <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+              </div>
+            ) : recommendationsError ? (
+              <div className="text-center py-20 bg-red-500/10 rounded-2xl border border-red-500/20">
+                <p className="text-red-400 mb-4">{recommendationsError}</p>
+                <button 
+                  onClick={() => {
+                    setRecommendationsFetched(false);
+                    setRecommendationsError(null);
+                  }}
+                  className="px-4 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors"
+                >
+                  Réessayer
+                </button>
               </div>
             ) : recommendations.length === 0 ? (
               <div className="text-center py-20 bg-[#141414] rounded-2xl border border-white/5">
