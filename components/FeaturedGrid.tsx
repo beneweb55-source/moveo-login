@@ -7,6 +7,8 @@ import { Play, Star, Calendar } from "lucide-react";
 import { motion } from "motion/react";
 import { useSelector } from "react-redux";
 
+import { useLanguage } from "@/context/LanguageContext";
+
 interface FeaturedGridProps {
   data: any[];
   loading: boolean;
@@ -15,6 +17,7 @@ interface FeaturedGridProps {
 
 const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const skeletonItem = () => {
     return (
@@ -81,7 +84,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
           onClick={() => router.push(`/${mainItem.media_type || "movie"}/${mainItem.id}`)}
         >
           <div className="absolute top-4 left-4 z-20 bg-[#E50914] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-            #1 Trending
+            #1 {t.home.trending}
           </div>
           <Image
             src={mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : "/no-poster.png"}

@@ -7,12 +7,14 @@ import MovieCard from "@/components/MovieCard";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { Loader2, ChevronDown } from "lucide-react";
 import HeroBanner from "@/components/HeroBanner";
+import { useLanguage } from "@/context/LanguageContext";
+
 import { motion } from "motion/react";
 
 const sortOptions = [
-  { value: "popularity.desc", label: "Popularité" },
-  { value: "vote_average.desc", label: "Note" },
-  { value: "first_air_date.desc", label: "Date de sortie" },
+  { value: "popularity.desc", label: "popularity" },
+  { value: "vote_average.desc", label: "rating" },
+  { value: "first_air_date.desc", label: "releaseDate" },
 ];
 
 import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
@@ -25,6 +27,7 @@ const KDramaPage = () => {
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
+  const { language, t } = useLanguage();
 
   useEffect(() => {
     getUserWatchedIds().then(ids => setWatchedIds(ids));
@@ -38,10 +41,12 @@ const KDramaPage = () => {
           ? "release_date.desc" 
           : sortBy;
 
+        const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
         const res = await fetchDataFromApi(`/discover/${mediaType}`, {
           with_original_language: "ko",
           sort_by: sortKey,
           page: 1,
+          language: langParam,
         });
 
         // Extract new genres from this batch
@@ -64,7 +69,7 @@ const KDramaPage = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, sortBy, watchedIds]);
+  }, [mediaType, sortBy, watchedIds, language]);
 
   const fetchNextPageData = async () => {
     try {
@@ -72,10 +77,12 @@ const KDramaPage = () => {
         ? "release_date.desc" 
         : sortBy;
 
+      const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
       const res = await fetchDataFromApi(`/discover/${mediaType}`, {
         with_original_language: "ko",
         sort_by: sortKey,
         page: pageNum + 1,
+        language: langParam,
       });
       
       if (data?.results) {
@@ -118,13 +125,13 @@ const KDramaPage = () => {
                       onClick={() => setMediaType("tv")}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${mediaType === "tv" ? "bg-[#E50914] text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
                   >
-                      Séries
+                      {t.explore.exploreTv}
                   </button>
                   <button 
                       onClick={() => setMediaType("movie")}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${mediaType === "movie" ? "bg-[#E50914] text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
                   >
-                      Films
+                      {t.explore.exploreMovies}
                   </button>
               </div>
 
@@ -137,7 +144,7 @@ const KDramaPage = () => {
                 >
                   {sortOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.label}
+                      {t.explore.sortOptions[option.label as keyof typeof t.explore.sortOptions]}
                     </option>
                   ))}
                 </select>
@@ -185,7 +192,7 @@ const KDramaPage = () => {
                 </InfiniteScroll>
               ) : (
                 <div className="text-center text-white/50 py-20">
-                  Aucun résultat trouvé.
+                  {t.explore.noResults}
                 </div>
               )}
             </>

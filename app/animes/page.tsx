@@ -12,9 +12,9 @@ import { motion } from "motion/react";
 import HeroBanner from "@/components/HeroBanner";
 
 const sortOptions = [
-  { value: "popularity.desc", label: "Popularité" },
-  { value: "vote_average.desc", label: "Note" },
-  { value: "first_air_date.desc", label: "Date de sortie" },
+  { value: "popularity.desc", label: "popularity" },
+  { value: "vote_average.desc", label: "rating" },
+  { value: "first_air_date.desc", label: "releaseDate" },
 ];
 
 import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
@@ -28,7 +28,7 @@ const Animes = () => {
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
   
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   // Fetch Watched IDs on mount
   useEffect(() => {
@@ -120,13 +120,13 @@ const Animes = () => {
                     onClick={() => setMediaType("tv")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${mediaType === "tv" ? "bg-[#E50914] text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
                 >
-                    Séries
+                    {t.explore.exploreTv}
                 </button>
                 <button 
                     onClick={() => setMediaType("movie")}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${mediaType === "movie" ? "bg-[#E50914] text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
                 >
-                    Films
+                    {t.explore.exploreMovies}
                 </button>
             </div>
 
@@ -139,7 +139,7 @@ const Animes = () => {
               >
                 {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t.explore.sortOptions[option.label as keyof typeof t.explore.sortOptions]}
                   </option>
                 ))}
               </select>
@@ -180,9 +180,9 @@ const Animes = () => {
             ) : (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <span className="text-3xl text-white/40 font-bold mb-4">
-                  Aucun résultat
+                  {t.explore.noResults}
                 </span>
-                <p className="text-white/30 text-lg">Essayez de modifier vos filtres pour voir plus de résultats.</p>
+                <p className="text-white/30 text-lg">{t.explore.tryAdjustingFilters}</p>
               </div>
             )}
           </>

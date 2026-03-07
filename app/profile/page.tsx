@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2, Trash2, Heart, Bookmark, Eye, User, Settings, Edit2, Save, X } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useLanguage } from '@/context/LanguageContext';
 
 type ListItem = {
   id: number;
@@ -29,12 +30,14 @@ function ProfileContent() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
+  const { language, t } = useLanguage();
+  
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'avatar_url' | 'banner_url') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 3 * 1024 * 1024) {
-      alert('Le fichier est trop volumineux (max 3MB)');
+      alert(t.profile.fileTooLarge);
       return;
     }
 
@@ -122,7 +125,7 @@ function ProfileContent() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordStatus({ type: 'error', message: 'Les mots de passe ne correspondent pas' });
+      setPasswordStatus({ type: 'error', message: t.profile.passwordsDoNotMatch });
       return;
     }
     
@@ -142,20 +145,20 @@ function ProfileContent() {
       const data = await res.json();
       
       if (res.ok) {
-        setPasswordStatus({ type: 'success', message: 'Mot de passe mis à jour avec succès' });
+        setPasswordStatus({ type: 'success', message: t.profile.passwordUpdated });
         setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       } else {
-        setPasswordStatus({ type: 'error', message: data.error || 'Erreur lors de la mise à jour' });
+        setPasswordStatus({ type: 'error', message: data.error || t.profile.updateError });
       }
     } catch (error) {
-      setPasswordStatus({ type: 'error', message: 'Erreur serveur' });
+      setPasswordStatus({ type: 'error', message: t.profile.serverError });
     } finally {
       setIsChangingPassword(false);
     }
   };
 
   const handleDeleteAccount = async () => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.')) {
+    if (!window.confirm(t.profile.deleteConfirm)) {
       return;
     }
     
@@ -165,11 +168,11 @@ function ProfileContent() {
       if (res.ok) {
         window.location.href = '/login';
       } else {
-        alert('Erreur lors de la suppression du compte');
+        alert(t.profile.deleteError);
       }
     } catch (error) {
       console.error('Error deleting account:', error);
-      alert('Erreur serveur');
+      alert(t.profile.serverError);
     } finally {
       setIsDeleting(false);
     }
@@ -214,7 +217,7 @@ function ProfileContent() {
     if (hours < 24) return `${hours} h ${remainingMinutes} min`;
     const days = Math.floor(hours / 24);
     const remainingHours = hours % 24;
-    return `${days} j ${remainingHours} h`;
+    return `${days} ${t.profile.days} ${remainingHours} h`;
   };
 
   return (
@@ -304,13 +307,13 @@ function ProfileContent() {
                       disabled={saving}
                       className="px-4 py-2 bg-[#E50914] text-white rounded-full text-sm font-medium hover:bg-red-700 transition-colors"
                     >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enregistrer'}
+                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t.profile.save}
                     </button>
                     <button
                       onClick={() => setIsEditing(false)}
                       className="px-4 py-2 bg-white/10 text-white rounded-full text-sm font-medium hover:bg-white/20 transition-colors"
                     >
-                      Annuler
+                      {t.profile.cancel}
                     </button>
                   </div>
               </div>
@@ -321,7 +324,7 @@ function ProfileContent() {
                 
                 <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg mb-6">
                   <span className="text-xs font-bold text-white/70 uppercase tracking-wider">
-                    {user.role || 'MEMBRE'}
+                    {user.role || t.profile.member}
                   </span>
                 </div>
 
@@ -356,15 +359,15 @@ function ProfileContent() {
                 <div className="grid grid-cols-3 w-full border-t border-white/10 pt-6">
                   <div className="text-center">
                     <p className="text-2xl font-bold text-white">{watched.length}</p>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">VUS</p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t.profile.watched}</p>
                   </div>
                   <div className="text-center border-l border-r border-white/10">
                     <p className="text-2xl font-bold text-white">{formatWatchTime(watchTime)}</p>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">TEMPS</p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t.profile.time}</p>
                   </div>
                   <div className="text-center">
                     <p className="text-2xl font-bold text-white">{watchlist.length}</p>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">LISTE</p>
+                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t.profile.list}</p>
                   </div>
                 </div>
               </>
@@ -380,7 +383,7 @@ function ProfileContent() {
               activeTab === 'watchlist' ? 'text-white' : 'text-white/50 hover:text-white/80'
             }`}
           >
-            Ma Watchlist
+            {t.profile.myWatchlist}
             {activeTab === 'watchlist' && (
               <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#E50914] rounded-t-full" />
             )}
@@ -391,7 +394,7 @@ function ProfileContent() {
               activeTab === 'favorites' ? 'text-white' : 'text-white/50 hover:text-white/80'
             }`}
           >
-            Mes Favoris
+            {t.profile.myFavorites}
             {activeTab === 'favorites' && (
               <div className="absolute bottom-0 left-0 w-full h-0.5 bg-pink-500 rounded-t-full" />
             )}
@@ -402,7 +405,7 @@ function ProfileContent() {
               activeTab === 'watched' ? 'text-white' : 'text-white/50 hover:text-white/80'
             }`}
           >
-            Déjà Vus
+            {t.profile.alreadyWatched}
             {activeTab === 'watched' && (
               <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 rounded-t-full" />
             )}
@@ -413,7 +416,7 @@ function ProfileContent() {
               activeTab === 'settings' ? 'text-white' : 'text-white/50 hover:text-white/80'
             }`}
           >
-            Paramètres
+            {t.profile.settings}
             {activeTab === 'settings' && (
               <div className="absolute bottom-0 left-0 w-full h-0.5 bg-purple-500 rounded-t-full" />
             )}
@@ -425,11 +428,11 @@ function ProfileContent() {
           <div className="bg-[#141414] rounded-2xl border border-white/10 overflow-hidden max-w-3xl mx-auto">
             <div className="p-6 sm:p-8 space-y-8">
               <div>
-                <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider mb-6">Informations du Compte</h3>
+                <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider mb-6">{t.profile.accountInfo}</h3>
                 
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
-                    <label className="text-white/70 font-medium">Avatar</label>
+                    <label className="text-white/70 font-medium">{t.profile.avatar}</label>
                     <div className="sm:col-span-2">
                        {isEditing ? (
                          <div className="flex items-center gap-4">
@@ -437,19 +440,19 @@ function ProfileContent() {
                              {editForm.avatar_url ? (
                                <Image src={editForm.avatar_url} alt="Avatar preview" fill className="object-cover" />
                              ) : (
-                               <div className="w-full h-full flex items-center justify-center text-white/30 text-xs">Vide</div>
+                               <div className="w-full h-full flex items-center justify-center text-white/30 text-xs">{t.profile.empty}</div>
                              )}
                            </div>
                            <div className="flex-1 flex items-center gap-2">
                              <label className="cursor-pointer bg-[#E50914] hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                               Choisir une image
+                               {t.profile.chooseImage}
                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'avatar_url')} />
                              </label>
                              {editForm.avatar_url && (
                                <button 
                                  onClick={() => setEditForm({ ...editForm, avatar_url: '' })}
                                  className="p-2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-full transition-colors"
-                                 title="Supprimer l'avatar"
+                                 title={t.profile.removeAvatar}
                                >
                                  <Trash2 className="w-5 h-5" />
                                </button>
@@ -457,13 +460,13 @@ function ProfileContent() {
                            </div>
                          </div>
                        ) : (
-                         <span className="text-white/50 text-sm truncate block">{user.avatar_url ? 'Avatar personnalisé défini' : 'Aucun avatar défini'}</span>
+                         <span className="text-white/50 text-sm truncate block">{user.avatar_url ? t.profile.customAvatarSet : t.profile.noAvatarSet}</span>
                        )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
-                    <label className="text-white/70 font-medium">Bannière</label>
+                    <label className="text-white/70 font-medium">{t.profile.banner}</label>
                     <div className="sm:col-span-2">
                        {isEditing ? (
                          <div className="flex flex-col gap-3">
@@ -471,19 +474,19 @@ function ProfileContent() {
                              {editForm.banner_url ? (
                                <Image src={editForm.banner_url} alt="Banner preview" fill className="object-cover" />
                              ) : (
-                               <div className="w-full h-full flex items-center justify-center text-white/30 text-sm">Vide</div>
+                               <div className="w-full h-full flex items-center justify-center text-white/30 text-sm">{t.profile.empty}</div>
                              )}
                            </div>
                            <div className="flex items-center gap-2">
                              <label className="cursor-pointer bg-[#E50914] hover:bg-red-700 text-white px-4 py-2 rounded-full text-sm font-medium transition-colors">
-                               Choisir une image
+                               {t.profile.chooseImage}
                                <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'banner_url')} />
                              </label>
                              {editForm.banner_url && (
                                <button 
                                  onClick={() => setEditForm({ ...editForm, banner_url: '' })}
                                  className="p-2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-full transition-colors"
-                                 title="Supprimer la bannière"
+                                 title={t.profile.removeBanner}
                                >
                                  <Trash2 className="w-5 h-5" />
                                </button>
@@ -491,37 +494,37 @@ function ProfileContent() {
                            </div>
                          </div>
                        ) : (
-                         <span className="text-white/50 text-sm truncate block">{user.banner_url ? 'Bannière personnalisée définie' : 'Aucune bannière définie'}</span>
+                         <span className="text-white/50 text-sm truncate block">{user.banner_url ? t.profile.customBannerSet : t.profile.noBannerSet}</span>
                        )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
-                    <label className="text-white/70 font-medium">Nom d&apos;utilisateur</label>
+                    <label className="text-white/70 font-medium">{t.profile.username}</label>
                     <div className="sm:col-span-2">
                       <span className="text-white font-medium">{user.name}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
-                    <label className="text-white/70 font-medium">Email</label>
+                    <label className="text-white/70 font-medium">{t.profile.email}</label>
                     <div className="sm:col-span-2">
                       <span className="text-white font-medium">{user.email}</span>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start py-4 border-b border-white/5">
-                    <label className="text-white/70 font-medium pt-2">Bio</label>
+                    <label className="text-white/70 font-medium pt-2">{t.profile.bio}</label>
                     <div className="sm:col-span-2">
                       {isEditing ? (
                         <textarea
                           value={editForm.bio}
                           onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
                           className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white w-full focus:border-[#E50914] outline-none min-h-[100px]"
-                          placeholder="Parlez-nous de vous..."
+                          placeholder={t.profile.bioPlaceholder}
                         />
                       ) : (
-                        <span className="text-white/80 italic">{user.bio || 'Aucune bio définie'}</span>
+                        <span className="text-white/80 italic">{user.bio || t.profile.noBioSet}</span>
                       )}
                     </div>
                   </div>
@@ -538,7 +541,7 @@ function ProfileContent() {
                           placeholder="https://twitter.com/..."
                         />
                       ) : (
-                        <span className="text-white/80">{user.twitter_url ? <a href={user.twitter_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{user.twitter_url}</a> : 'Non défini'}</span>
+                        <span className="text-white/80">{user.twitter_url ? <a href={user.twitter_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{user.twitter_url}</a> : t.profile.notSet}</span>
                       )}
                     </div>
                   </div>
@@ -555,13 +558,13 @@ function ProfileContent() {
                           placeholder="https://instagram.com/..."
                         />
                       ) : (
-                        <span className="text-white/80">{user.instagram_url ? <a href={user.instagram_url} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:underline">{user.instagram_url}</a> : 'Non défini'}</span>
+                        <span className="text-white/80">{user.instagram_url ? <a href={user.instagram_url} target="_blank" rel="noopener noreferrer" className="text-pink-400 hover:underline">{user.instagram_url}</a> : t.profile.notSet}</span>
                       )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center py-4 border-b border-white/5">
-                    <label className="text-white/70 font-medium">Site Web</label>
+                    <label className="text-white/70 font-medium">{t.profile.website}</label>
                     <div className="sm:col-span-2">
                       {isEditing ? (
                         <input
@@ -572,7 +575,7 @@ function ProfileContent() {
                           placeholder="https://..."
                         />
                       ) : (
-                        <span className="text-white/80">{user.website_url ? <a href={user.website_url} target="_blank" rel="noopener noreferrer" className="text-[#E50914] hover:underline">{user.website_url}</a> : 'Non défini'}</span>
+                        <span className="text-white/80">{user.website_url ? <a href={user.website_url} target="_blank" rel="noopener noreferrer" className="text-[#E50914] hover:underline">{user.website_url}</a> : t.profile.notSet}</span>
                       )}
                     </div>
                   </div>
@@ -585,7 +588,7 @@ function ProfileContent() {
                       className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full font-medium transition-colors"
                     >
                       <Edit2 className="w-4 h-4" />
-                      Modifier le profil
+                      {t.profile.editProfile}
                     </button>
                   </div>
                 ) : (
@@ -594,7 +597,7 @@ function ProfileContent() {
                       onClick={() => setIsEditing(false)}
                       className="px-6 py-3 bg-white/10 text-white rounded-full font-medium hover:bg-white/20 transition-colors"
                     >
-                      Annuler
+                      {t.profile.cancel}
                     </button>
                     <button
                       onClick={handleSaveProfile}
@@ -602,7 +605,7 @@ function ProfileContent() {
                       className="flex items-center gap-2 px-6 py-3 bg-[#E50914] text-white rounded-full font-medium hover:bg-red-700 transition-colors"
                     >
                       {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                      Enregistrer
+                      {t.profile.save}
                     </button>
                   </div>
                 )}
@@ -610,11 +613,11 @@ function ProfileContent() {
 
               {/* Password Change Section */}
               <div className="pt-8 border-t border-white/10">
-                <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider mb-6">Sécurité</h3>
+                <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider mb-6">{t.profile.security}</h3>
                 
                 <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
                   <div>
-                    <label className="block text-sm text-white/70 mb-1">Mot de passe actuel</label>
+                    <label className="block text-sm text-white/70 mb-1">{t.profile.currentPassword}</label>
                     <input
                       type="password"
                       value={passwordForm.currentPassword}
@@ -624,7 +627,7 @@ function ProfileContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-white/70 mb-1">Nouveau mot de passe</label>
+                    <label className="block text-sm text-white/70 mb-1">{t.profile.newPassword}</label>
                     <input
                       type="password"
                       value={passwordForm.newPassword}
@@ -635,7 +638,7 @@ function ProfileContent() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-white/70 mb-1">Confirmer le nouveau mot de passe</label>
+                    <label className="block text-sm text-white/70 mb-1">{t.profile.confirmNewPassword}</label>
                     <input
                       type="password"
                       value={passwordForm.confirmPassword}
@@ -658,18 +661,18 @@ function ProfileContent() {
                     className="px-6 py-2 bg-white/10 text-white rounded-lg font-medium hover:bg-white/20 transition-colors flex items-center gap-2"
                   >
                     {isChangingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                    Mettre à jour le mot de passe
+                    {t.profile.updatePassword}
                   </button>
                 </form>
               </div>
 
               {/* Danger Zone */}
               <div className="pt-8 border-t border-white/10">
-                <h3 className="text-sm font-medium text-red-500 uppercase tracking-wider mb-6">Zone de danger</h3>
+                <h3 className="text-sm font-medium text-red-500 uppercase tracking-wider mb-6">{t.profile.dangerZone}</h3>
                 <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6">
-                  <h4 className="text-white font-medium mb-2">Supprimer le compte</h4>
+                  <h4 className="text-white font-medium mb-2">{t.profile.deleteAccount}</h4>
                   <p className="text-white/60 text-sm mb-4">
-                    Une fois que vous supprimez votre compte, il n&apos;y a pas de retour en arrière possible. Soyez certain.
+                    {t.profile.deleteAccountWarning}
                   </p>
                   <button
                     onClick={handleDeleteAccount}
@@ -677,7 +680,7 @@ function ProfileContent() {
                     className="px-6 py-2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-lg font-medium transition-colors flex items-center gap-2"
                   >
                     {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                    Supprimer mon compte
+                    {t.profile.deleteMyAccount}
                   </button>
                 </div>
               </div>
@@ -690,12 +693,12 @@ function ProfileContent() {
               {activeTab === 'favorites' && <Heart className="w-10 h-10 text-white/20" />}
               {activeTab === 'watched' && <Eye className="w-10 h-10 text-white/20" />}
             </div>
-            <h3 className="text-xl font-medium text-white mb-2">Aucun contenu</h3>
+            <h3 className="text-xl font-medium text-white mb-2">{t.profile.noContent}</h3>
             <p className="text-white/50">
-              Vous n&apos;avez pas encore ajouté de contenu à cette liste.
+              {t.profile.noContentDesc}
             </p>
             <Link href="/" className="inline-block mt-6 px-6 py-3 bg-[#E50914] text-white rounded-full font-medium hover:bg-red-700 transition-colors">
-              Explorer le catalogue
+              {t.profile.exploreCatalog}
             </Link>
           </div>
         ) : (
@@ -725,12 +728,12 @@ function ProfileContent() {
                       href={`/${item.media_type}/${item.media_id}`}
                       className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs font-medium py-2 rounded-lg text-center transition-colors flex items-center justify-center"
                     >
-                      Détails
+                      {t.profile.details}
                     </Link>
                     <button
                       onClick={() => removeItem(item.media_type, item.media_id, item.list_type)}
                       className="w-8 h-8 bg-red-500/80 hover:bg-red-500 text-white rounded-lg flex items-center justify-center transition-colors backdrop-blur-sm"
-                      title="Retirer de la liste"
+                      title={t.profile.removeFromList}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

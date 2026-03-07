@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Play, Clock } from "lucide-react";
 import Image from "next/image";
 import { WatchHistoryItem } from "@/utils/historyManager";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface HistoryCardProps {
   item: WatchHistoryItem;
@@ -12,6 +13,7 @@ interface HistoryCardProps {
 
 const HistoryCard = ({ item }: HistoryCardProps) => {
   const router = useRouter();
+  const { t } = useLanguage();
 
   const posterUrl = item.poster_path
     ? (item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`)
@@ -81,7 +83,7 @@ const HistoryCard = ({ item }: HistoryCardProps) => {
         <div className="flex items-center justify-between mt-1 opacity-60 group-hover/card:opacity-100 transition-opacity duration-300">
           <span className="text-xs text-zinc-400 flex items-center gap-1">
             <Clock className="w-3 h-3" />
-            Reprendre
+            {t.home.resumeWatching}
           </span>
         </div>
       </div>

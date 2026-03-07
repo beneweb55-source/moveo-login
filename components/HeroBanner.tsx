@@ -80,7 +80,7 @@ const HeroBanner = ({ endpoint, params }: { endpoint?: string, params?: any }) =
           <div className="flex flex-wrap items-center gap-3 mb-4 text-sm md:text-base font-medium">
             <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-2">
               {movie?.media_type === "tv" ? <Film className="w-4 h-4" /> : <Film className="w-4 h-4" />}
-              {movie?.media_type === "tv" ? "TV Series" : "Movie"}
+              {movie?.media_type === "tv" ? t.explore.exploreTv : t.explore.exploreMovies}
             </span>
             <span className="flex items-center gap-1 text-[#FFD700]">
               <Star className="w-4 h-4 fill-current" />

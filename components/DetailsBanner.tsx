@@ -9,6 +9,7 @@ import VideoPopup from "@/components/VideoPopup";
 import { format } from "date-fns";
 import { Play, Star, Clock, Calendar, Plus, Check, Loader2, Heart, Bookmark, Eye } from "lucide-react";
 import Image from "next/image";
+import { useLanguage } from "@/context/LanguageContext";
 
 const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
   const [show, setShow] = useState(false);
@@ -19,6 +20,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
   const [user, setUser] = useState<any>(null);
   const [lists, setLists] = useState<string[]>([]);
   const [listLoading, setListLoading] = useState<string | null>(null);
+  const { t } = useLanguage();
   
   const { mediaType, id } = useParams();
 
@@ -65,7 +67,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
 
   const toggleList = async (listType: string) => {
     if (!user) {
-      alert('Veuillez vous connecter pour utiliser cette fonctionnalité.');
+      alert(t.details.loginRequired);
       return;
     }
     
@@ -208,7 +210,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
                   className="flex items-center gap-4 bg-[#E50914] hover:bg-red-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 shadow-[0_0_20px_rgba(229,9,20,0.4)] hover:shadow-[0_0_30px_rgba(229,9,20,0.6)] hover:scale-105"
                 >
                   <Play className="w-6 h-6 fill-current" />
-                  Watch Trailer
+                  {t.details.watchTrailer}
                 </button>
               )}
               
@@ -217,7 +219,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
                   <button
                     onClick={() => toggleList('watchlist')}
                     disabled={listLoading === 'watchlist'}
-                    title="Ajouter à la Watchlist"
+                    title={t.actionButtons.addToList}
                     className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                       lists.includes('watchlist')
                         ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' 
@@ -234,7 +236,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
                   <button
                     onClick={() => toggleList('favorites')}
                     disabled={listLoading === 'favorites'}
-                    title="Ajouter en Favoris"
+                    title={t.actionButtons.addToFavorites}
                     className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                       lists.includes('favorites')
                         ? 'bg-pink-500/20 border-pink-500/50 text-pink-500 hover:bg-pink-500/30' 
@@ -251,7 +253,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
                   <button
                     onClick={() => toggleList('watched')}
                     disabled={listLoading === 'watched'}
-                    title="Marquer comme vu"
+                    title={t.actionButtons.alreadyWatched}
                     className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                       lists.includes('watched')
                         ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/30' 
@@ -270,7 +272,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
 
             {/* Overview */}
             <div className="mb-8 max-w-3xl">
-              <h3 className="text-2xl font-bold mb-3">Overview</h3>
+              <h3 className="text-2xl font-bold mb-3">{t.details.overview}</h3>
               <p className="text-lg text-white/70 leading-relaxed font-light">
                 {data?.overview}
               </p>
@@ -280,14 +282,14 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-t border-white/10 pt-6 max-w-3xl">
               {data?.status && (
                 <div>
-                  <span className="text-white/50 block mb-1 text-sm">Status</span>
+                  <span className="text-white/50 block mb-1 text-sm">{t.details.status}</span>
                   <span className="font-medium">{data.status}</span>
                 </div>
               )}
               
               {director?.length > 0 && (
                 <div>
-                  <span className="text-white/50 block mb-1 text-sm">Director</span>
+                  <span className="text-white/50 block mb-1 text-sm">{t.details.director}</span>
                   <span className="font-medium">
                     {director.map((d: any) => d.name).join(", ")}
                   </span>
@@ -296,7 +298,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
 
               {writer?.length > 0 && (
                 <div className="sm:col-span-2">
-                  <span className="text-white/50 block mb-1 text-sm">Writer</span>
+                  <span className="text-white/50 block mb-1 text-sm">{t.details.writer}</span>
                   <span className="font-medium">
                     {writer.map((d: any) => d.name).join(", ")}
                   </span>

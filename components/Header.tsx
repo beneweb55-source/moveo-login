@@ -293,7 +293,7 @@ const Header = () => {
                               </span>
                               <span>•</span>
                               <span className="uppercase text-[10px] tracking-wider border border-white/20 px-1 rounded">
-                                {isMovie ? "Movie" : "TV"}
+                                {isMovie ? t.explore.exploreMovies : t.explore.exploreTv}
                               </span>
                             </div>
                           </div>

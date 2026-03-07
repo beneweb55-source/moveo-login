@@ -472,7 +472,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">VO/EN</span>
                     )}
                     {(server.name === "VidSrc.to" || server.name === "VidSrc.me") && isAnime && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" title={t.details.wrongEpisodeWarning}>⚠️ Erreurs</span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" title={t.details.wrongEpisodeWarning}>⚠️ {t.details.errors}</span>
                     )}
                   </div>
                 </button>

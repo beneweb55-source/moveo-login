@@ -46,7 +46,7 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
         {/* Badge for Media Type */}
         <div className="absolute top-2 left-2 z-10 opacity-100 group-hover/card:opacity-0 transition-opacity duration-300">
           <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white bg-black/60 backdrop-blur-md rounded-md border border-white/10">
-            {type === 'tv' ? 'Série' : 'Film'}
+            {type === 'tv' ? t.explore.exploreTv : t.explore.exploreMovies}
           </span>
         </div>
 

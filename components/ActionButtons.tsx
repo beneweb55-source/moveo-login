@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Bookmark, Heart, Eye, Loader2, Check } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 interface ActionButtonsProps {
   id: string;
@@ -15,6 +16,7 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
   const [lists, setLists] = useState<string[]>([]);
   const [loading, setLoading] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -70,7 +72,7 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
         });
         if (res.ok) {
           setLists(lists.filter(l => l !== listType));
-          showNotification(`Retiré de ${listType === 'watchlist' ? 'votre liste' : listType === 'favorites' ? 'vos favoris' : 'vos vus'}`);
+          showNotification(`${t.actionButtons.removedFrom} ${listType === 'watchlist' ? t.actionButtons.yourList : listType === 'favorites' ? t.actionButtons.yourFavorites : t.actionButtons.yourWatched}`);
         }
       } else {
         const res = await fetch('/api/lists/add', {
@@ -86,7 +88,7 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
         });
         if (res.ok) {
           setLists([...lists, listType]);
-          showNotification(`Ajouté à ${listType === 'watchlist' ? 'votre liste' : listType === 'favorites' ? 'vos favoris' : 'vos vus'}`);
+          showNotification(`${t.actionButtons.addedTo} ${listType === 'watchlist' ? t.actionButtons.yourList : listType === 'favorites' ? t.actionButtons.yourFavorites : t.actionButtons.yourWatched}`);
         }
       }
     } catch (error) {
@@ -104,7 +106,7 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
         <button
           onClick={() => toggleList('watchlist')}
           disabled={loading === 'watchlist'}
-          title="Ajouter à Ma Liste"
+          title={t.actionButtons.addToList}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all duration-300 border ${
             lists.includes('watchlist')
               ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 hover:bg-blue-600/30' 
@@ -118,13 +120,13 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
           ) : (
             <Bookmark className="w-4 h-4" />
           )}
-          Ma Liste
+          {t.actionButtons.myList}
         </button>
 
         <button
           onClick={() => toggleList('favorites')}
           disabled={loading === 'favorites'}
-          title="Ajouter aux Favoris"
+          title={t.actionButtons.addToFavorites}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all duration-300 border ${
             lists.includes('favorites')
               ? 'bg-pink-500/20 border-pink-500/50 text-pink-400 hover:bg-pink-500/30' 
@@ -138,13 +140,13 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
           ) : (
             <Heart className="w-4 h-4" />
           )}
-          Favoris
+          {t.actionButtons.favorites}
         </button>
 
         <button
           onClick={() => toggleList('watched')}
           disabled={loading === 'watched'}
-          title="Déjà Vu"
+          title={t.actionButtons.alreadyWatched}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all duration-300 border ${
             lists.includes('watched')
               ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30' 
@@ -158,7 +160,7 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
           ) : (
             <Eye className="w-4 h-4" />
           )}
-          Déjà Vu
+          {t.actionButtons.alreadyWatched}
         </button>
       </div>
       

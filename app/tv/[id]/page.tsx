@@ -111,11 +111,11 @@ export default function TvDetails() {
       <motion.nav
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent pointer-events-none"
+        className="absolute top-24 left-4 md:left-8 z-40"
       >
         <button
-          onClick={() => router.push("/")}
-          className="pointer-events-auto flex items-center gap-2 bg-white/10 hover:bg-[#E50914] text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 group"
+          onClick={() => router.back()}
+          className="flex items-center gap-2 bg-black/50 hover:bg-[#E50914] text-white px-4 py-2 rounded-full backdrop-blur-md border border-white/10 transition-all duration-300 group shadow-lg"
         >
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-medium hidden sm:inline">{t.details.back}</span>
@@ -123,7 +123,7 @@ export default function TvDetails() {
       </motion.nav>
 
       {/* Hero Section */}
-      <div className="relative w-full min-h-[80vh] flex items-center">
+      <div className="relative w-full min-h-[80vh] flex items-start pt-32 pb-20 lg:items-center lg:pt-0 lg:pb-0">
         {/* Parallax Backdrop */}
         <div className="absolute inset-0 overflow-hidden">
             <motion.div style={{ y }} className="relative w-full h-[120%] -top-[10%]">
@@ -141,7 +141,7 @@ export default function TvDetails() {
         </div>
 
         <ContentWrapper>
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-12 items-center pt-20 lg:pt-0">
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-8 lg:gap-12 items-start lg:items-center mt-12 lg:mt-0">
                 {/* Poster */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}

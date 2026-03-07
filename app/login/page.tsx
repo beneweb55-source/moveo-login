@@ -220,22 +220,19 @@ export default function LoginPage() {
               )}
             </button>
 
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="bg-black/40 px-2 text-gray-400 backdrop-blur-xl">
-                  {t.auth.orContinueWith}
-                </span>
-              </div>
+            <div className="flex items-center justify-center gap-4">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-sm text-gray-400">
+                {t.auth.orContinueWith}
+              </span>
+              <div className="h-px flex-1 bg-white/10" />
             </div>
 
             <div className="flex justify-center">
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-white/20 transition-all duration-200"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-white/20 cursor-pointer active:scale-[0.98] transition-all duration-200"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
                   <path

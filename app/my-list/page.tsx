@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import ContentWrapper from "@/components/ContentWrapper";
 import Image from "next/image";
 import { Loader2, Trash2, Play } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function MyList() {
   const [list, setList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const fetchList = async () => {
@@ -57,18 +59,18 @@ export default function MyList() {
     <div className="min-h-screen pt-24 pb-12 bg-[#0A0A0A]">
       <ContentWrapper>
         <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">My List</h1>
-          <p className="text-white/50">Movies and TV shows you&apos;ve saved to watch later.</p>
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{t.profile.myList}</h1>
+          <p className="text-white/50">{t.profile.myListDesc}</p>
         </div>
 
         {list.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-white/50 text-xl mb-6">Your list is empty</div>
+            <div className="text-white/50 text-xl mb-6">{t.profile.emptyList}</div>
             <button
               onClick={() => router.push('/')}
               className="bg-[#E50914] hover:bg-red-700 text-white px-8 py-3 rounded-full font-bold transition-colors"
             >
-              Explore Titles
+              {t.cta.discover}
             </button>
           </div>
         ) : (
@@ -98,7 +100,7 @@ export default function MyList() {
                       <button
                         onClick={(e) => removeFromList(e, item.media_type, item.media_id, item.list_type)}
                         className="w-8 h-8 rounded-full bg-black/50 hover:bg-red-500/80 flex items-center justify-center text-white transition-colors backdrop-blur-sm"
-                        title="Remove from list"
+                        title={t.actionButtons.removedFrom}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -110,7 +112,7 @@ export default function MyList() {
                       </div>
                       <h3 className="text-white font-bold text-sm line-clamp-2">{item.title}</h3>
                       <span className="text-white/50 text-xs uppercase tracking-wider mt-1 block">
-                        {item.media_type === 'movie' ? 'Movie' : 'TV Show'}
+                        {item.media_type === 'movie' ? t.explore.exploreMovies : t.explore.exploreTv}
                       </span>
                     </div>
                   </div>

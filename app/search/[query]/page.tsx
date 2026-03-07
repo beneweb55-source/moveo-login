@@ -77,6 +77,7 @@ const SearchResult = () => {
     };
 
     fetchInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, language, watchedIds]);
 
   return (

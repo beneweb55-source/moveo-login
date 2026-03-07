@@ -16,9 +16,9 @@ interface Genre {
 }
 
 const sortOptions = [
-  { value: "popularity.desc", label: "Popularité" },
-  { value: "vote_average.desc", label: "Note" },
-  { value: "primary_release_date.desc", label: "Date de sortie" },
+  { value: "popularity.desc", label: "popularity" },
+  { value: "vote_average.desc", label: "rating" },
+  { value: "primary_release_date.desc", label: "releaseDate" },
 ];
 
 import { motion } from "motion/react";
@@ -152,7 +152,7 @@ const Explore = () => {
               >
                 {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>
-                    {option.label}
+                    {t.explore.sortOptions[option.label as keyof typeof t.explore.sortOptions]}
                   </option>
                 ))}
               </select>
@@ -166,7 +166,7 @@ const Explore = () => {
                 onChange={(e) => setSelectedGenre(e.target.value)}
                 className="appearance-none bg-zinc-900 text-white px-6 py-3 pr-12 rounded-xl border border-zinc-800 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-800 transition-all duration-300 text-sm font-medium min-w-[160px] max-w-[240px] shadow-lg"
               >
-                <option value="">Tous les genres</option>
+                <option value="">{t.explore.allGenres}</option>
                 {genres.map((genre) => (
                   <option key={genre.id} value={genre.id}>
                     {genre.name}
@@ -212,7 +212,7 @@ const Explore = () => {
                 <span className="text-3xl text-white/40 font-bold mb-4">
                   {t.explore.noResults}
                 </span>
-                <p className="text-white/30 text-lg">Essayez de modifier vos filtres pour voir plus de résultats.</p>
+                <p className="text-white/30 text-lg">{t.explore.tryAdjustingFilters}</p>
               </div>
             )}
           </>
