@@ -6,9 +6,11 @@ import InfiniteScroll from "react-infinite-scroll-component";
 import { fetchDataFromApi } from "@/utils/api";
 import ContentWrapper from "@/components/ContentWrapper";
 import MovieCard from "@/components/MovieCard";
-import Spinner from "@/components/Spinner";
+import SkeletonCard from "@/components/SkeletonCard";
 import { useLanguage } from "@/context/LanguageContext";
 import { ChevronDown } from "lucide-react";
+import { motion } from "motion/react";
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems, mixCatalog } from "@/utils/sorting";
 
 interface Genre {
   id: number;
@@ -20,12 +22,6 @@ const sortOptions = [
   { value: "vote_average.desc", label: "rating" },
   { value: "primary_release_date.desc", label: "releaseDate" },
 ];
-
-import { motion } from "motion/react";
-
-// ... (imports)
-
-import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
 
 const Explore = () => {
   const [data, setData] = useState<any>(null);
@@ -75,14 +71,13 @@ const Explore = () => {
       }
 
       fetchDataFromApi(`/discover/${mediaType}`, params).then((res) => {
-        // Extract new genres from this batch
         const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
         const updatedUserGenres = new Set([...userGenres, ...newGenres]);
         setUserGenres(updatedUserGenres);
 
-        // Sort
         if (res?.results) {
-            res.results = sortItems(res.results, updatedUserGenres);
+            const sorted = sortItems(res.results, updatedUserGenres);
+            res.results = mixCatalog(sorted);
         }
 
         setData(res);
@@ -92,12 +87,7 @@ const Explore = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, language, sortBy, selectedGenre, watchedIds]); // Added watchedIds to dependency to re-sort if it loads late? 
-  // Actually adding watchedIds to dependency might trigger double fetch if it loads after initial fetch. 
-  // But usually initial fetch is fast. 
-  // Let's keep it simple. If watchedIds loads LATER than initial data, we might miss the first sort.
-  // But getUserWatchedIds is fast (internal API). TMDB is external.
-  // So likely watchedIds is ready before TMDB.
+  }, [mediaType, language, sortBy, selectedGenre, watchedIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -114,17 +104,16 @@ const Explore = () => {
     fetchDataFromApi(`/discover/${mediaType}`, params).then(
       (res) => {
         if (data?.results) {
-          // Extract new genres
           const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
           const updatedUserGenres = new Set([...userGenres, ...newGenres]);
           setUserGenres(updatedUserGenres);
 
-          // Sort new results
           const sortedNewResults = sortItems(res.results, updatedUserGenres);
+          const mixedNewResults = mixCatalog(sortedNewResults);
 
           setData({
             ...data,
-            results: [...data?.results, ...sortedNewResults],
+            results: [...data?.results, ...mixedNewResults],
           });
         } else {
           setData(res);
@@ -143,7 +132,6 @@ const Explore = () => {
           </h1>
           
           <div className="flex flex-wrap gap-4 w-full md:w-auto">
-            {/* Sort By Select */}
             <div className="relative group">
               <select
                 value={sortBy}
@@ -159,7 +147,6 @@ const Explore = () => {
               <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
             </div>
 
-            {/* Genre Select */}
             <div className="relative group">
               <select
                 value={selectedGenre}
@@ -178,7 +165,13 @@ const Explore = () => {
           </div>
         </div>
 
-        {loading && <Spinner initial={true} />}
+        {loading && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8">
+            {[...Array(10)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        )}
         
         {!loading && (
           <>
@@ -188,7 +181,14 @@ const Explore = () => {
                 dataLength={data?.results?.length || 0}
                 next={fetchNextPageData}
                 hasMore={pageNum <= data?.total_pages}
-                loader={<Spinner />}
+                loader={
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8 mt-6 col-span-full w-full">
+                    {[...Array(5)].map((_, i) => (
+                      <SkeletonCard key={i} />
+                    ))}
+                  </div>
+                }
+                scrollThreshold="800px"
               >
                 {data?.results?.map((item: any, index: number) => {
                   if (item.media_type === "person") return null;

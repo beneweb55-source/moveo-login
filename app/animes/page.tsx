@@ -17,7 +17,9 @@ const sortOptions = [
   { value: "first_air_date.desc", label: "releaseDate" },
 ];
 
-import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems, mixCatalog } from "@/utils/sorting";
+
+import SkeletonCard from "@/components/SkeletonCard";
 
 const Animes = () => {
   const [data, setData] = useState<any>(null);
@@ -56,9 +58,10 @@ const Animes = () => {
         const updatedUserGenres = new Set([...userGenres, ...newGenres]);
         setUserGenres(updatedUserGenres);
 
-        // Sort
+        // Sort & Mix
         if (res?.results) {
-            res.results = sortItems(res.results, updatedUserGenres);
+            const sorted = sortItems(res.results, updatedUserGenres);
+            res.results = mixCatalog(sorted);
         }
 
         setData(res);
@@ -68,7 +71,7 @@ const Animes = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, language, sortBy, watchedIds]);
+  }, [mediaType, language, sortBy, watchedIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -88,12 +91,13 @@ const Animes = () => {
           const updatedUserGenres = new Set([...userGenres, ...newGenres]);
           setUserGenres(updatedUserGenres);
 
-          // Sort new results
+          // Sort & Mix new results
           const sortedNewResults = sortItems(res.results, updatedUserGenres);
+          const mixedNewResults = mixCatalog(sortedNewResults);
 
           setData({
             ...data,
-            results: [...data?.results, ...sortedNewResults],
+            results: [...data?.results, ...mixedNewResults],
           });
         } else {
           setData(res);
@@ -148,7 +152,13 @@ const Animes = () => {
           </div>
         </div>
 
-        {loading && <Spinner initial={true} />}
+        {loading && (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8">
+            {[...Array(10)].map((_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        )}
         
         {!loading && (
           <>
@@ -158,7 +168,14 @@ const Animes = () => {
                 dataLength={data?.results?.length || 0}
                 next={fetchNextPageData}
                 hasMore={pageNum <= data?.total_pages}
-                loader={<Spinner />}
+                loader={
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8 mt-6 col-span-full w-full">
+                    {[...Array(5)].map((_, i) => (
+                      <SkeletonCard key={i} />
+                    ))}
+                  </div>
+                }
+                scrollThreshold="800px"
               >
                 {data?.results?.map((item: any, index: number) => {
                   if (item.media_type === "person") return null;

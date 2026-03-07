@@ -17,7 +17,9 @@ const sortOptions = [
   { value: "first_air_date.desc", label: "releaseDate" },
 ];
 
-import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems, mixCatalog } from "@/utils/sorting";
+
+import SkeletonCard from "@/components/SkeletonCard";
 
 const KDramaPage = () => {
   const [data, setData] = useState<any>(null);
@@ -54,9 +56,10 @@ const KDramaPage = () => {
         const updatedUserGenres = new Set([...userGenres, ...newGenres]);
         setUserGenres(updatedUserGenres);
 
-        // Sort
+        // Sort & Mix
         if (res?.results) {
-            res.results = sortItems(res.results, updatedUserGenres);
+            const sorted = sortItems(res.results, updatedUserGenres);
+            res.results = mixCatalog(sorted);
         }
 
         setData(res);
@@ -69,7 +72,7 @@ const KDramaPage = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, sortBy, watchedIds, language]);
+  }, [mediaType, sortBy, watchedIds, language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchNextPageData = async () => {
     try {
@@ -91,12 +94,13 @@ const KDramaPage = () => {
         const updatedUserGenres = new Set([...userGenres, ...newGenres]);
         setUserGenres(updatedUserGenres);
 
-        // Sort new results
+        // Sort & Mix new results
         const sortedNewResults = sortItems(res.results, updatedUserGenres);
+        const mixedNewResults = mixCatalog(sortedNewResults);
 
         setData({
           ...data,
-          results: [...data.results, ...sortedNewResults],
+          results: [...data.results, ...mixedNewResults],
         });
       } else {
         setData(res);
@@ -154,8 +158,10 @@ const KDramaPage = () => {
           </div>
 
           {loading && !data ? (
-            <div className="flex items-center justify-center h-[50vh]">
-              <Loader2 className="w-10 h-10 text-[#E50914] animate-spin" />
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
+              {[...Array(10)].map((_, i) => (
+                <SkeletonCard key={i} />
+              ))}
             </div>
           ) : (
             <>
@@ -166,10 +172,13 @@ const KDramaPage = () => {
                   next={fetchNextPageData}
                   hasMore={pageNum < (data?.total_pages || 1)}
                   loader={
-                    <div className="flex items-center justify-center p-4 col-span-full">
-                      <Loader2 className="w-6 h-6 text-[#E50914] animate-spin" />
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6 mt-6 w-full">
+                      {[...Array(5)].map((_, i) => (
+                        <SkeletonCard key={i} />
+                      ))}
                     </div>
                   }
+                  scrollThreshold="800px"
                 >
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                     {data?.results?.map((item: any, index: number) => {

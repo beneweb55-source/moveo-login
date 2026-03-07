@@ -7,6 +7,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 
+import { motion, AnimatePresence } from 'motion/react';
+
 type ListItem = {
   id: number;
   media_type: string;
@@ -224,36 +226,39 @@ function ProfileContent() {
     <div className="min-h-screen bg-[#0A0A0A] pt-24 px-4 sm:px-6 lg:px-8 pb-20">
       <div className="max-w-6xl mx-auto">
         
-        {/* Profile Card */}
-        <div className="bg-[#141414] rounded-3xl overflow-hidden border border-white/10 shadow-2xl mb-12 max-w-sm mx-auto">
-          {/* Banner */}
-          <div className="relative h-32 w-full bg-gradient-to-r from-red-900 to-black group">
-             {(isEditing ? editForm.banner_url : user.banner_url) && (
+        {/* Profile Header Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative bg-[#141414] rounded-3xl overflow-hidden border border-white/5 shadow-2xl mb-8"
+        >
+          {/* Banner Area */}
+          <div className="relative aspect-video sm:aspect-[3/1] min-h-[200px] sm:min-h-[300px] w-full bg-zinc-900 group overflow-hidden">
+             {(isEditing ? editForm.banner_url : user.banner_url) ? (
                <Image 
                  src={isEditing ? editForm.banner_url : user.banner_url} 
                  alt="Banner" 
                  fill 
-                 className="object-cover opacity-60"
+                 className="object-cover object-center transition-transform duration-700 group-hover:scale-105"
                  referrerPolicy="no-referrer"
                />
+             ) : (
+               <div className="w-full h-full bg-gradient-to-br from-zinc-800 to-black opacity-50" />
              )}
-             {/* Edit Button (Top Right) */}
-             {!isEditing && (
-               <button 
-                 onClick={() => setIsEditing(true)}
-                 className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white/70 hover:text-white transition-colors backdrop-blur-sm"
-               >
-                 <Edit2 className="w-4 h-4" />
-               </button>
-             )}
+             <div className="absolute inset-0 bg-gradient-to-t from-[#141414] via-transparent to-black/20" />
+             
+             {/* Banner Controls - Moved to top right to avoid avatar overlap */}
              {isEditing && (
-               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3 backdrop-blur-sm">
-                 <label className="cursor-pointer p-2.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors shadow-lg">
+               <div className="absolute top-4 right-4 flex gap-2 z-20">
+                 <label className="cursor-pointer p-3 bg-black/60 hover:bg-[#E50914] backdrop-blur-md rounded-xl transition-all shadow-xl group/btn">
                    <Edit2 className="w-5 h-5 text-white" />
                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'banner_url')} />
                  </label>
                  {editForm.banner_url && (
-                   <button onClick={() => setEditForm({ ...editForm, banner_url: '' })} className="p-2.5 bg-red-500/80 hover:bg-red-500 rounded-full transition-colors shadow-lg">
+                   <button 
+                    onClick={() => setEditForm({ ...editForm, banner_url: '' })} 
+                    className="p-3 bg-black/60 hover:bg-red-600 backdrop-blur-md rounded-xl transition-all shadow-xl"
+                   >
                      <Trash2 className="w-5 h-5 text-white" />
                    </button>
                  )}
@@ -261,166 +266,153 @@ function ProfileContent() {
              )}
           </div>
 
-          {/* Avatar & Info */}
-          <div className="px-6 pb-8 relative flex flex-col items-center -mt-16">
-            <div className="relative w-32 h-32 rounded-full border-4 border-[#141414] bg-[#141414] overflow-hidden shadow-xl mb-4 group">
-              {(isEditing ? editForm.avatar_url : user.avatar_url) ? (
-                <Image 
-                  src={isEditing ? editForm.avatar_url : user.avatar_url} 
-                  alt={user.name} 
-                  fill 
-                  className="object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-tr from-[#E50914] to-orange-500 flex items-center justify-center">
-                  <span className="text-5xl font-bold text-white uppercase">{(isEditing ? editForm.name : user.name).charAt(0)}</span>
+          {/* Profile Info Overlay */}
+          <div className="px-6 sm:px-10 pb-10 relative">
+            <div className="flex flex-col sm:flex-row items-end gap-6 -mt-16 sm:-mt-20 relative z-10">
+              {/* Avatar */}
+              <div className="relative group">
+                <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-3xl border-[6px] border-[#141414] bg-[#141414] overflow-hidden shadow-2xl relative">
+                  {(isEditing ? editForm.avatar_url : user.avatar_url) ? (
+                    <Image 
+                      src={isEditing ? editForm.avatar_url : user.avatar_url} 
+                      alt={user.name} 
+                      fill 
+                      className="object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-tr from-[#E50914] to-orange-500 flex items-center justify-center">
+                      <span className="text-6xl font-bold text-white uppercase">{(isEditing ? editForm.name : user.name).charAt(0)}</span>
+                    </div>
+                  )}
+                  
+                  {isEditing && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all backdrop-blur-md gap-2 rounded-[18px] overflow-hidden">
+                      <label className="cursor-pointer p-2.5 bg-white/20 hover:bg-[#E50914] rounded-xl transition-colors">
+                        <Edit2 className="w-5 h-5 text-white" />
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'avatar_url')} />
+                      </label>
+                      {editForm.avatar_url && (
+                        <button onClick={() => setEditForm({ ...editForm, avatar_url: '' })} className="p-2.5 bg-red-500/50 hover:bg-red-500 rounded-xl transition-colors">
+                          <Trash2 className="w-5 h-5 text-white" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
-              )}
-              {isEditing && (
-               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2 backdrop-blur-sm rounded-full">
-                 <label className="cursor-pointer p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors shadow-lg">
-                   <Edit2 className="w-4 h-4 text-white" />
-                   <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'avatar_url')} />
-                 </label>
-                 {editForm.avatar_url && (
-                   <button onClick={() => setEditForm({ ...editForm, avatar_url: '' })} className="p-2 bg-red-500/80 hover:bg-red-500 rounded-full transition-colors shadow-lg">
-                     <Trash2 className="w-4 h-4 text-white" />
-                   </button>
-                 )}
-               </div>
+              </div>
+
+              {/* User Identity */}
+              <div className="flex-1 pb-2 text-center sm:text-left">
+                {isEditing ? (
+                  <div className="space-y-3 max-w-xs mx-auto sm:mx-0">
+                    <input
+                      type="text"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="bg-black/40 border border-white/10 rounded-xl px-4 py-2 text-white font-bold text-2xl w-full focus:border-[#E50914] outline-none backdrop-blur-md"
+                      placeholder="Username"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                        className="flex-1 py-2 bg-[#E50914] text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-900/20"
+                      >
+                        {saving ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : t.profile.save}
+                      </button>
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="flex-1 py-2 bg-white/10 text-white rounded-xl text-sm font-bold hover:bg-white/20 transition-all"
+                      >
+                        {t.profile.cancel}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-center sm:justify-start gap-3">
+                      <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">{user.name}</h2>
+                      <div className="px-2 py-0.5 bg-[#E50914] rounded-full flex items-center justify-center h-fit shadow-lg shadow-red-900/20">
+                        <span className="text-[10px] sm:text-[11px] font-black text-white uppercase tracking-[0.5px] leading-none">
+                          {user.role || t.profile.member}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-white/40 font-medium">{user.email}</p>
+                    {user.bio && <p className="text-white/60 text-sm mt-3 max-w-md line-clamp-2 italic">&quot;{user.bio}&quot;</p>}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              {!isEditing && (
+                <div className="flex gap-3 pb-2">
+                  <button 
+                    onClick={() => setIsEditing(true)}
+                    className="px-6 py-3 bg-white text-black rounded-2xl font-bold text-sm hover:bg-zinc-200 transition-all flex items-center gap-2 shadow-xl"
+                  >
+                    <Settings className="w-4 h-4" />
+                    {t.profile.editProfile}
+                  </button>
+                </div>
               )}
             </div>
 
-            {isEditing ? (
-              <div className="w-full space-y-4">
-                 <input
-                    type="text"
-                    value={editForm.name}
-                    onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white text-center font-bold text-xl w-full focus:border-[#E50914] outline-none"
-                    placeholder="Nom"
-                  />
-                  <div className="flex justify-center gap-2 mt-4">
-                    <button
-                      onClick={handleSaveProfile}
-                      disabled={saving}
-                      className="px-4 py-2 bg-[#E50914] text-white rounded-full text-sm font-medium hover:bg-red-700 transition-colors"
-                    >
-                      {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : t.profile.save}
-                    </button>
-                    <button
-                      onClick={() => setIsEditing(false)}
-                      className="px-4 py-2 bg-white/10 text-white rounded-full text-sm font-medium hover:bg-white/20 transition-colors"
-                    >
-                      {t.profile.cancel}
-                    </button>
-                  </div>
+            {/* Stats Grid */}
+            <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white/5 border border-white/5 rounded-2xl p-4 backdrop-blur-md">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">{t.profile.watched}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-white">{watched.length}</span>
+                  <Eye className="w-4 h-4 text-[#E50914]" />
+                </div>
               </div>
-            ) : (
-              <>
-                <h2 className="text-2xl font-bold text-white mb-1">{user.name}</h2>
-                <p className="text-white/50 text-sm mb-4">{user.email}</p>
-                
-                <div className="px-4 py-1.5 bg-white/5 border border-white/10 rounded-lg mb-6">
-                  <span className="text-xs font-bold text-white/70 uppercase tracking-wider">
-                    {user.role || t.profile.member}
-                  </span>
+              <div className="bg-white/5 border border-white/5 rounded-2xl p-4 backdrop-blur-md">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">{t.profile.time}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-white">{formatWatchTime(watchTime)}</span>
                 </div>
-
-                {/* Social Links */}
-                {(user.twitter_url || user.instagram_url || user.website_url) && (
-                  <div className="flex gap-4 mb-6">
-                    {user.twitter_url && (
-                      <a href={user.twitter_url} target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-blue-400 transition-colors">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path d="M8.29 20.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0022 5.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.072 4.072 0 012.8 9.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 012 18.407a11.616 11.616 0 006.29 1.84" />
-                        </svg>
-                      </a>
-                    )}
-                    {user.instagram_url && (
-                      <a href={user.instagram_url} target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-pink-400 transition-colors">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                          <path fillRule="evenodd" d="M12.315 2c2.43 0 2.784.013 3.808.06 1.064.049 1.791.218 2.427.465a4.902 4.902 0 011.772 1.153 4.902 4.902 0 011.153 1.772c.247.636.416 1.363.465 2.427.048 1.067.06 1.407.06 4.123v.08c0 2.643-.012 2.987-.06 4.043-.049 1.064-.218 1.791-.465 2.427a4.902 4.902 0 01-1.153 1.772 4.902 4.902 0 01-1.772 1.153c-.636.247-1.363.416-2.427.465-1.067.048-1.407.06-4.123.06h-.08c-2.643 0-2.987-.012-4.043-.06-1.064-.049-1.791-.218-2.427-.465a4.902 4.902 0 01-1.772-1.153 4.902 4.902 0 01-1.153-1.772c-.247-.636-.416-1.363-.465-2.427-.047-1.024-.06-1.379-.06-3.808v-.63c0-2.43.013-2.784.06-3.808.049-1.064.218-1.791.465-2.427a4.902 4.902 0 011.153-1.772A4.902 4.902 0 015.45 2.525c.636-.247 1.363-.416 2.427-.465C8.901 2.013 9.256 2 11.685 2h.63zm-.081 1.802h-.468c-2.456 0-2.784.011-3.807.058-.975.045-1.504.207-1.857.344-.467.182-.8.398-1.15.748-.35.35-.566.683-.748 1.15-.137.353-.3.882-.344 1.857-.047 1.023-.058 1.351-.058 3.807v.468c0 2.456.011 2.784.058 3.807.045.975.207 1.504.344 1.857.182.466.399.8.748 1.15.35.35.683.566 1.15.748.353.137.882.3 1.857.344 1.054.048 1.37.058 4.041.058h.08c2.597 0 2.917-.01 3.96-.058.976-.045 1.505-.207 1.858-.344.466-.182.8-.398 1.15-.748.35-.35.566-.683.748-1.15.137-.353.3-.882.344-1.857.048-1.055.058-1.37.058-4.041v-.08c0-2.597-.01-2.917-.058-3.96-.045-.976-.207-1.505-.344-1.858a3.097 3.097 0 00-.748-1.15 3.098 3.098 0 00-1.15-.748c-.353-.137-.882-.3-1.857-.344-1.023-.047-1.351-.058-3.807-.058zM12 6.865a5.135 5.135 0 110 10.27 5.135 5.135 0 010-10.27zm0 1.802a3.333 3.333 0 100 6.666 3.333 3.333 0 000-6.666zm5.338-3.205a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4z" clipRule="evenodd" />
-                        </svg>
-                      </a>
-                    )}
-                    {user.website_url && (
-                      <a href={user.website_url} target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-[#E50914] transition-colors">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                        </svg>
-                      </a>
-                    )}
-                  </div>
-                )}
-
-                {/* Stats Row */}
-                <div className="grid grid-cols-3 w-full border-t border-white/10 pt-6">
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-white">{watched.length}</p>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t.profile.watched}</p>
-                  </div>
-                  <div className="text-center border-l border-r border-white/10">
-                    <p className="text-2xl font-bold text-white">{formatWatchTime(watchTime)}</p>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t.profile.time}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl font-bold text-white">{watchlist.length}</p>
-                    <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest">{t.profile.list}</p>
-                  </div>
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-2xl p-4 backdrop-blur-md">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">{t.profile.list}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-white">{watchlist.length}</span>
+                  <Bookmark className="w-4 h-4 text-blue-500" />
                 </div>
-              </>
-            )}
+              </div>
+              <div className="bg-white/5 border border-white/5 rounded-2xl p-4 backdrop-blur-md">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">{t.profile.myFavorites}</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-black text-white">{favorites.length}</span>
+                  <Heart className="w-4 h-4 text-pink-500" />
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Tabs */}
-        <div className="flex space-x-2 border-b border-white/10 mb-8 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => { setActiveTab('watchlist'); router.push('/profile?tab=watchlist', { scroll: false }); }}
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors relative ${
-              activeTab === 'watchlist' ? 'text-white' : 'text-white/50 hover:text-white/80'
-            }`}
-          >
-            {t.profile.myWatchlist}
-            {activeTab === 'watchlist' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#E50914] rounded-t-full" />
-            )}
-          </button>
-          <button
-            onClick={() => { setActiveTab('favorites'); router.push('/profile?tab=favorites', { scroll: false }); }}
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors relative ${
-              activeTab === 'favorites' ? 'text-white' : 'text-white/50 hover:text-white/80'
-            }`}
-          >
-            {t.profile.myFavorites}
-            {activeTab === 'favorites' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-pink-500 rounded-t-full" />
-            )}
-          </button>
-          <button
-            onClick={() => { setActiveTab('watched'); router.push('/profile?tab=watched', { scroll: false }); }}
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors relative ${
-              activeTab === 'watched' ? 'text-white' : 'text-white/50 hover:text-white/80'
-            }`}
-          >
-            {t.profile.alreadyWatched}
-            {activeTab === 'watched' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-emerald-500 rounded-t-full" />
-            )}
-          </button>
-          <button
-            onClick={() => { setActiveTab('settings'); router.push('/profile?tab=settings', { scroll: false }); }}
-            className={`px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors relative ${
-              activeTab === 'settings' ? 'text-white' : 'text-white/50 hover:text-white/80'
-            }`}
-          >
-            {t.profile.settings}
-            {activeTab === 'settings' && (
-              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-purple-500 rounded-t-full" />
-            )}
-          </button>
+        {/* Tabs Navigation */}
+        <div className="flex items-center justify-center sm:justify-start gap-1 bg-[#141414] p-1.5 rounded-2xl border border-white/5 mb-8 overflow-x-auto no-scrollbar">
+          {[
+            { id: 'watchlist', label: t.profile.myWatchlist, icon: Bookmark, color: 'text-blue-500' },
+            { id: 'favorites', label: t.profile.myFavorites, icon: Heart, color: 'text-pink-500' },
+            { id: 'watched', label: t.profile.alreadyWatched, icon: Eye, color: 'text-emerald-500' },
+            { id: 'settings', label: t.profile.settings, icon: Settings, color: 'text-purple-500' },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => { setActiveTab(tab.id as any); router.push(`/profile?tab=${tab.id}`, { scroll: false }); }}
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${
+                activeTab === tab.id 
+                  ? 'bg-white/10 text-white shadow-lg' 
+                  : 'text-white/40 hover:text-white/70 hover:bg-white/5'
+              }`}
+            >
+              <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? tab.color : ''}`} />
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Content Grid */}
@@ -668,16 +660,16 @@ function ProfileContent() {
 
               {/* Danger Zone */}
               <div className="pt-8 border-t border-white/10">
-                <h3 className="text-sm font-medium text-red-500 uppercase tracking-wider mb-6">{t.profile.dangerZone}</h3>
-                <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-6">
-                  <h4 className="text-white font-medium mb-2">{t.profile.deleteAccount}</h4>
-                  <p className="text-white/60 text-sm mb-4">
+                <h3 className="text-sm font-black text-red-500 uppercase tracking-widest mb-6">{t.profile.dangerZone}</h3>
+                <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-6">
+                  <h4 className="text-white font-bold mb-2">{t.profile.deleteAccount}</h4>
+                  <p className="text-white/40 text-sm mb-6">
                     {t.profile.deleteAccountWarning}
                   </p>
                   <button
                     onClick={handleDeleteAccount}
                     disabled={isDeleting}
-                    className="px-6 py-2 bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+                    className="px-6 py-3 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl font-bold transition-all flex items-center gap-2"
                   >
                     {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                     {t.profile.deleteMyAccount}
@@ -687,59 +679,69 @@ function ProfileContent() {
             </div>
           </div>
         ) : currentList.length === 0 ? (
-          <div className="text-center py-20 bg-[#141414] rounded-2xl border border-white/5">
-            <div className="w-20 h-20 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-4">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-32 bg-[#141414] rounded-3xl border border-white/5"
+          >
+            <div className="w-24 h-24 mx-auto bg-white/5 rounded-full flex items-center justify-center mb-6">
               {activeTab === 'watchlist' && <Bookmark className="w-10 h-10 text-white/20" />}
               {activeTab === 'favorites' && <Heart className="w-10 h-10 text-white/20" />}
               {activeTab === 'watched' && <Eye className="w-10 h-10 text-white/20" />}
             </div>
-            <h3 className="text-xl font-medium text-white mb-2">{t.profile.noContent}</h3>
-            <p className="text-white/50">
+            <h3 className="text-2xl font-black text-white mb-2">{t.profile.noContent}</h3>
+            <p className="text-white/30 max-w-xs mx-auto">
               {t.profile.noContentDesc}
             </p>
-            <Link href="/" className="inline-block mt-6 px-6 py-3 bg-[#E50914] text-white rounded-full font-medium hover:bg-red-700 transition-colors">
+            <Link href="/" className="inline-block mt-8 px-8 py-4 bg-[#E50914] text-white rounded-2xl font-black hover:bg-red-700 transition-all shadow-xl shadow-red-900/20">
               {t.profile.exploreCatalog}
             </Link>
-          </div>
+          </motion.div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
-            {currentList.map((item) => (
-              <div key={`${item.media_type}-${item.media_id}`} className="group relative aspect-[2/3] rounded-xl overflow-hidden bg-[#141414]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 sm:gap-8">
+            {currentList.map((item, index) => (
+              <motion.div 
+                key={`${item.media_type}-${item.media_id}`}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.05 }}
+                className="group relative aspect-[2/3] rounded-2xl overflow-hidden bg-zinc-900 shadow-xl"
+              >
                 {item.poster_path ? (
                   <Image
                     src={`https://image.tmdb.org/t/p/w500${item.poster_path}`}
                     alt={item.title}
                     fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-110"
+                    className="object-cover transition-transform duration-700 group-hover:scale-110"
                   />
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-[#141414]">
-                    <span className="text-white/30 text-sm text-center px-2">{item.title}</span>
+                  <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+                    <span className="text-white/20 text-xs font-bold text-center px-4 uppercase tracking-widest">{item.title}</span>
                   </div>
                 )}
                 
                 {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                  <h4 className="text-white font-medium text-sm sm:text-base line-clamp-2 mb-3">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-5">
+                  <h4 className="text-white font-black text-sm sm:text-base line-clamp-2 mb-4 leading-tight">
                     {item.title}
                   </h4>
                   <div className="flex gap-2">
                     <Link
                       href={`/${item.media_type}/${item.media_id}`}
-                      className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white text-xs font-medium py-2 rounded-lg text-center transition-colors flex items-center justify-center"
+                      className="flex-1 bg-white text-black text-[10px] font-black uppercase tracking-widest py-3 rounded-xl text-center transition-all hover:bg-zinc-200"
                     >
                       {t.profile.details}
                     </Link>
                     <button
                       onClick={() => removeItem(item.media_type, item.media_id, item.list_type)}
-                      className="w-8 h-8 bg-red-500/80 hover:bg-red-500 text-white rounded-lg flex items-center justify-center transition-colors backdrop-blur-sm"
+                      className="w-10 h-10 bg-red-600/90 hover:bg-red-600 text-white rounded-xl flex items-center justify-center transition-all backdrop-blur-md"
                       title={t.profile.removeFromList}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}

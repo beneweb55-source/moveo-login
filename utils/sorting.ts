@@ -1,104 +1,117 @@
 
+/**
+ * Smart Scoring & Filtering for MOVEO Catalog
+ * Architecture:
+ * 1. Brutal Cleaning (Filter out "virus" or low-quality content)
+ * 2. Intelligent Scoring (Quality * log10(Popularity))
+ * 3. Personalization (User Genre Weighting)
+ */
+
+const MIN_VOTE_COUNT = 150;
+const MIN_VOTE_AVERAGE = 5.5;
+const MIN_RELEASE_YEAR = 1985;
+const EXCLUDED_GENRES = [99, 10770]; // Documentary, TV Movie (often lower production value)
+
+export const filterItems = (items: any[]) => {
+  if (!items) return [];
+  
+  return items.filter(item => {
+    // 1. Basic Quality Checks
+    if (!item.poster_path) return false;
+    if (item.vote_count < MIN_VOTE_COUNT) return false;
+    if (item.vote_average < MIN_VOTE_AVERAGE) return false;
+
+    // 2. Date Check
+    const dateStr = item.release_date || item.first_air_date;
+    if (dateStr) {
+      const year = new Date(dateStr).getFullYear();
+      if (year < MIN_RELEASE_YEAR) return false;
+    } else {
+      // If no date at all, it's likely incomplete data
+      return false;
+    }
+
+    // 3. Genre Check (Filter out "virus" sources)
+    const genreIds = item.genre_ids || [];
+    if (genreIds.some((id: number) => EXCLUDED_GENRES.includes(id))) return false;
+
+    return true;
+  });
+};
+
 export const calculateScore = (item: any, userGenres: Set<number>) => {
-  let score = 0;
+  // 1. Base Quality Score (Intelligent Formula)
+  // score = vote_average * log10(vote_count)
+  // This balances high ratings with social proof (popularity)
+  const baseScore = item.vote_average * Math.log10(item.vote_count || 1);
+  
+  let finalScore = baseScore;
 
-  // 1. Recency & Availability
-  const releaseDateStr = item.release_date || item.first_air_date;
-  if (releaseDateStr) {
-    const releaseDate = new Date(releaseDateStr);
+  // 2. Recency Boost
+  const dateStr = item.release_date || item.first_air_date;
+  if (dateStr) {
+    const releaseDate = new Date(dateStr);
     const now = new Date();
-    const diffTime = now.getTime() - releaseDate.getTime();
-    const diffDays = diffTime / (1000 * 3600 * 24);
+    const diffDays = (now.getTime() - releaseDate.getTime()) / (1000 * 3600 * 24);
 
-    // Boost very recent releases (last 3 months)
-    if (diffDays > 0 && diffDays <= 90) score += 15;
-    // Boost recent releases (last year)
-    else if (diffDays > 90 && diffDays <= 365) score += 10;
-    // Penalize future releases (not yet watchable)
-    else if (diffDays < 0) score -= 5;
+    if (diffDays > 0 && diffDays <= 90) finalScore += 5; // New release bonus
+    else if (diffDays < 0) finalScore -= 10; // Future release penalty
   }
 
-  // 2. Rating (Quality Focus)
-  if (item.vote_average >= 8.0) score += 15;      // Excellent
-  else if (item.vote_average >= 7.0) score += 10; // Good
-  else if (item.vote_average < 5.0) score -= 10;  // Bad
-
-  // 3. Popularity (Social Proof)
-  // Only penalize very unknown content (< 100 votes)
-  if (item.vote_count < 100) score -= 20; 
-  // Bonus for established hits
-  else if (item.vote_count > 5000) score += 5;
-
-  // 4. User Preferences (Personalization)
+  // 3. User Preferences (Personalization)
   if (userGenres.size > 0) {
     const genreIds = item.genre_ids || [];
-    // +10 points PER matching genre to heavily weight personal taste
     const matchingGenres = genreIds.filter((id: number) => userGenres.has(id));
-    score += (matchingGenres.length * 10);
+    // Each matching genre adds a significant boost to the base score
+    finalScore += (matchingGenres.length * 2);
   }
 
-  // 5. Discovery Factor (Randomness)
-  // Add a random value between 0-15 to shuffle items with similar scores
-  // This ensures the list feels "fresh" on every reload
-  score += Math.random() * 15;
+  // 4. Discovery Factor (Subtle Randomness)
+  // Adds a tiny bit of shuffle so the grid isn't static
+  finalScore += Math.random() * 2;
 
-  return score;
+  return finalScore;
 };
 
 export const sortItems = (items: any[], userGenres: Set<number>) => {
   if (!items || items.length === 0) return [];
-  return [...items].sort((a, b) => {
+  
+  // First, apply the "Brutal Cleaning" filter
+  const cleanedItems = filterItems(items);
+  
+  // Then, sort by our intelligent score
+  return [...cleanedItems].sort((a, b) => {
     const scoreA = calculateScore(a, userGenres);
     const scoreB = calculateScore(b, userGenres);
     return scoreB - scoreA;
   });
 };
 
-export const fetchUserGenres = async (): Promise<Set<number>> => {
-  let userGenres = new Set<number>();
-  try {
-    const userListRes = await fetch('/api/user/list');
-    if (userListRes.ok) {
-      const data = await userListRes.json();
-      const userList = data.list || [];
-      const watchedOrFavIds = new Set(userList.map((i: any) => i.media_id.toString()));
+/**
+ * Mixes "Premium" (High Score) and "Discovery" (Lower Score) items
+ * to create a "living" catalog experience.
+ */
+export const mixCatalog = (sortedItems: any[]) => {
+  if (sortedItems.length <= 5) return sortedItems;
 
-      // We need to fetch details for these items to get their genres if we don't have them
-      // But usually the list endpoint might not return genres. 
-      // However, in the previous implementation in page.tsx, we were scanning the *fetched* items 
-      // to find genres of items that are ALSO in the user's list.
-      // This logic is slightly flawed if the user's list items are NOT in the current fetched batch.
-      // A better approach for a global utility is to rely on what we can get.
-      // For now, let's replicate the logic: we need the items to scan against.
-      
-      // Actually, the previous logic in page.tsx was:
-      // 1. Fetch user list (ids)
-      // 2. Scan *allItems* (the ones we just fetched from TMDB)
-      // 3. If an item from *allItems* is in user list, add its genres to userGenres.
-      
-      // This means we can't fully determine userGenres just from this function without the items.
-      // But we can return the set of watched/fav IDs, and then let the caller do the matching?
-      // Or we can fetch the user list, and maybe if the user list endpoint returns genres (it might not), we use them.
-      
-      // Looking at /api/user/list/route.ts, it returns `user_list` table rows.
-      // The table has `media_type`, `media_id`, `list_type`, `title`, `poster_path`.
-      // It DOES NOT have genres.
-      
-      // So the previous logic was clever: it used the *current page's* data to infer preferences.
-      // "If I've watched this movie that is currently on screen, I probably like its genres."
-      // This is a bit weak if the user has watched movies that are NOT on the current screen.
-      
-      // IMPROVEMENT: We can't easily fetch genres for all user items without spamming TMDB API.
-      // So we will stick to the "inference from current data" strategy, or just accept that 
-      // we only know genres of items we have loaded.
-      
-      // Let's return the raw list data so the caller can use it.
-      return new Set(); // Placeholder, actual logic needs items.
+  const premium = sortedItems.slice(0, Math.floor(sortedItems.length * 0.7));
+  const discovery = sortedItems.slice(Math.floor(sortedItems.length * 0.7));
+
+  const mixed: any[] = [];
+  let pIdx = 0;
+  let dIdx = 0;
+
+  // Pattern: 3 Premium, 1 Discovery
+  while (pIdx < premium.length || dIdx < discovery.length) {
+    for (let i = 0; i < 3 && pIdx < premium.length; i++) {
+      mixed.push(premium[pIdx++]);
     }
-  } catch (e) {
-    // Ignore
+    if (dIdx < discovery.length) {
+      mixed.push(discovery[dIdx++]);
+    }
   }
-  return userGenres;
+
+  return mixed;
 };
 
 export const getUserWatchedIds = async (): Promise<Set<string>> => {

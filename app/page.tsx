@@ -11,7 +11,7 @@ import { fetchDataFromApi } from "@/utils/api";
 import { getApiConfiguration, getGenres } from "@/store/homeSlice";
 import { useLanguage } from "@/context/LanguageContext";
 
-import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems, mixCatalog } from "@/utils/sorting";
 
 export default function Home() {
   const dispatch = useDispatch();
@@ -71,10 +71,10 @@ export default function Home() {
           // Ignore error, proceed without user prefs
         }
 
-        setTrending(sortItems(rawTrending, userGenres));
-        setTopFrance(sortItems(rawTopFrance, userGenres));
-        setPopularMovies(sortItems(rawPopularMovies, userGenres));
-        setTopRatedTv(sortItems(rawTopRatedTv, userGenres));
+        setTrending(mixCatalog(sortItems(rawTrending, userGenres)));
+        setTopFrance(sortItems(rawTopFrance, userGenres)); // Top 10 usually doesn't need mixing
+        setPopularMovies(mixCatalog(sortItems(rawPopularMovies, userGenres)));
+        setTopRatedTv(mixCatalog(sortItems(rawTopRatedTv, userGenres)));
       } catch (error) {
         console.error("Failed to fetch homepage data:", error);
       } finally {
