@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 interface WatchTimerProps {
   mediaType: string;
@@ -10,6 +10,24 @@ interface WatchTimerProps {
 const WatchTimer = ({ mediaType, mediaId }: WatchTimerProps) => {
   const minutesRef = useRef(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const saveWatchTime = useCallback(async (minutes: number) => {
+    try {
+      await fetch('/api/watch-time', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          media_type: mediaType,
+          media_id: mediaId,
+          minutes: minutes,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to save watch time:', error);
+    }
+  }, [mediaType, mediaId]);
 
   useEffect(() => {
     // Start interval
@@ -35,25 +53,7 @@ const WatchTimer = ({ mediaType, mediaId }: WatchTimerProps) => {
         saveWatchTime(minutesRef.current);
       }
     };
-  }, [mediaType, mediaId]);
-
-  const saveWatchTime = async (minutes: number) => {
-    try {
-      await fetch('/api/watch-time', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          media_type: mediaType,
-          media_id: mediaId,
-          minutes: minutes,
-        }),
-      });
-    } catch (error) {
-      console.error('Failed to save watch time:', error);
-    }
-  };
+  }, [saveWatchTime]);
 
   return null; // Invisible component
 };

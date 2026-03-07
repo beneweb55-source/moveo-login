@@ -83,11 +83,16 @@ export default function RegisterPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setSuccessMessage(data.message || 'Registration successful. Please check your email to verify your account.');
+        setSuccessMessage('Registration successful. You can now sign in.');
         // Clear form
         setName('');
         setEmail('');
         setPassword('');
+        
+        // Redirect to login after 2 seconds
+        setTimeout(() => {
+          router.push('/login');
+        }, 2000);
       } else {
         const data = await res.json();
         setError(data.error || 'Failed to register');
