@@ -138,13 +138,15 @@ const Header = () => {
       try {
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
         
-        // Debug: Log the query being sent
-        console.log(`[Search] Sending query: "${query}"`);
+        // Detection Layer: > 3 words = Intent (AI Search), else Title (TMDB Proxy)
+        const isSemantic = query.trim().split(/\s+/).length > 3;
+        const endpoint = isSemantic ? '/api/ai-search' : '/api/tmdb-proxy';
 
-        const res = await fetch(`/api/tmdb-proxy?q=${encodeURIComponent(query)}&language=${langParam}`);
+        console.log(`[Search] Routing to ${endpoint} for query: "${query}"`);
+
+        const res = await fetch(`${endpoint}?q=${encodeURIComponent(query)}&language=${langParam}`);
         const data = await res.json();
         
-        // Debug: Log the response from the API
         console.log("[Search] API Response:", data);
         
         if (data.ai_reasoning) {

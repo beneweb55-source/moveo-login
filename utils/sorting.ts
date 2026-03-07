@@ -7,9 +7,9 @@
  * 3. Personalization (User Genre Weighting)
  */
 
-const MIN_VOTE_COUNT = 150;
-const MIN_VOTE_AVERAGE = 5.5;
-const MIN_RELEASE_YEAR = 1985;
+const MIN_VOTE_COUNT = 20; // Lowered from 150 to allow new trending releases
+const MIN_VOTE_AVERAGE = 4.0; // Lowered from 5.5
+const MIN_RELEASE_YEAR = 1980; // Lowered from 1985
 const EXCLUDED_GENRES = [99, 10770]; // Documentary, TV Movie (often lower production value)
 
 export const filterItems = (items: any[]) => {

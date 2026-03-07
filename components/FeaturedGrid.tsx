@@ -119,41 +119,48 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
         </motion.div>
 
         {/* Secondary Cards */}
-        {secondaryItems?.map((item: any, index: number) => (
-          <motion.div
-            key={item.id}
-            variants={itemAnim}
-            className="md:col-span-1 md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[300px] md:h-auto"
-            onClick={() => router.push(`/${item.media_type || "movie"}/${item.id}`)}
-          >
-            <Image
-              src={item.poster_path ? `https://image.tmdb.org/t/p/w780${item.poster_path}` : "/no-poster.png"}
-              alt={item.title || item.name}
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-              <div className="bg-white/10 backdrop-blur-sm p-3 rounded-full border border-white/20">
-                <Play className="w-6 h-6 text-white fill-white" />
+        {secondaryItems?.map((item: any, index: number) => {
+          // If we have exactly 3 secondary items, make the last one span 2 columns
+          const isLastOfThree = secondaryItems.length === 3 && index === 2;
+          
+          return (
+            <motion.div
+              key={item.id}
+              variants={itemAnim}
+              className={`${
+                isLastOfThree ? "md:col-span-2" : "md:col-span-1"
+              } md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[300px] md:h-auto`}
+              onClick={() => router.push(`/${item.media_type || "movie"}/${item.id}`)}
+            >
+              <Image
+                src={item.poster_path ? `https://image.tmdb.org/t/p/w780${item.poster_path}` : "/no-poster.png"}
+                alt={item.title || item.name}
+                fill
+                className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
+                sizes={isLastOfThree ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
+              />
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+                <div className="bg-white/10 backdrop-blur-sm p-3 rounded-full border border-white/20">
+                  <Play className="w-6 h-6 text-white fill-white" />
+                </div>
               </div>
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/90 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 z-10">
-              <h4 className="text-lg font-bold text-white truncate drop-shadow-sm">
-                {item.title || item.name}
-              </h4>
-              <div className="flex items-center justify-between text-xs text-zinc-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
-                <span className="flex items-center gap-1 text-yellow-400">
-                  <Star className="w-3 h-3 fill-current" />
-                  {item.vote_average?.toFixed(1)}
-                </span>
-                <span>
-                  {new Date(item.release_date || item.first_air_date).getFullYear()}
-                </span>
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/90 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 z-10">
+                <h4 className="text-lg font-bold text-white truncate drop-shadow-sm">
+                  {item.title || item.name}
+                </h4>
+                <div className="flex items-center justify-between text-xs text-zinc-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
+                  <span className="flex items-center gap-1 text-yellow-400">
+                    <Star className="w-3 h-3 fill-current" />
+                    {item.vote_average?.toFixed(1)}
+                  </span>
+                  <span>
+                    {new Date(item.release_date || item.first_air_date).getFullYear()}
+                  </span>
+                </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+            </motion.div>
+          );
+        })}
       </motion.div>
     </div>
   );
