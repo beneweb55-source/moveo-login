@@ -15,6 +15,7 @@ const Header = () => {
   const [mobileMenu, setMobileMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
+  const [aiReasoning, setAiReasoning] = useState("");
   const [loading, setLoading] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
@@ -136,8 +137,22 @@ const Header = () => {
       setShowSearchDropdown(true);
       try {
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+        
+        // Debug: Log the query being sent
+        console.log(`[Search] Sending query: "${query}"`);
+
         const res = await fetch(`/api/tmdb-proxy?q=${encodeURIComponent(query)}&language=${langParam}`);
         const data = await res.json();
+        
+        // Debug: Log the response from the API
+        console.log("[Search] API Response:", data);
+        
+        if (data.ai_reasoning) {
+          setAiReasoning(data.ai_reasoning);
+        } else {
+          setAiReasoning("");
+        }
+
         const filteredResults = (data.results || [])
           .filter((item: any) => {
             // Filter out people
@@ -189,6 +204,8 @@ const Header = () => {
     router.push(`/explore/${type}`);
     setMobileMenu(false);
   };
+
+  const [placeholder, setPlaceholder] = useState(t.nav.searchPlaceholder);
 
   return (
     <header
@@ -256,11 +273,24 @@ const Header = () => {
                 className="absolute top-full left-0 right-0 mt-2 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50"
               >
                 {loading ? (
-                  <div className="flex items-center justify-center p-8">
+                  <div className="flex flex-col items-center justify-center p-8 gap-3">
                     <Loader2 className="w-6 h-6 text-[#E50914] animate-spin" />
+                    {query.split(' ').length > 3 || ["triste", "peur", "rire", "joyeux", "sombre", "calme", "amour", "action", "film", "serie"].some(k => query.toLowerCase().includes(k)) ? (
+                      <span className="text-xs text-white/50 animate-pulse">
+                        Analyse de votre mood...
+                      </span>
+                    ) : null}
                   </div>
                 ) : results.length > 0 ? (
                   <div className="flex flex-col">
+                    {aiReasoning && (
+                      <div className="px-4 py-2 bg-white/5 border-b border-white/5 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#E50914] animate-pulse" />
+                        <span className="text-xs font-medium text-white/80 uppercase tracking-wide">
+                          AI: {aiReasoning}
+                        </span>
+                      </div>
+                    )}
                     {results.map((item) => {
                       const isMovie = item.media_type === "movie" || !item.media_type;
                       const title = item.title || item.name;
@@ -290,7 +320,7 @@ const Header = () => {
                                 {rating}
                               </span>
                               <span>•</span>
-                              <span className="uppercase text-[10px] tracking-wider border border-white/20 px-1 rounded">
+                              <span className="uppercase text-[10px] tracking-wider border border-white/20 px-1 rounded whitespace-nowrap">
                                 {isMovie ? t.explore.exploreMovies : t.explore.exploreTv}
                               </span>
                             </div>
