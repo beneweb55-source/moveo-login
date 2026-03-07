@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, Menu, X, Star, Loader2, Globe, User, LogOut, Settings, Heart, Eye, Bookmark } from "lucide-react";
+import { Search, Menu, X, PlayCircle, Star, Loader2, Globe, User, LogOut, Settings, Heart, Eye, Bookmark } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import { useLanguage } from "@/context/LanguageContext";
-import Logo from "./Logo";
 
 const Header = () => {
   const [show, setShow] = useState("top");
@@ -204,8 +203,11 @@ const Header = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-4 lg:gap-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 cursor-pointer flex-shrink-0 group transition-transform hover:scale-105 active:scale-95">
-          <Logo className="h-8 md:h-9 w-auto" />
+        <Link href="/" className="flex items-center gap-2 cursor-pointer flex-shrink-0">
+          <PlayCircle className="w-8 h-8 text-[#E50914]" />
+          <span className="text-2xl font-black tracking-tighter text-[#E50914] hidden sm:block">
+            MOVEO
+          </span>
         </Link>
 
         {/* Desktop Navigation */}
