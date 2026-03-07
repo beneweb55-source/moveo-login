@@ -275,7 +275,7 @@ function ProfileContent() {
                 </div>
               )}
               {isEditing && (
-               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2 backdrop-blur-sm">
+               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2 backdrop-blur-sm rounded-full">
                  <label className="cursor-pointer p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors shadow-lg">
                    <Edit2 className="w-4 h-4 text-white" />
                    <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileUpload(e, 'avatar_url')} />
