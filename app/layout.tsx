@@ -11,6 +11,9 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'MOVEO - Streaming',
   description: 'Ultra-modern streaming site for movies and TV shows',
+  icons: {
+    icon: '/favicon.png',
+  },
 };
 
 export default function RootLayout({children}: {children: React.ReactNode}) {
@@ -20,7 +23,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <LanguageProvider>
           <StoreProvider>
             <Header />
-            <main className="min-h-screen pt-16">{children}</main>
+            <main className="min-h-screen pt-24">{children}</main>
             <Footer />
           </StoreProvider>
         </LanguageProvider>

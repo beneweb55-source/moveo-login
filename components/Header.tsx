@@ -6,6 +6,7 @@ import { Search, Menu, X, PlayCircle, Star, Loader2, Globe, User, LogOut, Settin
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
+import { Logo } from "@/components/Logo";
 import { useLanguage } from "@/context/LanguageContext";
 
 const Header = () => {
@@ -191,7 +192,7 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed top-0 w-full h-20 z-50 transition-all duration-300 ease-in-out ${
+      className={`fixed top-0 w-full h-24 z-50 transition-all duration-300 ease-in-out ${
         mobileMenu ? "bg-[#0A0A0A]" : ""
       } ${
         show === "top"
@@ -203,11 +204,8 @@ const Header = () => {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-4 lg:gap-8">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 cursor-pointer flex-shrink-0">
-          <PlayCircle className="w-8 h-8 text-[#E50914]" />
-          <span className="text-2xl font-black tracking-tighter text-[#E50914] hidden sm:block">
-            MOVEO
-          </span>
+        <Link href="/" className="flex items-center gap-2 cursor-pointer flex-shrink-0 hover:scale-105 transition-transform duration-300">
+          <Logo />
         </Link>
 
         {/* Desktop Navigation */}
@@ -444,7 +442,7 @@ const Header = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: "100%" }}
             transition={{ type: "tween" }}
-            className="fixed inset-0 top-20 bg-[#0A0A0A] z-40 flex flex-col p-6"
+            className="fixed inset-0 top-24 bg-[#0A0A0A] z-40 flex flex-col p-6"
           >
             <ul className="flex flex-col gap-6 text-xl font-semibold">
               <li className="cursor-pointer hover:text-[#E50914] transition-colors" onClick={() => { router.push("/"); setMobileMenu(false); }}>{t.nav.home}</li>
