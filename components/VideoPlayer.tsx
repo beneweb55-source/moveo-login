@@ -56,6 +56,15 @@ const SERVERS = [
         ? `https://player.autoembed.cc/embed/movie/${id}`
         : `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
   },
+  {
+    name: "SuperEmbed",
+    group: "Recommended",
+    icon: Zap,
+    url: (type: string, id: string, s?: number, e?: number) =>
+      type === "movie"
+        ? `https://multiembed.mov/?video_id=${id}&tmdb=1`
+        : `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`,
+  },
   // --- GROUPE 2 : Nouveaux challengers ---
   {
     name: "VidLink",
@@ -503,7 +512,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
                   <div className="flex items-center gap-1 mt-0.5 relative z-10">
                     {server.name === "Frembed" && (
                       <>
-                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">VF/VO</span>
+                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">🇫🇷 VF/VO</span>
                         <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-zinc-700/50 text-zinc-300 border border-zinc-600/50" title={t.details.internalServerChoice}>⚙️ Multi</span>
                       </>
                     )}
