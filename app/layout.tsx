@@ -23,7 +23,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <LanguageProvider>
           <StoreProvider>
             <Header />
-            <main className="min-h-screen pt-24">{children}</main>
+            <main className="min-h-screen pt-20">{children}</main>
             <Footer />
           </StoreProvider>
         </LanguageProvider>
