@@ -15,7 +15,7 @@ export async function checkAdminAccess(requiredPermission?: string) {
       SELECT u.*, r.permissions, r.priority, r.name as role_name, r.color as role_color
       FROM users u 
       LEFT JOIN roles r ON u.role_id = r.id 
-      WHERE u.id = $1
+      WHERE u.id = $1::uuid
     `, [decoded.userId]);
     
     console.log("lib/adminAuth.ts - Résultat de la requête DB:", userRes.rows[0]);
