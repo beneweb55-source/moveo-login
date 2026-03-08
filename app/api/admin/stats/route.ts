@@ -16,43 +16,31 @@ export async function GET() {
     const totalWatchTime = parseInt(totalWatchTimeRes.rows[0].sum || '0');
 
     const topMoviesRes = await pool.query(`
-      WITH MovieStats AS (
-        SELECT 
-          media_id, 
-          media_type, 
-          COUNT(DISTINCT user_id) as viewer_count,
-          SUM(minutes_watched) as total_minutes
-        FROM watch_history
-        WHERE media_type != 'admin_adjustment'
-        GROUP BY media_id, media_type
-      ),
-      RankedMovies AS (
-        SELECT *,
-          ROW_NUMBER() OVER (ORDER BY viewer_count DESC, total_minutes DESC) as rank
-        FROM MovieStats
-      )
-      SELECT * FROM RankedMovies
-      ORDER BY rank ASC
+      SELECT media_id, media_type, SUM(minutes_watched) as total_minutes, COUNT(DISTINCT user_id) as viewer_count
+      FROM watch_history
+      WHERE media_type != 'admin_adjustment'
+      GROUP BY media_id, media_type
+      ORDER BY total_minutes DESC
       LIMIT 5
     `);
     
-    console.log("Top movies rows:", topMoviesRes.rows.length);
-    console.log("TMDB API KEY exists:", !!process.env.TMDB_API_KEY);
-    
     const topMovies = await Promise.all(topMoviesRes.rows.map(async (movie: any) => {
       try {
-        const tmdbUrl = `https://api.themoviedb.org/3/${movie.media_type}/${movie.media_id}?api_key=${process.env.TMDB_API_KEY}&language=fr-FR`;
-        const tmdbRes = await fetch(tmdbUrl);
-        const data = await tmdbRes.json();
+        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/${movie.media_type}/${movie.media_id}`, {
+          params: {
+            api_key: process.env.TMDB_API_KEY,
+            language: 'fr-FR'
+          }
+        });
+        const data = tmdbRes.data;
         return {
           ...movie,
           title: data.title || data.name,
           poster_path: data.poster_path,
           overview: data.overview ? data.overview.substring(0, 100) + '...' : 'Pas de description',
-          viewer_count: movie.viewer_count,
-          total_minutes: movie.total_minutes
         };
-      } catch (e: any) {
+      } catch (e) {
+        console.error(`Failed to fetch TMDB for ${movie.media_type}/${movie.media_id}`, e);
         return {
           ...movie,
           title: `ID: ${movie.media_id}`,

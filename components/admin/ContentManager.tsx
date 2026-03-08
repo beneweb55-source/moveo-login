@@ -10,11 +10,9 @@ export default function ContentManager() {
   const [heroSearch, setHeroSearch] = useState('');
   const [heroResults, setHeroResults] = useState<any[]>([]);
   const [selectedHero, setSelectedHero] = useState<any>(null);
-  const [pinnedSections, setPinnedSections] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSettings();
-    fetchPinnedSections();
   }, []);
 
   const fetchSettings = async () => {
@@ -32,44 +30,6 @@ export default function ContentManager() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fetchPinnedSections = async () => {
-    try {
-      const res = await fetch('/api/admin/sections');
-      if (res.ok) {
-        const data = await res.json();
-        setPinnedSections(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch pinned sections', error);
-    }
-  };
-
-  const handleSavePinnedSections = async (newSections: any[]) => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/admin/sections', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sections: newSections })
-      });
-      if (res.ok) {
-        setPinnedSections(newSections);
-        alert('Sections épinglées mises à jour');
-      }
-    } catch (error) {
-      console.error('Failed to save pinned sections', error);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const togglePin = (sectionKey: string) => {
-    const updated = pinnedSections.map(s => 
-      s.section_key === sectionKey ? { ...s, is_pinned: !s.is_pinned } : s
-    );
-    handleSavePinnedSections(updated);
   };
 
   const handleSaveSetting = async (key: string, value: any) => {
@@ -207,19 +167,9 @@ export default function ContentManager() {
             <LayoutTemplate className="w-5 h-5 text-blue-500" />
             Sections Épinglées
           </h3>
-          <div className="space-y-2">
-            {pinnedSections.map((section) => (
-              <div key={section.section_key} className="flex items-center justify-between p-3 bg-[#1A1A1A] rounded-lg border border-white/5">
-                <span className="text-white capitalize">{section.section_key.replace('_', ' ')}</span>
-                <button 
-                  onClick={() => togglePin(section.section_key)}
-                  className={`px-3 py-1 rounded text-sm font-medium ${section.is_pinned ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400'}`}
-                >
-                  {section.is_pinned ? 'Épinglé' : 'Épingler'}
-                </button>
-              </div>
-            ))}
-          </div>
+          <p className="text-zinc-400 mb-4">
+            Fonctionnalité en cours de développement. Permettra d&apos;épingler des listes spécifiques (ex: &quot;Films de Noël&quot;, &quot;Sagas cultes&quot;) sur la page d&apos;accueil.
+          </p>
         </div>
       </div>
     </div>

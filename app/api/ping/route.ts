@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     if (userId) {
       // Check if user already has an active session
       const existingSession = await pool.query(
-        'SELECT session_id FROM online_users WHERE user_id = $1::uuid',
+        'SELECT session_id FROM online_users WHERE user_id = $1',
         [userId]
       );
 
@@ -51,13 +51,13 @@ export async function POST(req: Request) {
               last_ping = CURRENT_TIMESTAMP, 
               current_movie_id = $2, 
               current_movie_title = $3
-          WHERE user_id = $4::uuid
+          WHERE user_id = $4
         `, [sessionId, currentMovieId, currentMovieTitle, userId]);
       } else {
         // Insert new session (handle potential race condition with ON CONFLICT if constraint exists)
         await pool.query(`
           INSERT INTO online_users (session_id, user_id, last_ping, current_movie_id, current_movie_title)
-          VALUES ($1, $2::uuid, CURRENT_TIMESTAMP, $3, $4)
+          VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4)
           ON CONFLICT (user_id) DO UPDATE SET
             session_id = EXCLUDED.session_id,
             last_ping = CURRENT_TIMESTAMP,
@@ -89,7 +89,6 @@ export async function POST(req: Request) {
 
     return response;
   } catch (error: any) {
-    console.error('Error in /api/ping:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

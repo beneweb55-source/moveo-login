@@ -24,7 +24,6 @@ export async function PUT(req: Request) {
 
   try {
     const { key, value } = await req.json();
-    console.log(`Saving setting: ${key}`, value);
 
     if (!key || value === undefined) {
       return NextResponse.json({ error: 'Key and value required' }, { status: 400 });
@@ -35,7 +34,6 @@ export async function PUT(req: Request) {
       VALUES ($1, $2)
       ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = CURRENT_TIMESTAMP
     `, [key, JSON.stringify(value)]);
-    console.log(`Setting ${key} saved successfully`);
 
     return NextResponse.json({ message: 'Setting updated successfully' });
   } catch (error: any) {
