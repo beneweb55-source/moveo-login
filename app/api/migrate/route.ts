@@ -55,6 +55,14 @@ export async function GET() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS pinned_sections (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        endpoint TEXT NOT NULL,
+        priority INTEGER DEFAULT 0,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS online_users (
         session_id VARCHAR(255) PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

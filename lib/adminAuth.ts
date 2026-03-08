@@ -18,8 +18,6 @@ export async function checkAdminAccess(requiredPermission?: string) {
       WHERE u.id::text = $1
     `, [decoded.userId]);
     
-    console.log("lib/adminAuth.ts - Résultat de la requête DB:", userRes.rows[0]);
-
     if (userRes.rows.length === 0) return null;
     
     const user = userRes.rows[0];

@@ -8,7 +8,7 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { useSelector } from "react-redux";
 import { useLanguage } from "@/context/LanguageContext";
 
-const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: string, params?: any, headline?: string, themeColor?: string }) => {
+const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { endpoint?: string, params?: any, headline?: string, themeColor?: string, customMovie?: any }) => {
   const [background, setBackground] = useState("");
   const [movie, setMovie] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
@@ -52,6 +52,12 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
   }, []);
 
   useEffect(() => {
+    if (customMovie) {
+      setMovie(customMovie);
+      setBackground(customMovie.backdrop_path ? `https://image.tmdb.org/t/p/original${customMovie.backdrop_path}` : "");
+      return;
+    }
+
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
     const fetchEndpoint = endpoint || "/trending/all/day";
     const fetchParams = { language: langParam, ...params };
@@ -71,7 +77,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
         setMovie(randomMovie);
       }
     });
-  }, [language, endpoint, params]);
+  }, [language, endpoint, params, customMovie]);
 
   const getGenreNames = (genreIds: number[]) => {
     if (!genreIds || !genres) return [];

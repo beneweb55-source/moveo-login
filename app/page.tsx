@@ -23,6 +23,51 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const { language, t } = useLanguage();
   const profile = useMoveoCore();
+  const [customHero, setCustomHero] = useState<any>(null);
+  const [pinnedSections, setPinnedSections] = useState<any[]>([]);
+  const [sectionData, setSectionData] = useState<Record<number, any[]>>({});
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/admin/content');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.hero_movie) {
+            try {
+              setCustomHero(typeof data.hero_movie === 'string' ? JSON.parse(data.hero_movie) : data.hero_movie);
+            } catch (e) {
+              setCustomHero(data.hero_movie);
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch settings', e);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  useEffect(() => {
+    const fetchPinned = async () => {
+      try {
+        const res = await fetch('/api/admin/sections');
+        if (res.ok) {
+          const data = await res.json();
+          setPinnedSections(data);
+          
+          const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+          data.forEach(async (section: any) => {
+            const resData = await fetchDataFromApi(section.endpoint, { language: langParam });
+            setSectionData(prev => ({ ...prev, [section.id]: resData?.results || [] }));
+          });
+        }
+      } catch (e) {
+        console.error('Failed to fetch pinned sections', e);
+      }
+    };
+    fetchPinned();
+  }, [language]);
 
   useEffect(() => {
     const fetchGenres = async () => {
@@ -114,6 +159,7 @@ export default function Home() {
         }}
         headline={profile.headline}
         themeColor={profile.color}
+        customMovie={customHero}
       />
       
       <main className="flex-1 relative z-20 w-full pb-20 space-y-12 md:space-y-24">
@@ -150,6 +196,16 @@ export default function Home() {
             loading={loading} 
             endpoint="tv" 
           />
+
+          {pinnedSections.map((section) => (
+            <Carousel 
+              key={section.id}
+              title={section.title} 
+              data={sectionData[section.id] || []} 
+              loading={!sectionData[section.id]} 
+              endpoint={section.endpoint.includes('/tv/') ? 'tv' : 'movie'} 
+            />
+          ))}
         </div>
 
         {/* Call to Action */}

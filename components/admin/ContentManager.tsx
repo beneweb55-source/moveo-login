@@ -10,10 +10,55 @@ export default function ContentManager() {
   const [heroSearch, setHeroSearch] = useState('');
   const [heroResults, setHeroResults] = useState<any[]>([]);
   const [selectedHero, setSelectedHero] = useState<any>(null);
+  const [pinnedSections, setPinnedSections] = useState<any[]>([]);
+  const [newSection, setNewSection] = useState({ title: '', endpoint: '' });
 
   useEffect(() => {
     fetchSettings();
+    fetchPinnedSections();
   }, []);
+
+  const fetchPinnedSections = async () => {
+    try {
+      const res = await fetch('/api/admin/sections');
+      if (res.ok) {
+        const data = await res.json();
+        setPinnedSections(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch pinned sections', error);
+    }
+  };
+
+  const handleAddSection = async () => {
+    if (!newSection.title || !newSection.endpoint) return;
+    try {
+      const res = await fetch('/api/admin/sections', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newSection, priority: pinnedSections.length + 1 })
+      });
+      if (res.ok) {
+        fetchPinnedSections();
+        setNewSection({ title: '', endpoint: '' });
+      }
+    } catch (error) {
+      console.error('Failed to add section', error);
+    }
+  };
+
+  const handleDeleteSection = async (id: number) => {
+    try {
+      const res = await fetch(`/api/admin/sections?id=${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        fetchPinnedSections();
+      }
+    } catch (error) {
+      console.error('Failed to delete section', error);
+    }
+  };
 
   const fetchSettings = async () => {
     try {
@@ -22,7 +67,12 @@ export default function ContentManager() {
         const data = await res.json();
         setSettings(data);
         if (data.hero_movie) {
-          setSelectedHero(JSON.parse(data.hero_movie));
+          try {
+            setSelectedHero(typeof data.hero_movie === 'string' ? JSON.parse(data.hero_movie) : data.hero_movie);
+          } catch (e) {
+            console.error('Failed to parse hero_movie', e);
+            setSelectedHero(data.hero_movie);
+          }
         }
       }
     } catch (error) {
@@ -161,15 +211,54 @@ export default function ContentManager() {
           </div>
         </div>
 
-        {/* Other Settings */}
+        {/* Pinned Sections */}
         <div className="bg-[#111] border border-white/10 rounded-xl p-6">
           <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <LayoutTemplate className="w-5 h-5 text-blue-500" />
             Sections Épinglées
           </h3>
-          <p className="text-zinc-400 mb-4">
-            Fonctionnalité en cours de développement. Permettra d&apos;épingler des listes spécifiques (ex: &quot;Films de Noël&quot;, &quot;Sagas cultes&quot;) sur la page d&apos;accueil.
-          </p>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2">
+              <input 
+                type="text" 
+                placeholder="Titre (ex: Films de Noël)" 
+                value={newSection.title}
+                onChange={(e) => setNewSection({ ...newSection, title: e.target.value })}
+                className="bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+              />
+              <input 
+                type="text" 
+                placeholder="Endpoint (ex: /movie/popular)" 
+                value={newSection.endpoint}
+                onChange={(e) => setNewSection({ ...newSection, endpoint: e.target.value })}
+                className="bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <button 
+              onClick={handleAddSection}
+              className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors"
+            >
+              Ajouter une section
+            </button>
+
+            <div className="mt-6 space-y-2">
+              {pinnedSections.map((section) => (
+                <div key={section.id} className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5">
+                  <div>
+                    <p className="font-medium text-white">{section.title}</p>
+                    <p className="text-xs text-zinc-500">{section.endpoint}</p>
+                  </div>
+                  <button 
+                    onClick={() => handleDeleteSection(section.id)}
+                    className="text-zinc-500 hover:text-red-500 p-1"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>
