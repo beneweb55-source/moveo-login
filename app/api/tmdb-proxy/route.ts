@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const BASE_URL = "https://api.themoviedb.org/3";
 
@@ -87,15 +87,15 @@ export async function GET(request: Request) {
     try {
       const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       const schema = {
-        type: SchemaType.OBJECT,
+        type: Type.OBJECT,
         properties: {
           titles: { 
-            type: SchemaType.ARRAY, 
-            items: { type: SchemaType.STRING }, 
+            type: Type.ARRAY, 
+            items: { type: Type.STRING }, 
             description: "List of 8 exact movie or TV show titles matching the user request." 
           },
           reasoning: {
-            type: SchemaType.STRING,
+            type: Type.STRING,
             description: "A short, 3-5 word label describing this collection (e.g. 'Psychological Horror', '90s Action Classics')."
           }
         },

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 const BASE_URL = "https://api.themoviedb.org/3";
 
@@ -24,11 +24,11 @@ export async function GET(request: Request) {
     // 1. AI Translation Layer
     const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     const schema = {
-      type: SchemaType.OBJECT,
+      type: Type.OBJECT,
       properties: {
-        reasoningBadge: { type: SchemaType.STRING, description: "A short, catchy phrase describing the vibe (e.g., 'Space Melancholy')." },
-        tmdbGenres: { type: SchemaType.ARRAY, items: { type: SchemaType.NUMBER }, description: "Array of relevant TMDB genre IDs." },
-        exactMovieTitles: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "Array of 5-8 exact movie titles matching the request." }
+        reasoningBadge: { type: Type.STRING, description: "A short, catchy phrase describing the vibe (e.g., 'Space Melancholy')." },
+        tmdbGenres: { type: Type.ARRAY, items: { type: Type.NUMBER }, description: "Array of relevant TMDB genre IDs." },
+        exactMovieTitles: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Array of 5-8 exact movie titles matching the request." }
       },
       required: ["reasoningBadge", "tmdbGenres", "exactMovieTitles"]
     };
