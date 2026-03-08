@@ -35,7 +35,7 @@ export default function Home() {
         ]);
         if (settingsRes.ok) {
           const settings = await settingsRes.json();
-          if (settings.hero_movie) setHeroMovie(JSON.parse(settings.hero_movie));
+          if (settings.hero_movie) setHeroMovie(typeof settings.hero_movie === 'string' ? JSON.parse(settings.hero_movie) : settings.hero_movie);
         }
         if (sectionsRes.ok) {
           const sections = await sectionsRes.json();

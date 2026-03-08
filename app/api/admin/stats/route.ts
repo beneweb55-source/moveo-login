@@ -26,10 +26,14 @@ export async function GET() {
     
     const topMovies = await Promise.all(topMoviesRes.rows.map(async (movie: any) => {
       try {
-        const tmdbUrl = `https://api.themoviedb.org/3/${movie.media_type}/${movie.media_id}?api_key=${process.env.TMDB_API_KEY}&language=fr-FR`;
-        console.log(`Fetching TMDB: ${tmdbUrl}`);
-        const tmdbRes = await axios.get(tmdbUrl);
-        console.log("TMDB Response:", tmdbRes.status, JSON.stringify(tmdbRes.data));
+        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/${movie.media_type}/${movie.media_id}`, {
+          headers: {
+            Authorization: `Bearer ${process.env.NEXT_PUBLIC_TMDB_API_KEY}`,
+          },
+          params: {
+            language: 'fr-FR'
+          }
+        });
         const data = tmdbRes.data;
         return {
           ...movie,
@@ -37,8 +41,8 @@ export async function GET() {
           poster_path: data.poster_path,
           overview: data.overview ? data.overview.substring(0, 100) + '...' : 'Pas de description',
         };
-      } catch (e: any) {
-        console.error(`Failed to fetch TMDB for ${movie.media_type}/${movie.media_id}`, e.message, e.response?.data);
+      } catch (e) {
+        console.error(`Failed to fetch TMDB for ${movie.media_type}/${movie.media_id}`, e);
         return {
           ...movie,
           title: `ID: ${movie.media_id}`,

@@ -24,7 +24,7 @@ export default function ContentManager() {
         const data = await res.json();
         setSettings(data);
         if (data.hero_movie) {
-          setSelectedHero(JSON.parse(data.hero_movie));
+          setSelectedHero(typeof data.hero_movie === 'string' ? JSON.parse(data.hero_movie) : data.hero_movie);
         }
       }
     } catch (error) {

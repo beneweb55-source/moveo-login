@@ -17,7 +17,7 @@ export async function GET(req: Request) {
     let query = `
       SELECT u.id, u.name, u.email, u.avatar_url, u.created_at, u.is_banned, u.ban_reason,
              (SELECT COUNT(*) FROM user_list WHERE user_id = u.id AND list_type = 'watched') as watched_count,
-             r.name as role_name, r.color as role_color, r.priority as role_priority,
+             r.name as role_name, r.id as role_id, r.color as role_color, r.priority as role_priority,
              COALESCE((SELECT SUM(minutes_watched) FROM watch_history WHERE user_id = u.id), 0) as total_watch_time
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id

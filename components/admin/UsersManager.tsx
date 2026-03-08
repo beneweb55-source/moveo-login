@@ -54,9 +54,10 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
         body: JSON.stringify({ userId, roleId })
       });
       if (res.ok) {
-        fetchUsers();
-        if (selectedUser?.id === userId) {
-          setSelectedUser({ ...selectedUser, role_id: roleId });
+        await fetchUsers();
+        const newRole = roles.find(r => r.id === roleId);
+        if (newRole && selectedUser?.id === userId) {
+          setSelectedUser({ ...selectedUser, role_id: roleId, role_name: newRole.name, role_color: newRole.color, role_priority: newRole.priority });
         }
       } else {
         const data = await res.json();
@@ -252,7 +253,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
               <div className="space-y-4">
                 <h5 className="font-medium text-white border-b border-white/10 pb-2">Gestion du Rôle</h5>
                 <select 
-                  value={roles.find(r => r.name === selectedUser.role_name)?.id || ''}
+                  value={selectedUser.role_id || ''}
                   onChange={(e) => handleUpdateRole(selectedUser.id, parseInt(e.target.value))}
                   disabled={!(currentUser.permissions ?? []).includes('edit_roles') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin')}
                   className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500 disabled:opacity-50"
