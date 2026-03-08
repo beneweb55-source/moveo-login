@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchDataFromApi } from "@/utils/api";
-import { Play, Info, Star, Calendar, Film } from "lucide-react";
+import { Play, Info, Star, Calendar, Film, Pencil } from "lucide-react";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useSelector } from "react-redux";
 import { useLanguage } from "@/context/LanguageContext";
@@ -12,9 +12,11 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
   const [background, setBackground] = useState("");
   const [movie, setMovie] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
+  const [customGreetingColor, setCustomGreetingColor] = useState<string | null>(null);
   const router = useRouter();
   const { genres } = useSelector((state: any) => state.home);
   const containerRef = useRef<HTMLDivElement>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 1000], [0, 400]);
   const opacity = useTransform(scrollY, [0, 500], [1, 0]);
@@ -24,6 +26,12 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
   const accentColor = themeColor || "#E50914";
 
   useEffect(() => {
+    // Load custom color from localStorage
+    const savedColor = localStorage.getItem("moveo_greeting_color");
+    if (savedColor) {
+      setCustomGreetingColor(savedColor);
+    }
+
     const fetchUser = async () => {
       try {
         const res = await fetch('/api/auth/me');
@@ -76,6 +84,13 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
   };
 
   const { text: greetingText, color: greetingColor } = getGreeting();
+  const finalGreetingColor = customGreetingColor || greetingColor;
+
+  const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newColor = e.target.value;
+    setCustomGreetingColor(newColor);
+    localStorage.setItem("moveo_greeting_color", newColor);
+  };
 
   return (
     <div ref={containerRef} className="relative w-full h-[85vh] min-h-[700px] overflow-hidden bg-[#0A0A0A]">
@@ -112,9 +127,27 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-lg md:text-xl font-extralight tracking-[0.15em] lowercase text-white/70"
+                className="text-lg md:text-xl font-extralight tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
               >
-                {greetingText} <span className="font-light" style={{ color: greetingColor }}>{user.name?.split(' ')[0]}.</span>
+                <span>{greetingText}</span>
+                <span className="font-light flex items-center gap-2" style={{ color: finalGreetingColor }}>
+                  {user.name?.split(' ')[0]}.
+                  <button 
+                    onClick={() => colorInputRef.current?.click()}
+                    className="text-white/30 hover:text-white transition-colors focus:outline-none"
+                    title="Change color"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <input 
+                    type="color" 
+                    ref={colorInputRef}
+                    value={finalGreetingColor}
+                    onChange={handleColorChange}
+                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                    tabIndex={-1}
+                  />
+                </span>
               </motion.h2>
             </div>
           ) : headline && (
