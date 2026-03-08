@@ -261,12 +261,12 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                 <select 
                   value={selectedUser.role_id || ''}
                   onChange={(e) => handleUpdateRole(selectedUser.id, parseInt(e.target.value))}
-                  disabled={!(currentUser.permissions ?? []).includes('edit_roles') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin')}
+                  disabled={!(currentUser.permissions ?? []).includes('edit_roles') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin' && !currentUser.is_founder)}
                   className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500 disabled:opacity-50"
                 >
                   <option value="" disabled>Sélectionner un rôle</option>
                   {roles.map(role => (
-                    <option key={role.id} value={role.id} disabled={role.priority >= currentUser.priority && currentUser.role_name !== 'Admin'}>
+                    <option key={role.id} value={role.id} disabled={role.priority >= currentUser.priority && currentUser.role_name !== 'Admin' && !currentUser.is_founder}>
                       {role.name}
                     </option>
                   ))}
@@ -280,7 +280,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                 <h5 className="font-medium text-white border-b border-white/10 pb-2">Actions</h5>
                 <button 
                   onClick={() => handleBanUser(selectedUser.id, !selectedUser.is_banned)}
-                  disabled={!(currentUser.permissions ?? []).includes('ban_users') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin')}
+                  disabled={!(currentUser.permissions ?? []).includes('ban_users') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin' && !currentUser.is_founder)}
                   className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 ${selectedUser.is_banned ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
                 >
                   <ShieldAlert className="w-5 h-5" />

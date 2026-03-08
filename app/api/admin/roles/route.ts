@@ -20,8 +20,8 @@ export async function POST(req: Request) {
 
   try {
     const { name, color, permissions, priority } = await req.json();
-
-    if (priority >= adminUser.priority && adminUser.role_name !== 'Admin') {
+    
+    if (priority >= adminUser.priority && adminUser.role_name !== 'Admin' && !adminUser.is_founder) {
       return NextResponse.json({ error: 'Cannot create role with higher or equal priority' }, { status: 403 });
     }
 
@@ -53,7 +53,7 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: 'Cannot modify Admin role' }, { status: 403 });
     }
 
-    if (priority >= adminUser.priority && adminUser.role_name !== 'Admin') {
+    if (priority >= adminUser.priority && adminUser.role_name !== 'Admin' && !adminUser.is_founder) {
       return NextResponse.json({ error: 'Cannot update role to higher or equal priority' }, { status: 403 });
     }
 
@@ -89,7 +89,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Cannot delete Admin role' }, { status: 403 });
     }
 
-    if (role.priority >= adminUser.priority && adminUser.role_name !== 'Admin') {
+    if (role.priority >= adminUser.priority && adminUser.role_name !== 'Admin' && !adminUser.is_founder) {
       return NextResponse.json({ error: 'Cannot delete role with higher or equal priority' }, { status: 403 });
     }
 

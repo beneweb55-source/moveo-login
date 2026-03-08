@@ -86,12 +86,12 @@ export async function PUT(req: Request) {
 
     // Cannot modify someone with higher or equal priority, unless it's yourself (maybe?)
     // Actually, cannot modify someone with higher or equal priority.
-    if (targetPriority >= adminUser.priority && adminUser.id !== userId) {
+    if (targetPriority >= adminUser.priority && adminUser.id !== userId && !adminUser.is_founder) {
       return NextResponse.json({ error: 'Cannot modify user with higher or equal priority' }, { status: 403 });
     }
 
     // Cannot modify Admin role directly if you are not Admin
-    if (targetRoleName === 'Admin' && adminUser.role_name !== 'Admin') {
+    if (targetRoleName === 'Admin' && adminUser.role_name !== 'Admin' && !adminUser.is_founder) {
       return NextResponse.json({ error: 'Cannot modify Admin user' }, { status: 403 });
     }
 
@@ -103,7 +103,7 @@ export async function PUT(req: Request) {
       // Check if new role has higher priority than admin
       const newRoleRes = await pool.query(`SELECT priority, name FROM roles WHERE id = $1`, [roleId]);
       if (newRoleRes.rows.length > 0) {
-        if (newRoleRes.rows[0].priority >= adminUser.priority && adminUser.role_name !== 'Admin') {
+        if (newRoleRes.rows[0].priority >= adminUser.priority && adminUser.role_name !== 'Admin' && !adminUser.is_founder) {
           return NextResponse.json({ error: 'Cannot assign role with higher or equal priority' }, { status: 403 });
         }
         updates.push(`role_id = $${paramIndex++}`);

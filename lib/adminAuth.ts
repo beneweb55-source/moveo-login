@@ -27,11 +27,14 @@ export async function checkAdminAccess(requiredPermission?: string) {
       permissions = ["view_users", "edit_users", "ban_users", "edit_roles", "edit_hero", "pin_sections", "view_reports", "handle_reports", "view_stats", "manage_watch_time", "manage_roles", "access_admin_panel"];
       user.priority = 999;
       user.role_name = 'Fondateur';
+      user.is_founder = true;
     }
 
     if (typeof permissions === 'string') {
       try { permissions = JSON.parse(permissions); } catch (e) { permissions = []; }
     }
+
+    user.permissions = permissions;
     
     if (!permissions.includes('access_admin_panel')) {
       return null;
