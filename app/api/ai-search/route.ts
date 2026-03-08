@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const q = searchParams.get("q");
   const language = searchParams.get("language") || "en-US";
 
-  const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
+  const TMDB_API_KEY = process.env.TMDB_API_KEY || process.env.NEXT_PUBLIC_TMDB_API_KEY;
   const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
   if (!TMDB_API_KEY || !GEMINI_API_KEY) {

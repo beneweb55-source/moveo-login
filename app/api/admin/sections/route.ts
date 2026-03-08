@@ -4,23 +4,7 @@ import { checkAdminAccess } from '@/lib/adminAuth';
 
 export async function GET() {
   try {
-    let res = await pool.query('SELECT * FROM pinned_sections ORDER BY display_order ASC');
-    
-    if (res.rows.length === 0) {
-      const defaultSections = [
-        { key: 'trending', order: 1 },
-        { key: 'popular_movies', order: 2 },
-        { key: 'popular_tv', order: 3 },
-        { key: 'top_rated', order: 4 },
-        { key: 'new_releases', order: 5 }
-      ];
-      
-      for (const s of defaultSections) {
-        await pool.query('INSERT INTO pinned_sections (section_key, is_pinned, display_order) VALUES ($1, $2, $3)', [s.key, false, s.order]);
-      }
-      res = await pool.query('SELECT * FROM pinned_sections ORDER BY display_order ASC');
-    }
-    
+    const res = await pool.query('SELECT * FROM pinned_sections ORDER BY display_order ASC');
     return NextResponse.json(res.rows);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

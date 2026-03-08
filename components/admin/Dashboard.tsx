@@ -85,7 +85,7 @@ export default function Dashboard() {
                       {movie.overview}
                     </p>
                     <p className="text-xs text-rose-400 mt-2 flex items-center gap-1 font-medium">
-                       <Eye className="w-3 h-3" /> {movie.viewer_count || 0} personnes l&apos;ont regardé
+                       <Eye className="w-3 h-3" /> {movie.viewer_count || 0} personnes l'ont regardé
                     </p>
                   </div>
                 </div>
