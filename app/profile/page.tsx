@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 
 import { motion, AnimatePresence } from 'motion/react';
+import { getRankFromWatchTime } from '@/utils/ranks';
 
 type ListItem = {
   id: number;
@@ -331,13 +332,43 @@ function ProfileContent() {
                   </div>
                 ) : (
                   <div className="space-y-1">
-                    <div className="flex items-center justify-center sm:justify-start gap-3">
+                    <div className="flex items-center justify-center sm:justify-start gap-3 flex-wrap">
                       <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">{user.name}</h2>
-                      <div className="px-2 py-0.5 bg-[#E50914] rounded-full flex items-center justify-center h-fit shadow-lg shadow-red-900/20">
-                        <span className="text-[10px] sm:text-[11px] font-black text-white uppercase tracking-[0.5px] leading-none">
-                          {user.role || t.profile.member}
+                      
+                      {/* Role Badge */}
+                      <div 
+                        className="px-3 py-1 border rounded-full flex items-center justify-center h-fit"
+                        style={{ borderColor: user.role_color || '#E50914' }}
+                      >
+                        <span 
+                          className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest leading-none"
+                          style={{ color: user.role_color || '#E50914' }}
+                        >
+                          {user.role_name || user.role || t.profile.member}
                         </span>
                       </div>
+
+                      {/* Rank Badge */}
+                      {(() => {
+                        const rank = getRankFromWatchTime(user.total_watch_time || 0, user.watched_count || 0);
+                        if (!rank) return null;
+                        const RankIcon = rank.icon;
+                        return (
+                          <div 
+                            className="flex items-center gap-2 px-3 py-1 rounded-full h-fit shadow-sm" 
+                            style={{ 
+                              backgroundColor: `${rank.color}1A`, 
+                              color: rank.color,
+                              boxShadow: `0 0 10px ${rank.color}33`
+                            }}
+                          >
+                            <RankIcon className="w-3 h-3" style={{ color: rank.color }} />
+                            <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest leading-none">
+                              {rank.name}
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <p className="text-white/40 font-medium">{user.email}</p>
                     {user.bio && <p className="text-white/60 text-sm mt-3 max-w-md line-clamp-2 italic">&quot;{user.bio}&quot;</p>}

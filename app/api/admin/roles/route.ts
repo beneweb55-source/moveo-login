@@ -108,3 +108,34 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function PATCH(req: Request) {
+  const adminUser = await checkAdminAccess('manage_roles');
+  if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const { updates } = await req.json(); // updates: { id, priority }[]
+
+    if (!Array.isArray(updates)) {
+      return NextResponse.json({ error: 'Invalid updates format' }, { status: 400 });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      for (const update of updates) {
+         await client.query('UPDATE roles SET priority = $1 WHERE id = $2', [update.priority, update.id]);
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    return NextResponse.json({ message: 'Roles reordered successfully' });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

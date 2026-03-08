@@ -59,7 +59,7 @@ export default function ContentManager() {
       return;
     }
     try {
-      const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=10e47854d924151703666579051d91a9&language=fr-FR&query=${query}&page=1`);
+      const res = await fetch(`/api/tmdb-proxy?q=${encodeURIComponent(query)}&language=fr-FR`);
       if (res.ok) {
         const data = await res.json();
         setHeroResults(data.results.filter((item: any) => item.media_type === 'movie' || item.media_type === 'tv').slice(0, 5));
@@ -75,7 +75,7 @@ export default function ContentManager() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-white mb-2">Gestion du Contenu</h2>
-        <p className="text-zinc-400">Personnalisez l'apparence et le contenu mis en avant sur la page d'accueil.</p>
+        <p className="text-zinc-400">Personnalisez l&apos;apparence et le contenu mis en avant sur la page d&apos;accueil.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -168,7 +168,7 @@ export default function ContentManager() {
             Sections Épinglées
           </h3>
           <p className="text-zinc-400 mb-4">
-            Fonctionnalité en cours de développement. Permettra d'épingler des listes spécifiques (ex: "Films de Noël", "Sagas cultes") sur la page d'accueil.
+            Fonctionnalité en cours de développement. Permettra d&apos;épingler des listes spécifiques (ex: &quot;Films de Noël&quot;, &quot;Sagas cultes&quot;) sur la page d&apos;accueil.
           </p>
         </div>
       </div>

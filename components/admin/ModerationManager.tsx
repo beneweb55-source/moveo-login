@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Flag, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
 export default function ModerationManager() {
@@ -10,11 +10,7 @@ export default function ModerationManager() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    fetchReports();
-  }, [statusFilter, page]);
-
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/reports?status=${statusFilter}&page=${page}`);
       if (res.ok) {
@@ -27,7 +23,11 @@ export default function ModerationManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter, page]);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
 
   const handleUpdateStatus = async (reportId: number, status: string) => {
     try {

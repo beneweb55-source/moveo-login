@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, MoreVertical, ShieldAlert, Clock, Calendar, Mail, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { getRankFromWatchTime } from '@/utils/ranks';
 
 export default function UsersManager({ currentUser }: { currentUser: any }) {
   const [users, setUsers] = useState<any[]>([]);
@@ -13,12 +14,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedUser, setSelectedUser] = useState<any>(null);
 
-  useEffect(() => {
-    fetchUsers();
-    fetchRoles();
-  }, [page, search]);
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/users?page=${page}&search=${search}`);
       if (res.ok) {
@@ -31,7 +27,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, search]);
 
   const fetchRoles = async () => {
     try {
@@ -44,6 +40,11 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
       console.error('Failed to fetch roles', error);
     }
   };
+
+  useEffect(() => {
+    fetchUsers();
+    fetchRoles();
+  }, [fetchUsers]);
 
   const handleUpdateRole = async (userId: number, roleId: number) => {
     try {
@@ -87,14 +88,6 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
     } catch (error) {
       console.error('Failed to ban user', error);
     }
-  };
-
-  const getRank = (minutes: number) => {
-    if (minutes < 600) return 'Novice';
-    if (minutes < 3000) return 'Amateur';
-    if (minutes < 12000) return 'Cinephile';
-    if (minutes < 30000) return 'Expert';
-    return 'Master';
   };
 
   return (
@@ -148,13 +141,34 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                     </td>
                     <td className="p-4">
                       <span 
-                        className="px-2 py-1 rounded text-xs font-bold uppercase tracking-wider"
-                        style={{ backgroundColor: `${user.role_color || '#808080'}20`, color: user.role_color || '#808080' }}
+                        className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border"
+                        style={{ borderColor: user.role_color || '#808080', color: user.role_color || '#808080' }}
                       >
                         {user.role_name || 'User'}
                       </span>
                     </td>
-                    <td className="p-4 text-sm text-zinc-300">{getRank(user.total_watch_time)}</td>
+                    <td className="p-4">
+                      {(() => {
+                        const rank = getRankFromWatchTime(user.total_watch_time, user.watched_count);
+                        if (!rank) return <span className="text-zinc-500 text-xs">-</span>;
+                        const RankIcon = rank.icon;
+                        return (
+                          <div 
+                            className="flex items-center gap-2 px-3 py-1 rounded-full w-fit shadow-sm" 
+                            style={{ 
+                              backgroundColor: `${rank.color}1A`, 
+                              color: rank.color,
+                              boxShadow: `0 0 10px ${rank.color}33`
+                            }}
+                          >
+                            <RankIcon className="w-3 h-3" style={{ color: rank.color }} />
+                            <span className="text-[10px] font-bold uppercase tracking-widest leading-none">
+                              {rank.name}
+                            </span>
+                          </div>
+                        );
+                      })()}
+                    </td>
                     <td className="p-4 text-sm text-zinc-300">{Math.floor(user.total_watch_time / 60)}h</td>
                     <td className="p-4">
                       {user.is_banned ? (
@@ -227,7 +241,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/5 p-4 rounded-lg text-center">
                   <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Rang</p>
-                  <p className="font-bold text-white">{getRank(selectedUser.total_watch_time)}</p>
+                  <p className="font-bold text-white">{getRankFromWatchTime(selectedUser.total_watch_time, selectedUser.watched_count)?.name || '-'}</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-lg text-center">
                   <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Temps</p>
@@ -240,7 +254,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                 <select 
                   value={roles.find(r => r.name === selectedUser.role_name)?.id || ''}
                   onChange={(e) => handleUpdateRole(selectedUser.id, parseInt(e.target.value))}
-                  disabled={!currentUser.permissions?.includes('edit_roles') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin')}
+                  disabled={!(currentUser.permissions ?? []).includes('edit_roles') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin')}
                   className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500 disabled:opacity-50"
                 >
                   <option value="" disabled>Sélectionner un rôle</option>
@@ -259,7 +273,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                 <h5 className="font-medium text-white border-b border-white/10 pb-2">Actions</h5>
                 <button 
                   onClick={() => handleBanUser(selectedUser.id, !selectedUser.is_banned)}
-                  disabled={!currentUser.permissions?.includes('ban_users') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin')}
+                  disabled={!(currentUser.permissions ?? []).includes('ban_users') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin')}
                   className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 ${selectedUser.is_banned ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
                 >
                   <ShieldAlert className="w-5 h-5" />

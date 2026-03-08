@@ -9,25 +9,35 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const search = searchParams.get('search') || '';
   const page = parseInt(searchParams.get('page') || '1');
-  const limit = 20;
+  const limit = parseInt(searchParams.get('limit') || '20');
+  const sort = searchParams.get('sort') || 'created_at';
   const offset = (page - 1) * limit;
 
   try {
     let query = `
       SELECT u.id, u.name, u.email, u.avatar_url, u.created_at, u.is_banned, u.ban_reason,
+             (SELECT COUNT(*) FROM user_list WHERE user_id = u.id AND list_type = 'watched') as watched_count,
              r.name as role_name, r.color as role_color, r.priority as role_priority,
              COALESCE((SELECT SUM(minutes_watched) FROM watch_history WHERE user_id = u.id), 0) as total_watch_time
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
     `;
     const queryParams: any[] = [];
+    let paramIndex = 1;
 
     if (search) {
-      query += ` WHERE u.name ILIKE $1 OR u.email ILIKE $1`;
+      query += ` WHERE u.name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex}`;
       queryParams.push(`%${search}%`);
+      paramIndex++;
     }
 
-    query += ` ORDER BY u.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    if (sort === 'total_watch_time') {
+      query += ` ORDER BY total_watch_time DESC`;
+    } else {
+      query += ` ORDER BY u.created_at DESC`;
+    }
+
+    query += ` LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
     queryParams.push(limit, offset);
 
     const usersRes = await pool.query(query, queryParams);
@@ -89,7 +99,7 @@ export async function PUT(req: Request) {
     const values = [];
     let paramIndex = 1;
 
-    if (roleId !== undefined && adminUser.permissions.includes('edit_roles')) {
+    if (roleId !== undefined && (adminUser.permissions ?? []).includes('edit_roles')) {
       // Check if new role has higher priority than admin
       const newRoleRes = await pool.query(`SELECT priority, name FROM roles WHERE id = $1`, [roleId]);
       if (newRoleRes.rows.length > 0) {
@@ -101,7 +111,7 @@ export async function PUT(req: Request) {
       }
     }
 
-    if (isBanned !== undefined && adminUser.permissions.includes('ban_users')) {
+    if (isBanned !== undefined && (adminUser.permissions ?? []).includes('ban_users')) {
       updates.push(`is_banned = $${paramIndex++}`);
       values.push(isBanned);
       updates.push(`ban_reason = $${paramIndex++}`);

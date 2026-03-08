@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Users, Clock, Film, UserPlus, Activity } from 'lucide-react';
+import { Users, Clock, Film, UserPlus, Activity, Eye } from 'lucide-react';
+import { RANKS } from '@/utils/ranks';
 
 export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
@@ -43,7 +44,7 @@ export default function Dashboard() {
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold text-white mb-2">Dashboard</h2>
-        <p className="text-zinc-400">Aperçu global de l'activité sur Moveo.</p>
+        <p className="text-zinc-400">Aperçu global de l&apos;activité sur Moveo.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -62,24 +63,40 @@ export default function Dashboard() {
           </h3>
           <div className="space-y-4">
             {stats.topMovies?.map((movie: any, index: number) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+              <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center font-bold">
+                  <div className="w-8 h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center font-bold shrink-0">
                     {index + 1}
                   </div>
+                  {movie.poster_path ? (
+                    <img 
+                      src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`} 
+                      alt={movie.title} 
+                      className="w-12 h-18 object-cover rounded shadow-lg" 
+                    />
+                  ) : (
+                    <div className="w-12 h-18 bg-zinc-800 rounded flex items-center justify-center text-[10px] text-zinc-500 text-center p-1">
+                      No Img
+                    </div>
+                  )}
                   <div>
-                    <p className="font-medium text-white">ID: {movie.media_id}</p>
-                    <p className="text-sm text-zinc-400 capitalize">{movie.media_type}</p>
+                    <p className="font-bold text-white text-lg leading-tight">{movie.title}</p>
+                    <p className="text-xs text-zinc-400 line-clamp-2 max-w-md mt-1 italic">
+                      {movie.overview}
+                    </p>
+                    <p className="text-xs text-rose-400 mt-2 flex items-center gap-1 font-medium">
+                       <Eye className="w-3 h-3" /> {movie.viewer_count || 0} personnes l'ont regardé
+                    </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-bold text-white">{Math.floor(movie.total_minutes / 60)}h</p>
+                <div className="text-right shrink-0 ml-4">
+                  <p className="font-bold text-white text-xl">{Math.floor(movie.total_minutes / 60)}h</p>
                   <p className="text-xs text-zinc-500">visionnées</p>
                 </div>
               </div>
             ))}
             {(!stats.topMovies || stats.topMovies.length === 0) && (
-              <p className="text-zinc-500 italic">Aucune donnée disponible.</p>
+              <p className="text-zinc-500 italic text-center py-8">Aucune donnée disponible.</p>
             )}
           </div>
         </div>
@@ -91,12 +108,30 @@ export default function Dashboard() {
             Répartition par Rang
           </h3>
           <div className="space-y-4">
-            {Object.entries(stats.usersByRank || {}).map(([rank, count]: any) => (
-              <div key={rank} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                <span className="font-medium text-white">{rank}</span>
-                <span className="bg-white/10 px-3 py-1 rounded-full text-sm font-bold">{count}</span>
-              </div>
-            ))}
+            {Object.entries(stats.usersByRank || {}).map(([rank, count]: [string, any]) => {
+               const rankObj = RANKS.find(r => r.name === rank);
+               if (!rankObj) return null;
+               const RankIcon = rankObj.icon;
+
+               return (
+                <div key={rank} className="flex items-center justify-between p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+                  <div 
+                    className="flex items-center gap-2 px-3 py-1 rounded-full w-fit shadow-sm" 
+                    style={{ 
+                      backgroundColor: `${rankObj.color}1A`, 
+                      color: rankObj.color,
+                      boxShadow: `0 0 10px ${rankObj.color}33`
+                    }}
+                  >
+                    <RankIcon className="w-3 h-3" style={{ color: rankObj.color }} />
+                    <span className="text-[10px] font-bold uppercase tracking-widest leading-none">
+                      {rankObj.name}
+                    </span>
+                  </div>
+                  <span className="bg-white/10 px-3 py-1 rounded-full text-sm font-bold text-white">{count}</span>
+                </div>
+              );
+            })}
             {Object.keys(stats.usersByRank || {}).length === 0 && (
               <p className="text-zinc-500 italic">Aucune donnée disponible.</p>
             )}

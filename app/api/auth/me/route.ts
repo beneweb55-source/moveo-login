@@ -21,6 +21,8 @@ export async function GET() {
         u.id, u.name, u.email, u.bio, u.avatar_url, 
         u.banner_url, u.created_at, u.twitter_url, 
         u.instagram_url, u.website_url,
+        (SELECT COUNT(*) FROM user_list WHERE user_id = u.id AND list_type = 'watched') as watched_count,
+        COALESCE((SELECT SUM(minutes_watched) FROM watch_history WHERE user_id = u.id), 0) as total_watch_time,
         u.role_id,
         r.name as role_name,
         r.color as role_color,

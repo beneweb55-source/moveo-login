@@ -37,7 +37,7 @@ export default function OnlineUsersManager() {
             <Activity className="w-8 h-8 text-emerald-500 animate-pulse" />
             En Ligne
           </h2>
-          <p className="text-zinc-400">Suivez l'activité des utilisateurs en temps réel.</p>
+          <p className="text-zinc-400">Suivez l&apos;activité des utilisateurs en temps réel.</p>
         </div>
         <div className="bg-[#111] border border-white/10 rounded-xl px-6 py-4 flex items-center gap-6">
           <div className="text-center">

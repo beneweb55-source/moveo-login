@@ -67,6 +67,18 @@ export async function GET() {
         current_movie_id INTEGER,
         current_movie_title VARCHAR(255)
       );
+
+      -- Remove duplicates before adding constraint
+      DELETE FROM online_users a USING online_users b
+      WHERE a.created_at < b.created_at AND a.user_id = b.user_id AND a.user_id IS NOT NULL;
+
+      -- Add unique constraint on user_id if not exists
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'unique_user_id') THEN
+          ALTER TABLE online_users ADD CONSTRAINT unique_user_id UNIQUE (user_id);
+        END IF;
+      END $$;
     `);
     
     // Create default Admin role if it doesn't exist
