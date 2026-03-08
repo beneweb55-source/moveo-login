@@ -27,7 +27,7 @@ export async function GET() {
         r.priority
       FROM users u
       LEFT JOIN roles r ON u.role_id = r.id
-      WHERE u.id = $1::uuid
+      WHERE u.id::text = $1
     `, [payload.userId]);
 
     console.log("API /auth/me - Résultat de la requête DB:", result.rows[0]);

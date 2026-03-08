@@ -64,7 +64,7 @@ export async function PUT(req: Request) {
       SELECT r.priority, r.name as role_name 
       FROM users u 
       LEFT JOIN roles r ON u.role_id = r.id 
-      WHERE u.id = $1::uuid
+      WHERE u.id::text = $1
     `, [userId]);
 
     if (targetUserRes.rows.length === 0) {
@@ -116,7 +116,7 @@ export async function PUT(req: Request) {
     await pool.query(`
       UPDATE users 
       SET ${updates.join(', ')} 
-      WHERE id = $${paramIndex}::uuid
+      WHERE id::text = $${paramIndex}
     `, values);
 
     return NextResponse.json({ message: 'User updated successfully' });
