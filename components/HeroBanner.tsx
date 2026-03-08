@@ -11,6 +11,7 @@ import { useLanguage } from "@/context/LanguageContext";
 const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: string, params?: any, headline?: string, themeColor?: string }) => {
   const [background, setBackground] = useState("");
   const [movie, setMovie] = useState<any>(null);
+  const [user, setUser] = useState<any>(null);
   const router = useRouter();
   const { genres } = useSelector((state: any) => state.home);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,6 +22,21 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
 
   // Default red if no theme color provided
   const accentColor = themeColor || "#E50914";
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          setUser(data.user);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user', error);
+      }
+    };
+    fetchUser();
+  }, []);
 
   useEffect(() => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -51,6 +67,16 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
 
   const movieGenres = movie ? getGenreNames(movie.genre_ids) : [];
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 5 && hour < 12) return { text: "morning sorted,", color: "#FFD60A" };
+    if (hour >= 12 && hour < 18) return { text: "afternoon sorted,", color: "#0A84FF" };
+    if (hour >= 18 && hour < 22) return { text: "evening sorted,", color: "#FF6B00" };
+    return { text: "late night sorted,", color: "#BF5AF2" };
+  };
+
+  const { text: greetingText, color: greetingColor } = getGreeting();
+
   return (
     <div ref={containerRef} className="relative w-full h-[85vh] min-h-[700px] overflow-hidden bg-[#0A0A0A]">
       {/* Parallax Background */}
@@ -79,8 +105,19 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
           transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
           className="max-w-4xl"
         >
-           {/* Mood Headline */}
-           {headline && (
+           {/* Mood Headline / Greeting */}
+           {user ? (
+            <div className="mb-4 overflow-hidden">
+              <motion.h2 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+                className="text-lg md:text-xl font-extralight tracking-[0.15em] lowercase text-white/70"
+              >
+                {greetingText} <span className="font-light" style={{ color: greetingColor }}>{user.name?.split(' ')[0]}.</span>
+              </motion.h2>
+            </div>
+          ) : headline && (
             <div className="mb-4 overflow-hidden">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
