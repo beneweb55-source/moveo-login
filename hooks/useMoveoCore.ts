@@ -118,6 +118,7 @@ export const useMoveoCore = () => {
       selectedProfile = PROFILES.default;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setProfile(selectedProfile);
   }, []);
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { fetchDataFromApi } from "@/utils/api";
-import { Play, Info, Star, Calendar, Film, Pencil } from "lucide-react";
+import { Play, Info, Star, Calendar, Film, Pencil, Check, X } from "lucide-react";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useSelector } from "react-redux";
 import { useLanguage } from "@/context/LanguageContext";
@@ -13,10 +13,11 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
   const [movie, setMovie] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [customGreetingColor, setCustomGreetingColor] = useState<string | null>(null);
+  const [isEditingColor, setIsEditingColor] = useState(false);
+  const [tempColor, setTempColor] = useState<string>("#ffffff");
   const router = useRouter();
   const { genres } = useSelector((state: any) => state.home);
   const containerRef = useRef<HTMLDivElement>(null);
-  const colorInputRef = useRef<HTMLInputElement>(null);
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 1000], [0, 400]);
   const opacity = useTransform(scrollY, [0, 500], [1, 0]);
@@ -29,6 +30,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
     // Load custom color from localStorage
     const savedColor = localStorage.getItem("moveo_greeting_color");
     if (savedColor) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCustomGreetingColor(savedColor);
     }
 
@@ -77,19 +79,35 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour >= 5 && hour < 12) return { text: "morning sorted,", color: "#FFD60A" };
-    if (hour >= 12 && hour < 18) return { text: "afternoon sorted,", color: "#0A84FF" };
-    if (hour >= 18 && hour < 22) return { text: "evening sorted,", color: "#FF6B00" };
-    return { text: "late night sorted,", color: "#BF5AF2" };
+    if (language === 'fr') {
+      if (hour >= 5 && hour < 12) return { text: "bonjour,", color: "#FFD60A" };
+      if (hour >= 12 && hour < 18) return { text: "bon après-midi,", color: "#0A84FF" };
+      if (hour >= 18 && hour < 22) return { text: "bonsoir,", color: "#FF6B00" };
+      return { text: "toujours debout,", color: "#BF5AF2" };
+    } else {
+      if (hour >= 5 && hour < 12) return { text: "morning sorted,", color: "#FFD60A" };
+      if (hour >= 12 && hour < 18) return { text: "afternoon sorted,", color: "#0A84FF" };
+      if (hour >= 18 && hour < 22) return { text: "evening sorted,", color: "#FF6B00" };
+      return { text: "late night sorted,", color: "#BF5AF2" };
+    }
   };
 
   const { text: greetingText, color: greetingColor } = getGreeting();
   const finalGreetingColor = customGreetingColor || greetingColor;
 
-  const handleColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newColor = e.target.value;
-    setCustomGreetingColor(newColor);
-    localStorage.setItem("moveo_greeting_color", newColor);
+  const handleEditClick = () => {
+    setTempColor(finalGreetingColor);
+    setIsEditingColor(true);
+  };
+
+  const handleApplyColor = () => {
+    setCustomGreetingColor(tempColor);
+    localStorage.setItem("moveo_greeting_color", tempColor);
+    setIsEditingColor(false);
+  };
+
+  const handleCancelColor = () => {
+    setIsEditingColor(false);
   };
 
   return (
@@ -130,23 +148,50 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
                 className="text-lg md:text-xl font-extralight tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
               >
                 <span>{greetingText}</span>
-                <span className="font-light flex items-center gap-2" style={{ color: finalGreetingColor }}>
+                <span className="font-light flex items-center gap-2" style={{ color: isEditingColor ? tempColor : finalGreetingColor }}>
                   {user.name?.split(' ')[0]}.
-                  <button 
-                    onClick={() => colorInputRef.current?.click()}
-                    className="text-white/30 hover:text-white transition-colors focus:outline-none"
-                    title="Change color"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <input 
-                    type="color" 
-                    ref={colorInputRef}
-                    value={finalGreetingColor}
-                    onChange={handleColorChange}
-                    className="absolute opacity-0 w-0 h-0 pointer-events-none"
-                    tabIndex={-1}
-                  />
+                  
+                  {isEditingColor ? (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9, x: -10 }}
+                      animate={{ opacity: 1, scale: 1, x: 0 }}
+                      className="flex items-center gap-1.5 ml-3 bg-white/10 backdrop-blur-xl rounded-full px-3 py-1.5 border border-white/20 shadow-xl"
+                    >
+                      <div className="relative w-6 h-6 rounded-full overflow-hidden border-2 border-white/50 shadow-inner cursor-pointer hover:scale-110 transition-transform">
+                        <input 
+                          type="color" 
+                          value={tempColor}
+                          onChange={(e) => setTempColor(e.target.value)}
+                          className="absolute -top-2 -left-2 w-10 h-10 cursor-pointer border-0 p-0 bg-transparent"
+                        />
+                      </div>
+                      
+                      <div className="w-[1px] h-4 bg-white/20 mx-1" />
+                      
+                      <button 
+                        onClick={handleApplyColor}
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-white/10 rounded-full p-1.5 transition-all"
+                        title="Apply"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={handleCancelColor}
+                        className="text-rose-400 hover:text-rose-300 hover:bg-white/10 rounded-full p-1.5 transition-all"
+                        title="Cancel"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <button 
+                      onClick={handleEditClick}
+                      className="text-white/30 hover:text-white transition-colors focus:outline-none ml-1"
+                      title="Change color"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
                 </span>
               </motion.h2>
             </div>
