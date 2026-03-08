@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI, SchemaType } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,15 +14,15 @@ export async function POST(req: NextRequest) {
 
     // Define the schema for the expected output
     const schema = {
-      type: SchemaType.OBJECT,
+      type: Type.OBJECT,
       properties: {
-        media_type: { type: SchemaType.STRING, enum: ["movie", "tv", "multi"], description: "The type of media to search for." },
-        genres: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "List of genre names relevant to the query." },
-        keywords: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING }, description: "List of specific keywords or themes." },
-        year_min: { type: SchemaType.NUMBER, description: "Minimum release year if specified." },
-        year_max: { type: SchemaType.NUMBER, description: "Maximum release year if specified." },
-        mood: { type: SchemaType.STRING, description: "The emotional tone of the request." },
-        sort_by: { type: SchemaType.STRING, enum: ["popularity.desc", "vote_average.desc", "release_date.desc"], description: "How to sort the results." }
+        media_type: { type: Type.STRING, enum: ["movie", "tv", "multi"], description: "The type of media to search for." },
+        genres: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of genre names relevant to the query." },
+        keywords: { type: Type.ARRAY, items: { type: Type.STRING }, description: "List of specific keywords or themes." },
+        year_min: { type: Type.NUMBER, description: "Minimum release year if specified." },
+        year_max: { type: Type.NUMBER, description: "Maximum release year if specified." },
+        mood: { type: Type.STRING, description: "The emotional tone of the request." },
+        sort_by: { type: Type.STRING, enum: ["popularity.desc", "vote_average.desc", "release_date.desc"], description: "How to sort the results." }
       },
       required: ["media_type", "genres", "keywords"]
     };
