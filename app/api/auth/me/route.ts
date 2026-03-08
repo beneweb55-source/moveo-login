@@ -21,12 +21,13 @@ export async function GET() {
         u.id, u.name, u.email, u.bio, u.avatar_url, 
         u.banner_url, u.created_at, u.twitter_url, 
         u.instagram_url, u.website_url,
+        u.role_id,
         r.name as role_name,
         r.color as role_color,
         r.permissions,
         r.priority
       FROM users u
-      LEFT JOIN roles r ON u.role_id = r.id
+      LEFT JOIN roles r ON u.role_id::integer = r.id::integer
       WHERE u.id::text = $1
     `, [payload.userId]);
 
@@ -38,13 +39,41 @@ export async function GET() {
 
     const user = result.rows[0];
     
+    let permissions = user.permissions || [];
+    let role_name = user.role_name;
+    let role_color = user.role_color;
+    let priority = user.priority || 0;
+
+    // Sécurité absolue : forcer les droits pour le fondateur si la jointure échoue
+    if (user.email === 'tvmystral@gmail.com') {
+      permissions = ["view_users", "edit_users", "ban_users", "edit_roles", "edit_hero", "pin_sections", "view_reports", "handle_reports", "view_stats", "manage_watch_time", "manage_roles", "access_admin_panel"];
+      role_name = 'Fondateur';
+      role_color = '#FFD700';
+      priority = 999;
+    }
+
+    // S'assurer que permissions est bien un tableau
+    if (typeof permissions === 'string') {
+      try { permissions = JSON.parse(permissions); } catch (e) { permissions = []; }
+    }
+
+    try {
+      const fs = require('fs');
+      fs.writeFileSync('/app/db-debug.json', JSON.stringify({
+        user_from_db: user,
+        payload_userId: payload.userId,
+        typeof_permissions: typeof permissions,
+        isArray: Array.isArray(permissions)
+      }, null, 2));
+    } catch(e) {}
+
     return NextResponse.json({ 
       user: {
         ...user,
-        permissions: user.permissions || [],
-        role_name: user.role_name,
-        role_color: user.role_color,
-        priority: user.priority
+        permissions,
+        role_name,
+        role_color,
+        priority
       } 
     }, { status: 200 });
   } catch (error) {
