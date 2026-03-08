@@ -23,7 +23,9 @@ export default function AdminPage() {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
+          console.log("Admin Page - Données reçues de /auth/me:", data);
           const permissions = data.user?.permissions || [];
+          console.log("Admin Page - Permissions extraites:", permissions);
           if (permissions.includes('access_admin_panel')) {
             setUser(data.user);
           } else {
