@@ -20,11 +20,12 @@ export async function POST(req: Request) {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Insert user
-    const result = await pool.query(
-      'INSERT INTO users (name, email, password, email_verified) VALUES ($1, $2, $3, TRUE) RETURNING id, name, email',
-      [name, email, hashedPassword]
-    );
+    // Insert user with default role
+    const result = await pool.query(`
+      INSERT INTO users (name, email, password, email_verified, role_id) 
+      VALUES ($1, $2, $3, TRUE, (SELECT id FROM roles WHERE name = 'User' LIMIT 1)) 
+      RETURNING id, name, email
+    `, [name, email, hashedPassword]);
 
     const user = result.rows[0];
 

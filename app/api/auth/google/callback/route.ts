@@ -74,11 +74,12 @@ export async function GET(req: NextRequest) {
       // Update google_id if missing and set email_verified to true since Google verified it
       await pool.query('UPDATE users SET google_id = $1, avatar_url = COALESCE(avatar_url, $2), email_verified = TRUE WHERE id = $3', [userData.id, userData.picture, user.id]);
     } else {
-      // Create new user
-      const result = await pool.query(
-        'INSERT INTO users (name, email, google_id, avatar_url, email_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING *',
-        [userData.name, userData.email, userData.id, userData.picture]
-      );
+      // Create new user with default role
+      const result = await pool.query(`
+        INSERT INTO users (name, email, google_id, avatar_url, email_verified, role_id) 
+        VALUES ($1, $2, $3, $4, TRUE, (SELECT id FROM roles WHERE name = 'User' LIMIT 1)) 
+        RETURNING *
+      `, [userData.name, userData.email, userData.id, userData.picture]);
       user = result.rows[0];
     }
 

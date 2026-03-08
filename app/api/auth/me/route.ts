@@ -15,11 +15,16 @@ export async function GET() {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
     const { payload } = await jwtVerify(token, secret);
 
-    // Fetch fresh user data from database
-    const result = await pool.query(
-      'SELECT id, name, email, bio, avatar_url, banner_url, role, created_at, twitter_url, instagram_url, website_url FROM users WHERE id = $1',
-      [payload.userId]
-    );
+    // Fetch fresh user data from database with role info
+    const result = await pool.query(`
+      SELECT 
+        u.id, u.name, u.email, u.bio, u.avatar_url, u.banner_url, 
+        u.created_at, u.twitter_url, u.instagram_url, u.website_url,
+        u.role_id, r.name as role_name, r.permissions, r.priority
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id
+      WHERE u.id = $1
+    `, [payload.userId]);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ user: null }, { status: 404 });

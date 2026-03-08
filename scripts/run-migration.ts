@@ -1,7 +1,15 @@
-import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import { Pool } from 'pg';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
-export async function GET() {
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL || "postgresql://neondb_owner:npg_htHL3N0DKzTA@ep-ancient-forest-ai8bpw82-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require",
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+async function migrate() {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS watch_history (
@@ -93,15 +101,12 @@ export async function GET() {
       `);
     }
 
-    // Assign 'User' role to existing users without a role
-    await pool.query(`
-      UPDATE users 
-      SET role_id = (SELECT id FROM roles WHERE name = 'User' LIMIT 1) 
-      WHERE role_id IS NULL
-    `);
-
-    return NextResponse.json({ message: 'Migration successful' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.log('Migration successful');
+  } catch (error) {
+    console.error('Migration failed:', error);
+  } finally {
+    await pool.end();
   }
 }
+
+migrate();

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, Menu, X, PlayCircle, Star, Loader2, Globe, User, LogOut, Settings, Heart, Eye, Bookmark } from "lucide-react";
+import { Search, Menu, X, PlayCircle, Star, Loader2, Globe, User, LogOut, Settings, Heart, Eye, Bookmark, Shield } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
@@ -420,6 +420,12 @@ const Header = () => {
                         <Settings className="w-4 h-4" />
                         {t.nav.settings}
                       </Link>
+                      {user.permissions?.includes('access_admin_panel') && (
+                        <Link href="/admin" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                          <Shield className="w-4 h-4" />
+                          Panel Admin
+                        </Link>
+                      )}
                     </div>
                     
                     <div className="mt-2 pt-2 border-t border-white/10">
