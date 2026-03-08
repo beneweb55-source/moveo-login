@@ -12,6 +12,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
   const [background, setBackground] = useState("");
   const [movie, setMovie] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
+  const [isUserLoading, setIsUserLoading] = useState(true);
   const [customGreetingColor, setCustomGreetingColor] = useState<string | null>(null);
   const [isEditingColor, setIsEditingColor] = useState(false);
   const [tempColor, setTempColor] = useState<string>("#ffffff");
@@ -43,6 +44,8 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
         }
       } catch (error) {
         console.error('Failed to fetch user', error);
+      } finally {
+        setIsUserLoading(false);
       }
     };
     fetchUser();
@@ -139,7 +142,9 @@ const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: str
           className="max-w-4xl"
         >
            {/* Mood Headline / Greeting */}
-           {user ? (
+           {isUserLoading ? (
+             <div className="mb-4 h-8 md:h-10"></div>
+           ) : user ? (
             <div className="mb-4 overflow-hidden">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
