@@ -138,8 +138,13 @@ const Header = () => {
       try {
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
         
-        // Detection Layer: > 3 words = Intent (AI Search), else Title (TMDB Proxy)
-        const isSemantic = query.trim().split(/\s+/).length > 3;
+        // Detection Layer: > 2 words OR specific keywords = Intent (AI Search), else Title (TMDB Proxy)
+        const words = query.trim().split(/\s+/).length;
+        const keywords = ["dans", "in", "about", "sur", "with", "avec", "film", "movie", "serie", "show", "triste", "sad", "funny", "drôle", "peur", "scary", "love", "amour", "space", "espace", "action", "aventure", "adventure", "comedy", "comédie", "drama", "drame", "fantasy", "fantastique", "horror", "horreur", "sci-fi", "science-fiction", "thriller", "western", "war", "guerre", "crime", "music", "musique", "mystery", "mystère", "romance", "romantique", "documentary", "documentaire", "family", "famille", "history", "histoire", "animation", "top", "best", "meilleur", "pire", "worst", "like", "comme", "style", "genre", "vibe", "mood", "ambiance"];
+        
+        const hasKeyword = keywords.some(k => query.toLowerCase().includes(k));
+        const isSemantic = words >= 3 || hasKeyword;
+        
         const endpoint = isSemantic ? '/api/ai-search' : '/api/tmdb-proxy';
 
         console.log(`[Search] Routing to ${endpoint} for query: "${query}"`);
@@ -277,7 +282,7 @@ const Header = () => {
                 {loading ? (
                   <div className="flex flex-col items-center justify-center p-8 gap-3">
                     <Loader2 className="w-6 h-6 text-[#E50914] animate-spin" />
-                    {query.split(' ').length > 3 || ["triste", "peur", "rire", "joyeux", "sombre", "calme", "amour", "action", "film", "serie"].some(k => query.toLowerCase().includes(k)) ? (
+                    {query.split(' ').length >= 3 || ["triste", "peur", "rire", "joyeux", "sombre", "calme", "amour", "action", "film", "serie", "space", "espace"].some(k => query.toLowerCase().includes(k)) ? (
                       <span className="text-xs text-white/50 animate-pulse">
                         Analyse de votre mood...
                       </span>

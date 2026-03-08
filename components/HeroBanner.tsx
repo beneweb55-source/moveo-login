@@ -8,7 +8,7 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { useSelector } from "react-redux";
 import { useLanguage } from "@/context/LanguageContext";
 
-const HeroBanner = ({ endpoint, params }: { endpoint?: string, params?: any }) => {
+const HeroBanner = ({ endpoint, params, headline, themeColor }: { endpoint?: string, params?: any, headline?: string, themeColor?: string }) => {
   const [background, setBackground] = useState("");
   const [movie, setMovie] = useState<any>(null);
   const router = useRouter();
@@ -18,6 +18,9 @@ const HeroBanner = ({ endpoint, params }: { endpoint?: string, params?: any }) =
   const y = useTransform(scrollY, [0, 1000], [0, 400]);
   const opacity = useTransform(scrollY, [0, 500], [1, 0]);
   const { language, t } = useLanguage();
+
+  // Default red if no theme color provided
+  const accentColor = themeColor || "#E50914";
 
   useEffect(() => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -76,6 +79,21 @@ const HeroBanner = ({ endpoint, params }: { endpoint?: string, params?: any }) =
           transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
           className="max-w-4xl"
         >
+           {/* Mood Headline */}
+           {headline && (
+            <div className="mb-4 overflow-hidden">
+              <motion.h2 
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5, duration: 0.8 }}
+                className="text-2xl md:text-3xl font-medium tracking-wide uppercase"
+                style={{ color: accentColor }}
+              >
+                {headline}
+              </motion.h2>
+            </div>
+          )}
+
           {/* Metadata Badge Row */}
           <div className="flex flex-wrap items-center gap-3 mb-4 text-sm md:text-base font-medium">
             <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-2">
@@ -118,7 +136,18 @@ const HeroBanner = ({ endpoint, params }: { endpoint?: string, params?: any }) =
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className="group w-full sm:w-auto flex items-center justify-center gap-3 bg-white text-black px-8 py-4 rounded-full font-bold text-lg hover:bg-[#E50914] hover:text-white transition-all duration-300 shadow-[0_0_20px_-5px_rgba(229,9,20,0.5)] hover:shadow-[0_0_30px_-5px_rgba(229,9,20,0.7)]"
+              className="group w-full sm:w-auto flex items-center justify-center gap-3 bg-white text-black px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 shadow-lg hover:scale-105"
+              style={{ 
+                boxShadow: `0 0 20px -5px ${accentColor}80` // 80 is alpha
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = accentColor;
+                e.currentTarget.style.color = '#ffffff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.color = '#000000';
+              }}
             >
               <Play className="w-6 h-6 fill-current transition-transform group-hover:scale-110" />
               {t.home.watchNow}

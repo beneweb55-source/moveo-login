@@ -10,6 +10,7 @@ import HistorySection from "@/components/HistorySection";
 import { fetchDataFromApi } from "@/utils/api";
 import { getApiConfiguration, getGenres } from "@/store/homeSlice";
 import { useLanguage } from "@/context/LanguageContext";
+import { useMoveoCore } from "@/hooks/useMoveoCore";
 
 import { sortItems, getUserWatchedIds, extractUserGenresFromItems, mixCatalog } from "@/utils/sorting";
 
@@ -21,6 +22,7 @@ export default function Home() {
   const [topRatedTv, setTopRatedTv] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { language, t } = useLanguage();
+  const profile = useMoveoCore();
 
   useEffect(() => {
     const fetchGenres = async () => {
@@ -49,8 +51,19 @@ export default function Home() {
       setLoading(true);
       try {
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+        
+        // Use Discover endpoint for trending to support genre filtering
+        // This replaces the static /trending/all/day
+        const trendingEndpoint = "/discover/movie";
+        const trendingParams = {
+          language: langParam,
+          sort_by: "popularity.desc",
+          with_genres: profile.genreIds.join("|"), // Use OR logic to get more results
+          "vote_count.gte": 0 // Get everything, we filter later
+        };
+
         const [trendingRes, topFranceRes, popularRes, topRatedTvRes] = await Promise.all([
-          fetchDataFromApi("/trending/all/day", { language: langParam }),
+          fetchDataFromApi(trendingEndpoint, trendingParams),
           fetchDataFromApi("/movie/popular", { region: "FR", language: langParam }),
           fetchDataFromApi("/movie/popular", { language: langParam }),
           fetchDataFromApi("/tv/top_rated", { language: langParam }),
@@ -71,7 +84,7 @@ export default function Home() {
           // Ignore error, proceed without user prefs
         }
 
-        setTrending(mixCatalog(sortItems(rawTrending, userGenres)));
+        setTrending(mixCatalog(sortItems(rawTrending, userGenres, { minVoteCount: 0, minVoteAverage: 0, excludeGenres: false })));
         setTopFrance(sortItems(rawTopFrance, userGenres)); // Top 10 usually doesn't need mixing
         setPopularMovies(mixCatalog(sortItems(rawPopularMovies, userGenres)));
         setTopRatedTv(mixCatalog(sortItems(rawTopRatedTv, userGenres)));
@@ -82,12 +95,23 @@ export default function Home() {
       }
     };
 
-    fetchAllData();
-  }, [language]);
+    if (profile.id) {
+        fetchAllData();
+    }
+  }, [language, profile]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
-      <HeroBanner />
+      <HeroBanner 
+        endpoint="/discover/movie"
+        params={{ 
+            with_genres: profile.genreIds.join(","),
+            sort_by: "popularity.desc",
+            "vote_count.gte": 100
+        }}
+        headline={profile.headline}
+        themeColor={profile.color}
+      />
       
       <main className="flex-1 relative z-20 w-full pb-20 space-y-12 md:space-y-24">
         {/* Trending Section - Bento Grid */}

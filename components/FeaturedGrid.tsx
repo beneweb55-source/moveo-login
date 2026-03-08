@@ -120,16 +120,13 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
 
         {/* Secondary Cards */}
         {secondaryItems?.map((item: any, index: number) => {
-          // If we have exactly 3 secondary items, make the last one span 2 columns
-          const isLastOfThree = secondaryItems.length === 3 && index === 2;
-          
+          // Force a specific layout regardless of the number of items
+          // We want 4 secondary items total in the grid
           return (
             <motion.div
               key={item.id}
               variants={itemAnim}
-              className={`${
-                isLastOfThree ? "md:col-span-2" : "md:col-span-1"
-              } md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[300px] md:h-auto`}
+              className="md:col-span-1 md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[300px] md:h-auto"
               onClick={() => router.push(`/${item.media_type || "movie"}/${item.id}`)}
             >
               <Image
@@ -137,7 +134,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                 alt={item.title || item.name}
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
-                sizes={isLastOfThree ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 50vw, 25vw"}
+                sizes="(max-width: 768px) 50vw, 25vw"
               />
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
                 <div className="bg-white/10 backdrop-blur-sm p-3 rounded-full border border-white/20">
@@ -161,6 +158,10 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
             </motion.div>
           );
         })}
+        {/* Fill empty slots with placeholders if necessary */}
+        {Array.from({ length: Math.max(0, 4 - (secondaryItems?.length || 0)) }).map((_, i) => (
+          <div key={`placeholder-${i}`} className="hidden md:block bg-zinc-900/50 rounded-2xl" />
+        ))}
       </motion.div>
     </div>
   );

@@ -7,19 +7,23 @@
  * 3. Personalization (User Genre Weighting)
  */
 
-const MIN_VOTE_COUNT = 20; // Lowered from 150 to allow new trending releases
-const MIN_VOTE_AVERAGE = 4.0; // Lowered from 5.5
-const MIN_RELEASE_YEAR = 1980; // Lowered from 1985
+const MIN_VOTE_COUNT = 150;
+const MIN_VOTE_AVERAGE = 5.5;
+const MIN_RELEASE_YEAR = 1985;
 const EXCLUDED_GENRES = [99, 10770]; // Documentary, TV Movie (often lower production value)
 
-export const filterItems = (items: any[]) => {
+export const filterItems = (items: any[], options?: { minVoteCount?: number, minVoteAverage?: number, excludeGenres?: boolean }) => {
   if (!items) return [];
   
+  const minVoteCount = options?.minVoteCount ?? MIN_VOTE_COUNT;
+  const minVoteAverage = options?.minVoteAverage ?? MIN_VOTE_AVERAGE;
+  const shouldExcludeGenres = options?.excludeGenres ?? true;
+
   return items.filter(item => {
     // 1. Basic Quality Checks
     if (!item.poster_path) return false;
-    if (item.vote_count < MIN_VOTE_COUNT) return false;
-    if (item.vote_average < MIN_VOTE_AVERAGE) return false;
+    if (item.vote_count < minVoteCount) return false;
+    if (item.vote_average < minVoteAverage) return false;
 
     // 2. Date Check
     const dateStr = item.release_date || item.first_air_date;
@@ -32,8 +36,10 @@ export const filterItems = (items: any[]) => {
     }
 
     // 3. Genre Check (Filter out "virus" sources)
-    const genreIds = item.genre_ids || [];
-    if (genreIds.some((id: number) => EXCLUDED_GENRES.includes(id))) return false;
+    if (shouldExcludeGenres) {
+      const genreIds = item.genre_ids || [];
+      if (genreIds.some((id: number) => EXCLUDED_GENRES.includes(id))) return false;
+    }
 
     return true;
   });
@@ -73,11 +79,11 @@ export const calculateScore = (item: any, userGenres: Set<number>) => {
   return finalScore;
 };
 
-export const sortItems = (items: any[], userGenres: Set<number>) => {
+export const sortItems = (items: any[], userGenres: Set<number>, options?: { minVoteCount?: number, minVoteAverage?: number, excludeGenres?: boolean }) => {
   if (!items || items.length === 0) return [];
   
   // First, apply the "Brutal Cleaning" filter
-  const cleanedItems = filterItems(items);
+  const cleanedItems = filterItems(items, options);
   
   // Then, sort by our intelligent score
   return [...cleanedItems].sort((a, b) => {
