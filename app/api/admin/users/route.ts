@@ -103,7 +103,9 @@ export async function PUT(req: Request) {
       // Check if new role has higher priority than admin
       const newRoleRes = await pool.query(`SELECT priority, name FROM roles WHERE id = $1`, [roleId]);
       if (newRoleRes.rows.length > 0) {
-        if (newRoleRes.rows[0].priority >= adminUser.priority && adminUser.role_name !== 'Admin') {
+        console.log(`Admin ${adminUser.role_name} (priority ${adminUser.priority}) assigning role ${newRoleRes.rows[0].name} (priority ${newRoleRes.rows[0].priority})`);
+        // Allow Fondateur (priority 999) to assign any role
+        if (newRoleRes.rows[0].priority >= adminUser.priority && adminUser.role_name !== 'Fondateur' && adminUser.role_name !== 'Admin') {
           return NextResponse.json({ error: 'Cannot assign role with higher or equal priority' }, { status: 403 });
         }
         updates.push(`role_id = $${paramIndex++}`);
@@ -123,10 +125,11 @@ export async function PUT(req: Request) {
     }
 
     values.push(userId);
+    console.log(`Updating user ${userId} with values:`, values);
     await pool.query(`
       UPDATE users 
       SET ${updates.join(', ')} 
-      WHERE id::text = $${paramIndex}
+      WHERE id = $${paramIndex}::uuid
     `, values);
 
     return NextResponse.json({ message: 'User updated successfully' });

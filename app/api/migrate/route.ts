@@ -68,6 +68,13 @@ export async function GET() {
         current_movie_title VARCHAR(255)
       );
 
+      CREATE TABLE IF NOT EXISTS pinned_sections (
+        id SERIAL PRIMARY KEY,
+        section_key VARCHAR(255) UNIQUE NOT NULL,
+        is_pinned BOOLEAN DEFAULT FALSE,
+        display_order INTEGER DEFAULT 0
+      );
+
       -- Remove duplicates before adding constraint
       DELETE FROM online_users a USING online_users b
       WHERE a.created_at < b.created_at AND a.user_id = b.user_id AND a.user_id IS NOT NULL;
@@ -79,6 +86,22 @@ export async function GET() {
           ALTER TABLE online_users ADD CONSTRAINT unique_user_id UNIQUE (user_id);
         END IF;
       END $$;
+    `);
+    
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key VARCHAR(255) PRIMARY KEY,
+        value JSONB,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      INSERT INTO app_settings (key, value) 
+      VALUES ('hero_movie', 'null')
+      ON CONFLICT (key) DO NOTHING;
+
+      INSERT INTO app_settings (key, value)
+      VALUES ('pinned_sections', '[]')
+      ON CONFLICT (key) DO NOTHING;
     `);
     
     // Create default Admin role if it doesn't exist

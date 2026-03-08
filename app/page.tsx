@@ -21,10 +21,31 @@ export default function Home() {
   const [popularMovies, setPopularMovies] = useState<any[]>([]);
   const [topRatedTv, setTopRatedTv] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [heroMovie, setHeroMovie] = useState<any>(null);
+  const [pinnedSections, setPinnedSections] = useState<any[]>([]);
   const { language, t } = useLanguage();
   const profile = useMoveoCore();
 
   useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const [settingsRes, sectionsRes] = await Promise.all([
+          fetch('/api/settings'),
+          fetch('/api/admin/sections')
+        ]);
+        if (settingsRes.ok) {
+          const settings = await settingsRes.json();
+          if (settings.hero_movie) setHeroMovie(JSON.parse(settings.hero_movie));
+        }
+        if (sectionsRes.ok) {
+          const sections = await sectionsRes.json();
+          setPinnedSections(sections.filter((s: any) => s.is_pinned).sort((a: any, b: any) => a.display_order - b.display_order));
+        }
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+      }
+    };
+
     const fetchGenres = async () => {
       try {
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -43,6 +64,7 @@ export default function Home() {
       }
     };
 
+    fetchInitialData();
     fetchGenres();
   }, [dispatch, language]);
 
@@ -106,13 +128,13 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
       <HeroBanner 
-        endpoint="/discover/movie"
-        params={{ 
+        endpoint={heroMovie ? `/movie/${heroMovie.id}` : "/discover/movie"}
+        params={heroMovie ? {} : { 
             with_genres: profile.genreIds.join(","),
             sort_by: "popularity.desc",
             "vote_count.gte": 100
         }}
-        headline={profile.headline}
+        headline={heroMovie ? heroMovie.title : profile.headline}
         themeColor={profile.color}
       />
       
@@ -125,6 +147,18 @@ export default function Home() {
             loading={loading} 
           />
         </section>
+        
+        {/* Pinned Sections */}
+        {pinnedSections.map((section: any) => (
+          <div key={section.section_key} className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+            <Carousel 
+              title={section.section_key.replace('_', ' ')} 
+              data={trending} // Placeholder: should be dynamic based on section_key
+              loading={loading} 
+              endpoint="movie" 
+            />
+          </div>
+        ))}
         
         {/* Other Sections - Carousels */}
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
