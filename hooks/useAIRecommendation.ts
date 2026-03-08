@@ -8,7 +8,11 @@ export const useAIRecommendation = () => {
   const [recommendations, setRecommendations] = useState<any[]>([]);
 
   const getRecommendations = useCallback(async (history: any[]) => {
-    if (history.length < 3) return { show: false };
+    console.log('useAIRecommendation hook called with history:', history);
+    if (history.length < 3) {
+      console.log('useAIRecommendation: history too short, returning show: false');
+      return { show: false };
+    }
 
     setLoading(true);
     try {

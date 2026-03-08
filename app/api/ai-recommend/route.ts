@@ -4,8 +4,10 @@ import { fetchDataFromApi } from '@/utils/api';
 export async function POST(req: Request) {
   try {
     const { history } = await req.json();
+    console.log('API /api/ai-recommend received history:', history);
 
     if (!history || history.length < 3) {
+      console.log('API /api/ai-recommend: history too short, returning show: false');
       return NextResponse.json({ show: false });
     }
 

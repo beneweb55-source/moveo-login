@@ -88,6 +88,9 @@ export default function Home() {
         setTopFrance(sortItems(rawTopFrance, userGenres)); // Top 10 usually doesn't need mixing
         setPopularMovies(mixCatalog(sortItems(rawPopularMovies, userGenres)));
         setTopRatedTv(mixCatalog(sortItems(rawTopRatedTv, userGenres)));
+        
+        // Debugging
+        console.log('Home page - triggering AI recommendation with:', [...rawTrending, ...rawTopFrance, ...rawPopularMovies, ...rawTopRatedTv].slice(0, 10));
       } catch (error) {
         console.error("Failed to fetch homepage data:", error);
       } finally {
