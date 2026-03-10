@@ -1,9 +1,10 @@
 'use client';
+import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ShieldOff } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
-export default function BannedPage() {
+function BannedContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reason = searchParams.get('reason');
@@ -32,5 +33,13 @@ export default function BannedPage() {
         Se déconnecter
       </button>
     </div>
+  );
+}
+
+export default function BannedPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-black text-white flex items-center justify-center">Loading...</div>}>
+      <BannedContent />
+    </Suspense>
   );
 }
