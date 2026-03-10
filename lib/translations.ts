@@ -340,6 +340,7 @@ export const translations = {
       watching: "Regarde :",
       noRegisteredOnline: "Aucun utilisateur inscrit en ligne.",
       noVisitorsOnline: "Aucun visiteur en ligne.",
+      backToSite: "Retour au site",
     }
   },
   en: {
@@ -683,6 +684,7 @@ export const translations = {
       watching: "Watching:",
       noRegisteredOnline: "No registered users online.",
       noVisitorsOnline: "No visitors online.",
+      backToSite: "Back to site",
     }
   }
 };
