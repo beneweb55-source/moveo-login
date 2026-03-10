@@ -57,10 +57,17 @@ export default function Home() {
           setPinnedSections(data);
           
           const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-          data.forEach(async (section: any) => {
-            const resData = await fetchDataFromApi(section.endpoint, { language: langParam });
-            setSectionData(prev => ({ ...prev, [section.id]: resData?.results || [] }));
-          });
+          
+          const results = await Promise.all(data.map(async (section: any) => {
+            const [path, queryString] = section.endpoint.split('?');
+            const params = Object.fromEntries(new URLSearchParams(queryString));
+            const resData = await fetchDataFromApi(path, { ...params, language: langParam });
+            return { id: section.id, data: resData?.results || [] };
+          }));
+          
+          const newData: Record<number, any[]> = {};
+          results.forEach(r => newData[r.id] = r.data);
+          setSectionData(newData);
         }
       } catch (e) {
         console.error('Failed to fetch pinned sections', e);
@@ -176,15 +183,38 @@ export default function Home() {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
           <HistorySection />
 
-          {pinnedSections.map((section) => (
-            <Carousel 
-              key={section.id}
-              title={section.title} 
-              data={sectionData[section.id] || []} 
-              loading={!sectionData[section.id]} 
-              endpoint={section.endpoint.includes('/tv/') ? 'tv' : 'movie'} 
-            />
-          ))}
+          {pinnedSections.length > 0 ? (
+            pinnedSections.map((section) => (
+              <Carousel 
+                key={section.id}
+                title={section.title} 
+                data={sectionData[section.id] || []} 
+                loading={!sectionData[section.id]} 
+                endpoint={section.endpoint.includes('/tv/') || section.endpoint.startsWith('tv/') ? 'tv' : 'movie'} 
+              />
+            ))
+          ) : (
+            <>
+              <Carousel 
+                title={t.home.top10} 
+                data={topFrance.slice(0, 10)} 
+                loading={loading} 
+                endpoint="movie" 
+              />
+              <Carousel 
+                title={t.home.popularMovies} 
+                data={popularMovies} 
+                loading={loading} 
+                endpoint="movie" 
+              />
+              <Carousel 
+                title={t.home.popularTv} 
+                data={topRatedTv} 
+                loading={loading} 
+                endpoint="tv" 
+              />
+            </>
+          )}
         </div>
 
         {/* Call to Action */}

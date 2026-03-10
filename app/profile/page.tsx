@@ -309,11 +309,10 @@ function ProfileContent() {
           />
           
           {/* Edit overlay for banner */}
-          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
-            <div className="max-w-7xl mx-auto h-full relative">
-              <div className="absolute top-6 right-4 sm:right-6 lg:right-8 w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-black/70 rounded-full backdrop-blur-md border border-white/20 transition-colors shadow-lg">
-                <Camera className="w-5 h-5 text-white" />
-              </div>
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
+            <div className="absolute bottom-3 right-4 flex items-center gap-1.5 bg-black/60 hover:bg-black/80 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20 transition-colors shadow-lg">
+              <Camera className="w-4 h-4 text-white" />
+              <span className="text-xs text-white font-medium">Modifier</span>
             </div>
           </div>
         </div>

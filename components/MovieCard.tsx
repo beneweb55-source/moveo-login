@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Play, Star } from "lucide-react";
 import Image from "next/image";
@@ -15,9 +15,11 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const posterUrl = data.poster_path
-    ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
-    : "https://picsum.photos/seed/poster/400/600";
+  const [posterUrl, setPosterUrl] = useState(
+    data.poster_path
+      ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
+      : "https://picsum.photos/seed/poster/400/600"
+  );
 
   const releaseYear = data.release_date
     ? new Date(data.release_date).getFullYear()
@@ -41,6 +43,7 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
           fill
           className="object-cover transition-transform duration-300 ease-in-out"
           referrerPolicy="no-referrer"
+          onError={() => setPosterUrl(`https://picsum.photos/seed/${data.id}/400/600`)}
         />
         
         {/* Badge for Media Type */}

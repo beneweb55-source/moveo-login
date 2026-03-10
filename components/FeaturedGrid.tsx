@@ -1,13 +1,28 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Play, Star, Calendar } from "lucide-react";
-import { motion } from "motion/react";
 import { useSelector } from "react-redux";
+import { motion } from "motion/react";
 
 import { useLanguage } from "@/context/LanguageContext";
+
+const SafeImage = ({ src, alt, fallbackId, className, sizes }: { src: string, alt: string, fallbackId: string | number, className?: string, sizes?: string }) => {
+  const [imgSrc, setImgSrc] = useState(src);
+  return (
+    <Image
+      src={imgSrc}
+      alt={alt}
+      fill
+      referrerPolicy="no-referrer"
+      className={className}
+      sizes={sizes}
+      onError={() => setImgSrc(`https://picsum.photos/seed/${fallbackId}/800/1200`)}
+    />
+  );
+};
 
 interface FeaturedGridProps {
   data: any[];
@@ -44,7 +59,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
 
   // Ensure we have enough data
   const mainItem = data?.[0];
-  const secondaryItems = data?.slice(1, 4);
+  const secondaryItems = data?.slice(1, 5);
 
   if (!mainItem) return null;
 
@@ -86,10 +101,10 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
           <div className="absolute top-4 left-4 z-20 bg-[#E50914] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
             #1 {t.home.trending}
           </div>
-          <Image
+          <SafeImage
             src={mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : `https://picsum.photos/seed/${mainItem.id}/800/1200`}
             alt={mainItem.title || mainItem.name}
-            fill
+            fallbackId={mainItem.id}
             className="object-cover transition-transform duration-700 group-hover:scale-105 group-hover:brightness-75"
             sizes="(max-width: 768px) 100vw, 50vw"
           />
@@ -119,45 +134,43 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
         </motion.div>
 
         {/* Secondary Cards */}
-        {secondaryItems?.map((item: any, index: number) => {
-          const isLarge = index === 0;
-          return (
-            <div
-              key={item.id}
-              className={`${isLarge ? "md:col-span-2 md:row-span-1" : "md:col-span-1 md:row-span-1"} relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[200px] md:h-full bg-zinc-900`}
-              onClick={() => router.push(`/${item.media_type || "movie"}/${item.id}`)}
-            >
-              <Image
-                src={item.poster_path ? `https://image.tmdb.org/t/p/w780${item.poster_path}` : `https://picsum.photos/seed/${item.id}/400/600`}
-                alt={item.title || item.name}
-                fill
-                className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
-                sizes="(max-width: 768px) 50vw, 25vw"
-              />
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-                <div className="bg-white/10 backdrop-blur-sm p-3 rounded-full border border-white/20">
-                  <Play className="w-6 h-6 text-white fill-white" />
-                </div>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/90 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 z-10">
-                <h4 className="text-lg font-bold text-white truncate drop-shadow-sm">
-                  {item.title || item.name}
-                </h4>
-                <div className="flex items-center justify-between text-xs text-zinc-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
-                  <span className="flex items-center gap-1 text-yellow-400">
-                    <Star className="w-3 h-3 fill-current" />
-                    {item.vote_average?.toFixed(1)}
-                  </span>
-                  <span>
-                    {new Date(item.release_date || item.first_air_date).getFullYear()}
-                  </span>
-                </div>
+        {secondaryItems?.map((item: any) => (
+          <motion.div
+            key={item.id}
+            variants={itemAnim}
+            className="md:col-span-1 md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[200px] md:h-full bg-zinc-900"
+            onClick={() => router.push(`/${item.media_type || "movie"}/${item.id}`)}
+          >
+            <SafeImage
+              src={item.poster_path ? `https://image.tmdb.org/t/p/w780${item.poster_path}` : `https://picsum.photos/seed/${item.id}/400/600`}
+              alt={item.title || item.name}
+              fallbackId={item.id}
+              className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
+              sizes="(max-width: 768px) 50vw, 25vw"
+            />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
+              <div className="bg-white/10 backdrop-blur-sm p-3 rounded-full border border-white/20">
+                <Play className="w-6 h-6 text-white fill-white" />
               </div>
             </div>
-          );
-        })}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/90 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 z-10">
+              <h4 className="text-lg font-bold text-white truncate drop-shadow-sm">
+                {item.title || item.name}
+              </h4>
+              <div className="flex items-center justify-between text-xs text-zinc-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
+                <span className="flex items-center gap-1 text-yellow-400">
+                  <Star className="w-3 h-3 fill-current" />
+                  {item.vote_average?.toFixed(1)}
+                </span>
+                <span>
+                  {new Date(item.release_date || item.first_air_date).getFullYear()}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        ))}
         {/* Fill empty slots with placeholders if necessary */}
-        {Array.from({ length: Math.max(0, 3 - (secondaryItems?.length || 0)) }).map((_, i) => (
+        {Array.from({ length: Math.max(0, 4 - (secondaryItems?.length || 0)) }).map((_, i) => (
           <div key={`placeholder-${i}`} className="hidden md:block md:col-span-1 md:row-span-1 bg-zinc-900/50 rounded-2xl" />
         ))}
       </motion.div>
