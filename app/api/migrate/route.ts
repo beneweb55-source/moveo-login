@@ -64,6 +64,7 @@ export async function GET() {
       );
 
       ALTER TABLE pinned_sections ADD COLUMN IF NOT EXISTS title VARCHAR(255) NOT NULL DEFAULT '';
+      ALTER TABLE pinned_sections ADD COLUMN IF NOT EXISTS endpoint VARCHAR(255) NOT NULL DEFAULT '/';
 
       CREATE TABLE IF NOT EXISTS online_users (
         session_id VARCHAR(255) PRIMARY KEY,

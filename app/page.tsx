@@ -176,27 +176,6 @@ export default function Home() {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
           <HistorySection />
 
-          <Carousel 
-            title={t.home.top10} 
-            data={topFrance.slice(0, 10)} 
-            loading={loading} 
-            endpoint="movie" 
-          />
-          
-          <Carousel 
-            title={t.home.popularMovies} 
-            data={popularMovies} 
-            loading={loading} 
-            endpoint="movie" 
-          />
-          
-          <Carousel 
-            title={t.home.popularTv} 
-            data={topRatedTv} 
-            loading={loading} 
-            endpoint="tv" 
-          />
-
           {pinnedSections.map((section) => (
             <Carousel 
               key={section.id}

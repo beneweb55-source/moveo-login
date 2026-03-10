@@ -14,9 +14,10 @@ export async function GET() {
       );
     `);
 
-    // Ensure title column exists for older tables
+    // Ensure title and endpoint columns exist for older tables
     await pool.query(`
       ALTER TABLE pinned_sections ADD COLUMN IF NOT EXISTS title VARCHAR(255) NOT NULL DEFAULT '';
+      ALTER TABLE pinned_sections ADD COLUMN IF NOT EXISTS endpoint VARCHAR(255) NOT NULL DEFAULT '/';
     `);
 
     const res = await pool.query('SELECT * FROM pinned_sections ORDER BY priority ASC');
@@ -25,10 +26,11 @@ export async function GET() {
       // Seed default sections
       const defaultSections = [
         { title: 'Tendances', endpoint: '/trending/all/day', priority: 1 },
-        { title: 'Films Populaires', endpoint: '/movie/popular', priority: 2 },
-        { title: 'Séries Populaires', endpoint: '/tv/popular', priority: 3 },
-        { title: 'Mieux Notés', endpoint: '/movie/top_rated', priority: 4 },
-        { title: 'Nouveautés', endpoint: '/movie/now_playing', priority: 5 }
+        { title: 'Top 10 en France', endpoint: '/movie/popular?region=FR', priority: 2 },
+        { title: 'Films Populaires', endpoint: '/movie/popular', priority: 3 },
+        { title: 'Séries Populaires', endpoint: '/tv/popular', priority: 4 },
+        { title: 'Mieux Notés', endpoint: '/movie/top_rated', priority: 5 },
+        { title: 'Nouveautés', endpoint: '/movie/now_playing', priority: 6 }
       ];
       
       for (const section of defaultSections) {

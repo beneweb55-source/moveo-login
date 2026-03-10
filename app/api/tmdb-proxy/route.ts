@@ -58,15 +58,15 @@ export async function GET(request: Request) {
     }
   });
 
-  // If endpoint is a search endpoint, try to extract query from it
-  if (!q && endpoint && endpoint.includes('/search/')) {
+  // Extract query parameters from endpoint
+  if (endpoint && endpoint.includes('?')) {
     try {
       const parts = endpoint.split('?');
       if (parts.length > 1) {
         const epParams = new URLSearchParams(parts[1]);
-        const epQ = epParams.get('query');
-        if (epQ) q = epQ;
-        
+        if (!q && epParams.has('query')) {
+            q = epParams.get('query');
+        }
         epParams.forEach((value, key) => {
           if (key !== 'query' && !params[key]) {
             params[key] = value;

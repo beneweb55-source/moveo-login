@@ -44,7 +44,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
 
   // Ensure we have enough data
   const mainItem = data?.[0];
-  const secondaryItems = data?.slice(1, 5);
+  const secondaryItems = data?.slice(1, 4);
 
   if (!mainItem) return null;
 
@@ -120,13 +120,11 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
 
         {/* Secondary Cards */}
         {secondaryItems?.map((item: any, index: number) => {
-          // Force a specific layout regardless of the number of items
-          // We want 4 secondary items total in the grid
+          const isLarge = index === 0;
           return (
-            <motion.div
+            <div
               key={item.id}
-              variants={itemAnim}
-              className="md:col-span-1 md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[200px] md:h-full bg-zinc-900"
+              className={`${isLarge ? "md:col-span-2 md:row-span-1" : "md:col-span-1 md:row-span-1"} relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[200px] md:h-full bg-zinc-900`}
               onClick={() => router.push(`/${item.media_type || "movie"}/${item.id}`)}
             >
               <Image
@@ -155,12 +153,12 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                   </span>
                 </div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
         {/* Fill empty slots with placeholders if necessary */}
-        {Array.from({ length: Math.max(0, 4 - (secondaryItems?.length || 0)) }).map((_, i) => (
-          <div key={`placeholder-${i}`} className="hidden md:block bg-zinc-900/50 rounded-2xl" />
+        {Array.from({ length: Math.max(0, 3 - (secondaryItems?.length || 0)) }).map((_, i) => (
+          <div key={`placeholder-${i}`} className="hidden md:block md:col-span-1 md:row-span-1 bg-zinc-900/50 rounded-2xl" />
         ))}
       </motion.div>
     </div>

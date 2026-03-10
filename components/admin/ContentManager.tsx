@@ -28,6 +28,7 @@ export default function ContentManager() {
 
   const MOVIE_CATEGORIES = [
     { label: t.admin.popular, value: '/movie/popular' },
+    { label: 'Top 10 en France', value: '/movie/popular?region=FR' },
     { label: t.admin.topRated, value: '/movie/top_rated' },
     { label: t.admin.nowPlaying, value: '/movie/now_playing' },
     { label: t.admin.upcoming, value: '/movie/upcoming' },
