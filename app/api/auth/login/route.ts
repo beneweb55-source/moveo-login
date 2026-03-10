@@ -19,6 +19,14 @@ export async function POST(req: Request) {
 
     const user = result.rows[0];
 
+    // Check if user is banned
+    if (user.is_banned) {
+      return NextResponse.json(
+        { error: 'Votre compte a été suspendu. Raison : ' + (user.ban_reason || 'Violation des règles') },
+        { status: 403 }
+      );
+    }
+
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {

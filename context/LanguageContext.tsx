@@ -47,5 +47,13 @@ export const useLanguage = () => {
   if (!context) {
     throw new Error("useLanguage must be used within a LanguageProvider");
   }
-  return context;
+  return {
+    ...context,
+    t: {
+      ...context.t,
+      interpolate: (str: string, params: Record<string, any>) => {
+        return str.replace(/{(\w+)}/g, (_, key) => params[key] || '');
+      }
+    }
+  };
 };

@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Shield, Plus, Edit2, Trash2, X, Check, GripVertical } from 'lucide-react';
+import { useLanguage } from '@/context/LanguageContext';
+import { AnimatePresence, motion } from 'motion/react';
 import {
   DndContext, 
   closestCenter,
@@ -20,7 +22,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-function SortableRoleItem({ role, onEdit, onDelete }: any) {
+function SortableRoleItem({ role, onEdit, onDelete, t }: any) {
+  const [isDeleting, setIsDeleting] = useState(false);
   const {
     attributes,
     listeners,
@@ -45,34 +48,61 @@ function SortableRoleItem({ role, onEdit, onDelete }: any) {
           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color, boxShadow: `0 0 10px ${role.color}` }} />
           <div>
             <p className="font-bold text-white">{role.name}</p>
-            <p className="text-xs text-zinc-500">{(role.permissions ?? []).length} permissions</p>
+            <p className="text-xs text-zinc-500">{(role.permissions ?? []).length} {t.admin.permissions.toLowerCase()}</p>
           </div>
         </div>
       </div>
 
       <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button 
-          onClick={() => onEdit(role)}
-          className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-colors"
-        >
-          <Edit2 className="w-4 h-4" />
-        </button>
-        <button 
-          onClick={() => onDelete(role.id)}
-          className="p-2 hover:bg-red-500/10 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
+        {isDeleting ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-red-500 font-medium mr-2">{t.admin.deleteRoleConfirm}</span>
+            <button 
+              onClick={() => onDelete(role.id)}
+              className="p-1 hover:bg-red-500/20 rounded text-red-500 transition-colors"
+            >
+              <Check className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setIsDeleting(false)}
+              className="p-1 hover:bg-white/10 rounded text-zinc-400 hover:text-white transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <button 
+              onClick={() => onEdit(role)}
+              className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white transition-colors"
+            >
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button 
+              onClick={() => setIsDeleting(true)}
+              className="p-2 hover:bg-red-500/10 rounded-lg text-zinc-400 hover:text-red-500 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
 }
 
 export default function RolesManager({ currentUser }: { currentUser: any }) {
+  const { t } = useLanguage();
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [editingRole, setEditingRole] = useState<any>(null);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -158,21 +188,28 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
         setIsEditing(false);
         setEditingRole(null);
         fetchRoles();
+      } else {
+        const data = await res.json();
+        showToast(data.error || t.admin.error, 'error');
       }
     } catch (error) {
       console.error('Failed to save role', error);
+      showToast(t.admin.error, 'error');
     }
   };
 
   const handleDeleteRole = async (id: number) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce rôle ?')) return;
     try {
       const res = await fetch(`/api/admin/roles?id=${id}`, { method: 'DELETE' });
       if (res.ok) {
         fetchRoles();
+      } else {
+        const data = await res.json();
+        showToast(data.error || t.admin.error, 'error');
       }
     } catch (error) {
       console.error('Failed to delete role', error);
+      showToast(t.admin.error, 'error');
     }
   };
 
@@ -185,14 +222,14 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
     }
   };
 
-  if (loading) return <div className="text-zinc-500">Chargement...</div>;
+  if (loading) return <div className="text-zinc-500">{t.admin.loading}</div>;
 
   if (isEditing) {
     return (
       <div className="bg-[#111] border border-white/10 rounded-xl p-6">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold text-white">
-            {editingRole.id ? 'Modifier le rôle' : 'Nouveau rôle'}
+            {editingRole.id ? t.admin.editRole : t.admin.newRole}
           </h3>
           <button onClick={() => setIsEditing(false)} className="p-2 hover:bg-white/10 rounded-lg text-zinc-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -202,7 +239,7 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
         <form onSubmit={handleSaveRole} className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">Nom du rôle</label>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">{t.admin.roleName}</label>
               <input 
                 type="text" 
                 value={editingRole.name}
@@ -212,7 +249,7 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-400 mb-2">Couleur (Hex)</label>
+              <label className="block text-sm font-medium text-zinc-400 mb-2">{t.admin.roleColor}</label>
               <div className="flex gap-2">
                 <input 
                   type="color" 
@@ -233,9 +270,22 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-zinc-400 mb-4">Permissions</label>
+            <label className="block text-sm font-medium text-zinc-400 mb-4">{t.admin.permissions}</label>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {['access_admin_panel', 'manage_roles', 'view_users', 'edit_users', 'ban_users', 'manage_content'].map(perm => (
+              {[
+                'access_admin_panel',
+                'view_stats',
+                'view_users',
+                'edit_users',
+                'edit_roles',
+                'ban_users',
+                'manage_roles',
+                'edit_hero',
+                'pin_sections',
+                'view_reports',
+                'handle_reports',
+                'manage_watch_time',
+              ].map(perm => (
                 <div 
                   key={perm}
                   onClick={() => togglePermission(perm)}
@@ -250,7 +300,7 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
                   }`}>
                     {(editingRole.permissions ?? []).includes(perm) && <Check className="w-3 h-3 text-white" />}
                   </div>
-                  <span className="text-sm font-medium">{perm.replace(/_/g, ' ')}</span>
+                  <span className="text-sm font-medium">{(t.admin as any)[`perm_${perm}`]}</span>
                 </div>
               ))}
             </div>
@@ -262,13 +312,13 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
               onClick={() => setIsEditing(false)}
               className="px-4 py-2 text-zinc-400 hover:text-white transition-colors"
             >
-              Annuler
+              {t.admin.cancel}
             </button>
             <button 
               type="submit"
               className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors"
             >
-              Enregistrer
+              {t.admin.save}
             </button>
           </div>
         </form>
@@ -280,8 +330,8 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-white">Gestion des Rôles</h2>
-          <p className="text-zinc-400">Glissez-déposez pour réorganiser la hiérarchie.</p>
+          <h2 className="text-2xl font-bold text-white">{t.admin.rolesManagement}</h2>
+          <p className="text-zinc-400">{t.admin.dragToReorder}</p>
         </div>
         <button 
           onClick={() => {
@@ -291,7 +341,7 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
-          Nouveau Rôle
+          {t.admin.newRole}
         </button>
       </div>
 
@@ -306,8 +356,8 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: role.color, boxShadow: `0 0 10px ${role.color}` }} />
                 <div>
-                  <p className="font-bold text-white">{role.name} <span className="text-xs text-yellow-500 ml-2">(Verrouillé)</span></p>
-                  <p className="text-xs text-zinc-500">{(role.permissions ?? []).length} permissions</p>
+                  <p className="font-bold text-white">{role.name} <span className="text-xs text-yellow-500 ml-2">({t.admin.locked})</span></p>
+                  <p className="text-xs text-zinc-500">{(role.permissions ?? []).length} {t.admin.permissions.toLowerCase()}</p>
                 </div>
               </div>
             </div>
@@ -333,11 +383,30 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
                 role={role} 
                 onEdit={(r: any) => { setEditingRole(r); setIsEditing(true); }}
                 onDelete={handleDeleteRole}
+                t={t}
               />
             ))}
           </SortableContext>
         </DndContext>
       </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 right-6 z-50"
+          >
+            <div className={`px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 ${
+              toast.type === 'success' ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
+            }`}>
+              <span className="font-medium">{toast.message}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

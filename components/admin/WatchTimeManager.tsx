@@ -2,15 +2,24 @@
 
 import { useState, useEffect } from 'react';
 import { Clock, Search, User, Plus, Minus, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import { getRankFromWatchTime } from '@/utils/ranks';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function WatchTimeManager() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [saving, setSaving] = useState<number | null>(null);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -49,10 +58,11 @@ export default function WatchTimeManager() {
         }));
       } else {
         const data = await res.json();
-        alert(data.error);
+        showToast(data.error || t.admin.error, 'error');
       }
     } catch (error) {
       console.error('Failed to adjust watch time', error);
+      showToast(t.admin.error, 'error');
     } finally {
       setSaving(null);
     }
@@ -61,21 +71,21 @@ export default function WatchTimeManager() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-white mb-2">Watching Time</h2>
-        <p className="text-zinc-400">Gérez le temps de visionnage et les rangs des utilisateurs.</p>
+        <h2 className="text-3xl font-bold text-white mb-2">{t.admin.watchTime}</h2>
+        <p className="text-zinc-400">{t.admin.watchTimeDescription}</p>
       </div>
 
       <div className="bg-[#111] border border-white/10 rounded-xl p-6">
         <div className="flex justify-between items-center mb-6">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
             <Clock className="w-5 h-5 text-purple-500" />
-            Liste des utilisateurs (Trié par temps)
+            {t.admin.userListSorted}
           </h3>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input 
               type="text" 
-              placeholder="Rechercher..." 
+              placeholder={t.admin.search} 
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="pl-9 pr-4 py-2 bg-[#1A1A1A] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500 w-64"
@@ -87,20 +97,20 @@ export default function WatchTimeManager() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-white/10 bg-white/5">
-                <th className="p-4 font-medium text-zinc-400">Utilisateur</th>
-                <th className="p-4 font-medium text-zinc-400">Rang Actuel</th>
-                <th className="p-4 font-medium text-zinc-400">Temps Total</th>
-                <th className="p-4 font-medium text-zinc-400 text-center">Ajustement Rapide</th>
+                <th className="p-4 font-medium text-zinc-400">{t.admin.user}</th>
+                <th className="p-4 font-medium text-zinc-400">{t.admin.currentRank}</th>
+                <th className="p-4 font-medium text-zinc-400">{t.admin.totalTime}</th>
+                <th className="p-4 font-medium text-zinc-400 text-center">{t.admin.quickAdjustment}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-zinc-500">Chargement...</td>
+                  <td colSpan={4} className="p-8 text-center text-zinc-500">{t.admin.loading}</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-zinc-500">Aucun utilisateur trouvé.</td>
+                  <td colSpan={4} className="p-8 text-center text-zinc-500">{t.admin.noUserFound}</td>
                 </tr>
               ) : (
                 users.map((user) => {
@@ -181,18 +191,36 @@ export default function WatchTimeManager() {
             onClick={() => setPage(p => Math.max(1, p - 1))}
             className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors text-white"
           >
-            <ChevronLeft className="w-4 h-4" /> Précédent
+            <ChevronLeft className="w-4 h-4" /> {t.admin.prev}
           </button>
-          <span className="text-zinc-400">Page {page} sur {totalPages || 1}</span>
+          <span className="text-zinc-400">{t.interpolate(t.admin.pageOf, { page, total: totalPages || 1 })}</span>
           <button 
             disabled={page === totalPages || totalPages === 0}
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors text-white"
           >
-            Suivant <ChevronRight className="w-4 h-4" />
+            {t.admin.next} <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 right-6 z-50"
+          >
+            <div className={`px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 ${
+              toast.type === 'success' ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
+            }`}>
+              <span className="font-medium">{toast.message}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

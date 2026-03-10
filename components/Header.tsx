@@ -47,6 +47,13 @@ const Header = () => {
           const data = await res.json();
           setUser(data.user);
           fetchStats();
+        } else if (res.status === 403) {
+          const data = await res.json();
+          if (data.banned) {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            setUser(null);
+            router.push(`/login?banned=1&reason=${encodeURIComponent(data.ban_reason || 'Violation des règles')}`);
+          }
         } else {
           setUser(null);
         }
@@ -394,31 +401,6 @@ const Header = () => {
                       <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
                         <User className="w-4 h-4" />
                         {t.nav.profile}
-                      </Link>
-                      <Link href="/profile?tab=watchlist" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Bookmark className="w-4 h-4" />
-                          {t.nav.watchlist}
-                        </div>
-                        <span className="bg-white/10 text-white text-xs py-0.5 px-2 rounded-full">{stats.watchlist}</span>
-                      </Link>
-                      <Link href="/profile?tab=favorites" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Heart className="w-4 h-4" />
-                          {t.nav.favorites}
-                        </div>
-                        <span className="bg-pink-500/20 text-pink-400 text-xs py-0.5 px-2 rounded-full">{stats.favorites}</span>
-                      </Link>
-                      <Link href="/profile?tab=watched" className="flex items-center justify-between px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <Eye className="w-4 h-4" />
-                          {t.nav.watched}
-                        </div>
-                        <span className="bg-emerald-500/20 text-emerald-400 text-xs py-0.5 px-2 rounded-full">{stats.watched}</span>
-                      </Link>
-                      <Link href="/profile?tab=settings" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
-                        <Settings className="w-4 h-4" />
-                        {t.nav.settings}
                       </Link>
                       {user.permissions?.includes('access_admin_panel') && (
                         <Link href="/admin" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">

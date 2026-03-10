@@ -13,6 +13,19 @@ export async function GET(req: Request) {
   const offset = (page - 1) * limit;
 
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS reports (
+        id SERIAL PRIMARY KEY,
+        reporter_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        content_type VARCHAR(50) NOT NULL,
+        content_id INTEGER NOT NULL,
+        reason VARCHAR(255) NOT NULL,
+        details TEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     const query = `
       SELECT r.*, u.name as reporter_name, u.email as reporter_email
       FROM reports r

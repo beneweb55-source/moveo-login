@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       VALUES ($1, 'admin_adjustment', $2, $3)
       ON CONFLICT (user_id, media_type, media_id) 
       DO UPDATE SET minutes_watched = watch_history.minutes_watched + EXCLUDED.minutes_watched, last_updated = CURRENT_TIMESTAMP
-    `, [userId, Math.floor(Math.random() * 1000000), minutesToAdd]);
+    `, [userId, 0, minutesToAdd]);
 
     return NextResponse.json({ message: 'Watch time adjusted successfully' });
   } catch (error: any) {

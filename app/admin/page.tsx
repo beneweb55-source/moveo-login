@@ -10,8 +10,10 @@ import ContentManager from '@/components/admin/ContentManager';
 import ModerationManager from '@/components/admin/ModerationManager';
 import WatchTimeManager from '@/components/admin/WatchTimeManager';
 import OnlineUsersManager from '@/components/admin/OnlineUsersManager';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function AdminPage() {
+  const { t } = useLanguage();
   const [activeSection, setActiveSection] = useState('dashboard');
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -44,19 +46,19 @@ export default function AdminPage() {
   }, [router]);
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A]">Loading...</div>;
+    return <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] text-white">{t.admin.loading}</div>;
   }
 
   if (!user) return null;
 
   const sections = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'view_stats' },
-    { id: 'users', label: 'Utilisateurs', icon: Users, permission: 'view_users' },
-    { id: 'roles', label: 'Rôles & Permissions', icon: Shield, permission: 'manage_roles' },
-    { id: 'content', label: 'Contenu', icon: LayoutTemplate, permission: 'edit_hero' }, // or pin_sections
-    { id: 'moderation', label: 'Modération', icon: Flag, permission: 'view_reports' },
-    { id: 'watchtime', label: 'Watching Time', icon: Clock, permission: 'manage_watch_time' },
-    { id: 'online', label: 'En Ligne', icon: Activity, permission: 'access_admin_panel' },
+    { id: 'dashboard', label: t.admin.dashboard, icon: LayoutDashboard, permissions: ['view_stats'] },
+    { id: 'users', label: t.admin.users, icon: Users, permissions: ['view_users'] },
+    { id: 'roles', label: t.admin.roles, icon: Shield, permissions: ['manage_roles'] },
+    { id: 'content', label: t.admin.content, icon: LayoutTemplate, permissions: ['edit_hero', 'pin_sections'] },
+    { id: 'moderation', label: t.admin.moderation, icon: Flag, permissions: ['view_reports'] },
+    { id: 'watchtime', label: t.admin.watchTime, icon: Clock, permissions: ['manage_watch_time'] },
+    { id: 'online', label: t.admin.online, icon: Activity, permissions: ['access_admin_panel'] },
   ];
 
   const renderSection = () => {
@@ -84,7 +86,7 @@ export default function AdminPage() {
           <ul className="space-y-1 px-3">
             {sections.map((section) => {
               // Check if user has permission to view this section
-              if (section.permission && !user.permissions?.includes(section.permission)) return null;
+              if (section.permissions && !section.permissions.some((p: string) => user.permissions?.includes(p))) return null;
               
               const Icon = section.icon;
               const isActive = activeSection === section.id;
@@ -110,7 +112,7 @@ export default function AdminPage() {
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-white/5 hover:text-white transition-colors"
           >
             <LogOut className="w-5 h-5" />
-            <span className="font-medium">Retour au site</span>
+            <span className="font-medium">{t.admin.backToSite}</span>
           </button>
         </div>
       </div>

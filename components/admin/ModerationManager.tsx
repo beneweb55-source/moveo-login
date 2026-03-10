@@ -2,13 +2,22 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Flag, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function ModerationManager() {
+  const { t } = useLanguage();
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('pending');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const fetchReports = useCallback(async () => {
     try {
@@ -40,40 +49,41 @@ export default function ModerationManager() {
         fetchReports();
       } else {
         const data = await res.json();
-        alert(data.error);
+        showToast(data.error || t.admin.error, 'error');
       }
     } catch (error) {
       console.error('Failed to update report status', error);
+      showToast(t.admin.error, 'error');
     }
   };
 
-  if (loading) return <div className="text-zinc-400">Chargement des signalements...</div>;
+  if (loading) return <div className="text-zinc-400">{t.admin.loading}</div>;
 
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-white mb-2">Modération</h2>
-          <p className="text-zinc-400">Gérez les signalements et le contenu inapproprié.</p>
+          <h2 className="text-3xl font-bold text-white mb-2">{t.admin.moderation}</h2>
+          <p className="text-zinc-400">{t.admin.moderationDescription}</p>
         </div>
         <div className="flex gap-2">
           <button 
             onClick={() => { setStatusFilter('pending'); setPage(1); }}
             className={`px-4 py-2 rounded-lg font-bold transition-colors ${statusFilter === 'pending' ? 'bg-amber-500/20 text-amber-500' : 'bg-[#111] text-zinc-400 hover:bg-white/5'}`}
           >
-            En attente
+            {t.admin.pending}
           </button>
           <button 
             onClick={() => { setStatusFilter('resolved'); setPage(1); }}
             className={`px-4 py-2 rounded-lg font-bold transition-colors ${statusFilter === 'resolved' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-[#111] text-zinc-400 hover:bg-white/5'}`}
           >
-            Résolus
+            {t.admin.resolvedPlural}
           </button>
           <button 
             onClick={() => { setStatusFilter('rejected'); setPage(1); }}
             className={`px-4 py-2 rounded-lg font-bold transition-colors ${statusFilter === 'rejected' ? 'bg-red-500/20 text-red-500' : 'bg-[#111] text-zinc-400 hover:bg-white/5'}`}
           >
-            Rejetés
+            {t.admin.rejectedPlural}
           </button>
         </div>
       </div>
@@ -83,11 +93,11 @@ export default function ModerationManager() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-white/10 bg-white/5">
-                <th className="p-4 font-medium text-zinc-400">Date</th>
-                <th className="p-4 font-medium text-zinc-400">Signalé par</th>
-                <th className="p-4 font-medium text-zinc-400">Type de contenu</th>
-                <th className="p-4 font-medium text-zinc-400">Raison</th>
-                <th className="p-4 font-medium text-zinc-400">Actions</th>
+                <th className="p-4 font-medium text-zinc-400">{t.admin.date}</th>
+                <th className="p-4 font-medium text-zinc-400">{t.admin.reportedBy}</th>
+                <th className="p-4 font-medium text-zinc-400">{t.admin.contentType}</th>
+                <th className="p-4 font-medium text-zinc-400">{t.admin.reason}</th>
+                <th className="p-4 font-medium text-zinc-400">{t.admin.actions}</th>
               </tr>
             </thead>
             <tbody>
@@ -116,21 +126,21 @@ export default function ModerationManager() {
                         <button 
                           onClick={() => handleUpdateStatus(report.id, 'resolved')}
                           className="p-2 bg-emerald-500/20 text-emerald-500 rounded-lg hover:bg-emerald-500/30 transition-colors"
-                          title="Marquer comme résolu"
+                          title={t.admin.markAsResolved}
                         >
                           <CheckCircle className="w-5 h-5" />
                         </button>
                         <button 
                           onClick={() => handleUpdateStatus(report.id, 'rejected')}
                           className="p-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 transition-colors"
-                          title="Rejeter le signalement"
+                          title={t.admin.rejectReport}
                         >
                           <XCircle className="w-5 h-5" />
                         </button>
                       </div>
                     ) : (
                       <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${report.status === 'resolved' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-red-500/20 text-red-500'}`}>
-                        {report.status === 'resolved' ? 'Résolu' : 'Rejeté'}
+                        {report.status === 'resolved' ? t.admin.resolved : t.admin.rejected}
                       </span>
                     )}
                   </td>
@@ -140,7 +150,7 @@ export default function ModerationManager() {
                 <tr>
                   <td colSpan={5} className="p-8 text-center text-zinc-500">
                     <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-zinc-600" />
-                    Aucun signalement trouvé.
+                    {t.admin.noReportFound}
                   </td>
                 </tr>
               )}
@@ -153,20 +163,38 @@ export default function ModerationManager() {
           <button 
             disabled={page === 1}
             onClick={() => setPage(p => Math.max(1, p - 1))}
-            className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors"
+            className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors text-white"
           >
-            Précédent
+            {t.admin.prev}
           </button>
-          <span className="text-zinc-400">Page {page} sur {totalPages || 1}</span>
+          <span className="text-zinc-400">{t.interpolate(t.admin.pageOf, { page, total: totalPages || 1 })}</span>
           <button 
             disabled={page === totalPages || totalPages === 0}
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors"
+            className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors text-white"
           >
-            Suivant
+            {t.admin.next}
           </button>
         </div>
       </div>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 right-6 z-50"
+          >
+            <div className={`px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 ${
+              toast.type === 'success' ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
+            }`}>
+              <span className="font-medium">{toast.message}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

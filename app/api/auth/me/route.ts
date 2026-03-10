@@ -41,6 +41,14 @@ export async function GET() {
 
     const user = result.rows[0];
     
+    // Check if user is banned
+    if (user.is_banned) {
+      return NextResponse.json(
+        { user: null, banned: true, ban_reason: user.ban_reason },
+        { status: 403 }
+      );
+    }
+
     let permissions = user.permissions || [];
     let role_name = user.role_name;
     let role_color = user.role_color;

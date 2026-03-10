@@ -19,6 +19,13 @@ export default function LoginPage() {
   const { t } = useLanguage();
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('banned') === '1') {
+      setError(`Votre compte a été suspendu. Raison : ${params.get('reason') || 'Violation des règles'}`);
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchBackground = async () => {
       try {
         const res = await fetchDataFromApi('/trending/all/day');

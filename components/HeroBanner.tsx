@@ -231,7 +231,9 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
               {movie?.vote_average?.toFixed(1)}
             </span>
             <span className="text-zinc-300">
-              {new Date(movie?.release_date || movie?.first_air_date).getFullYear()}
+              {movie?.release_date || movie?.first_air_date
+                ? new Date(movie.release_date || movie.first_air_date).getFullYear()
+                : 'N/A'}
             </span>
           </div>
 

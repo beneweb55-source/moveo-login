@@ -9,16 +9,51 @@ export async function GET() {
   if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS watch_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        media_type VARCHAR(50) NOT NULL,
+        media_id INTEGER NOT NULL,
+        minutes_watched INTEGER DEFAULT 0,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, media_type, media_id)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS anonymous_watch_history (
+        id SERIAL PRIMARY KEY,
+        session_id VARCHAR(64) NOT NULL,
+        media_type VARCHAR(50) NOT NULL,
+        media_id INTEGER NOT NULL,
+        minutes_watched INTEGER DEFAULT 0,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(session_id, media_type, media_id)
+      );
+    `);
+
     const totalUsersRes = await pool.query('SELECT COUNT(*) FROM users');
     const totalUsers = parseInt(totalUsersRes.rows[0].count);
 
-    const totalWatchTimeRes = await pool.query('SELECT SUM(minutes_watched) FROM watch_history');
-    const totalWatchTime = parseInt(totalWatchTimeRes.rows[0].sum || '0');
+    const totalWatchTimeRes = await pool.query(`
+      SELECT 
+        (SELECT COALESCE(SUM(minutes_watched), 0) FROM watch_history) + 
+        (SELECT COALESCE(SUM(minutes_watched), 0) FROM anonymous_watch_history) as total_sum
+    `);
+    const totalWatchTime = parseInt(totalWatchTimeRes.rows[0].total_sum || '0');
 
     const topMoviesRes = await pool.query(`
-      SELECT media_id, media_type, SUM(minutes_watched) as total_minutes, COUNT(DISTINCT user_id) as viewer_count
-      FROM watch_history
-      WHERE media_type != 'admin_adjustment'
+      SELECT media_id, media_type, SUM(minutes_watched) as total_minutes, COUNT(DISTINCT viewer_key) as viewer_count
+      FROM (
+        SELECT media_id, media_type, minutes_watched, user_id::text as viewer_key
+        FROM watch_history
+        WHERE media_type != 'admin_adjustment'
+        UNION ALL
+        SELECT media_id, media_type, minutes_watched, session_id as viewer_key
+        FROM anonymous_watch_history
+        WHERE media_type != 'admin_adjustment'
+      ) as combined_history
       GROUP BY media_id, media_type
       ORDER BY total_minutes DESC
       LIMIT 5
@@ -28,7 +63,7 @@ export async function GET() {
       try {
         const tmdbRes = await axios.get(`https://api.themoviedb.org/3/${movie.media_type}/${movie.media_id}`, {
           headers: {
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_TMDB_API_KEY}`
+            Authorization: `Bearer ${process.env.TMDB_API_KEY || process.env.NEXT_PUBLIC_TMDB_API_KEY}`
           },
           params: {
             language: 'fr-FR'

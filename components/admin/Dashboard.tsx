@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { Users, Clock, Film, UserPlus, Activity, Eye } from 'lucide-react';
 import { RANKS } from '@/utils/ranks';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function Dashboard() {
+  const { t } = useLanguage();
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -25,8 +27,14 @@ export default function Dashboard() {
     fetchStats();
   }, []);
 
-  if (loading) return <div className="text-zinc-400">Chargement des statistiques...</div>;
-  if (!stats) return <div className="text-red-400">Erreur lors du chargement des statistiques.</div>;
+  if (loading) return <div className="text-zinc-400">{t.admin.loading}</div>;
+  if (!stats) return <div className="text-red-400">{t.admin.error}</div>;
+
+  const formatMinutes = (minutes: number) => {
+    if (minutes < 60) return `${minutes}min`;
+    if (minutes % 60 === 0) return `${minutes / 60}h`;
+    return `${Math.floor(minutes / 60)}h ${minutes % 60}min`;
+  };
 
   const StatCard = ({ title, value, icon: Icon, color }: any) => (
     <div className="bg-[#111] border border-white/10 rounded-xl p-6 flex items-center gap-4">
@@ -43,15 +51,15 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold text-white mb-2">Dashboard</h2>
+        <h2 className="text-3xl font-bold text-white mb-2">{t.admin.dashboard}</h2>
         <p className="text-zinc-400">Aperçu global de l&apos;activité sur Moveo.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Utilisateurs Inscrits" value={stats.totalUsers} icon={Users} color="bg-blue-500/20 text-blue-500" />
-        <StatCard title="Temps de Visionnage" value={`${Math.floor(stats.totalWatchTime / 60)}h`} icon={Clock} color="bg-purple-500/20 text-purple-500" />
-        <StatCard title="Nouveaux Inscrits (7j)" value={stats.newUsersThisWeek} icon={UserPlus} color="bg-emerald-500/20 text-emerald-500" />
-        <StatCard title="Films Regardés" value={stats.topMovies?.length || 0} icon={Film} color="bg-rose-500/20 text-rose-500" />
+        <StatCard title={t.admin.totalUsers} value={stats.totalUsers} icon={Users} color="bg-blue-500/20 text-blue-500" />
+        <StatCard title={t.admin.totalWatchTime} value={formatMinutes(stats.totalWatchTime || 0)} icon={Clock} color="bg-purple-500/20 text-purple-500" />
+        <StatCard title={t.admin.newUsers} value={stats.newUsersThisWeek} icon={UserPlus} color="bg-emerald-500/20 text-emerald-500" />
+        <StatCard title={t.admin.moviesWatched} value={stats.topMovies?.length || 0} icon={Film} color="bg-rose-500/20 text-rose-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -59,7 +67,7 @@ export default function Dashboard() {
         <div className="bg-[#111] border border-white/10 rounded-xl p-6">
           <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Film className="w-5 h-5 text-rose-500" />
-            Top 5 Films les plus regardés
+            {t.admin.topMovies}
           </h3>
           <div className="space-y-4">
             {stats.topMovies?.map((movie: any, index: number) => (
@@ -85,18 +93,18 @@ export default function Dashboard() {
                       {movie.overview}
                     </p>
                     <p className="text-xs text-rose-400 mt-2 flex items-center gap-1 font-medium">
-                       <Eye className="w-3 h-3" /> {movie.viewer_count || 0} personnes l&apos;ont regardé
+                       <Eye className="w-3 h-3" /> {movie.viewer_count || 0} {t.admin.peopleWatched}
                     </p>
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-4">
-                  <p className="font-bold text-white text-xl">{Math.floor(movie.total_minutes / 60)}h</p>
-                  <p className="text-xs text-zinc-500">visionnées</p>
+                  <p className="font-bold text-white text-xl">{formatMinutes(movie.total_minutes || 0)}</p>
+                  <p className="text-xs text-zinc-500">{t.admin.hoursWatched}</p>
                 </div>
               </div>
             ))}
             {(!stats.topMovies || stats.topMovies.length === 0) && (
-              <p className="text-zinc-500 italic text-center py-8">Aucune donnée disponible.</p>
+              <p className="text-zinc-500 italic text-center py-8">{t.admin.noData}.</p>
             )}
           </div>
         </div>
@@ -105,7 +113,7 @@ export default function Dashboard() {
         <div className="bg-[#111] border border-white/10 rounded-xl p-6">
           <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Activity className="w-5 h-5 text-emerald-500" />
-            Répartition par Rang
+            {t.admin.rankDistribution}
           </h3>
           <div className="space-y-4">
             {Object.entries(stats.usersByRank || {}).map(([rank, count]: [string, any]) => {
@@ -133,7 +141,7 @@ export default function Dashboard() {
               );
             })}
             {Object.keys(stats.usersByRank || {}).length === 0 && (
-              <p className="text-zinc-500 italic">Aucune donnée disponible.</p>
+              <p className="text-zinc-500 italic">{t.admin.noData}.</p>
             )}
           </div>
         </div>

@@ -75,19 +75,19 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
         initial="hidden"
         whileInView="show"
         viewport={{ once: true }}
-        className="grid grid-cols-1 md:grid-cols-4 grid-rows-2 gap-4 h-auto md:h-[600px]"
+        className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-4 md:h-[600px]"
       >
         {/* Main Card (#1) */}
         <motion.div 
           variants={itemAnim}
-          className="md:col-span-2 md:row-span-2 relative group cursor-pointer rounded-2xl overflow-hidden shadow-xl shadow-black/50 h-[500px] md:h-auto"
+          className="md:col-span-2 md:row-span-2 relative group cursor-pointer rounded-2xl overflow-hidden shadow-xl shadow-black/50 h-[400px] md:h-full bg-zinc-900"
           onClick={() => router.push(`/${mainItem.media_type || "movie"}/${mainItem.id}`)}
         >
           <div className="absolute top-4 left-4 z-20 bg-[#E50914] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
             #1 {t.home.trending}
           </div>
           <Image
-            src={mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : "/no-poster.png"}
+            src={mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : `https://picsum.photos/seed/${mainItem.id}/800/1200`}
             alt={mainItem.title || mainItem.name}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105 group-hover:brightness-75"
@@ -126,11 +126,11 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
             <motion.div
               key={item.id}
               variants={itemAnim}
-              className="md:col-span-1 md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[300px] md:h-auto"
+              className="md:col-span-1 md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[200px] md:h-full bg-zinc-900"
               onClick={() => router.push(`/${item.media_type || "movie"}/${item.id}`)}
             >
               <Image
-                src={item.poster_path ? `https://image.tmdb.org/t/p/w780${item.poster_path}` : "/no-poster.png"}
+                src={item.poster_path ? `https://image.tmdb.org/t/p/w780${item.poster_path}` : `https://picsum.photos/seed/${item.id}/400/600`}
                 alt={item.title || item.name}
                 fill
                 className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"

@@ -4,8 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, MoreVertical, ShieldAlert, Clock, Calendar, Mail, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getRankFromWatchTime } from '@/utils/ranks';
+import { useLanguage } from '@/context/LanguageContext';
 
 export default function UsersManager({ currentUser }: { currentUser: any }) {
+  const { t } = useLanguage();
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +15,12 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -67,33 +75,33 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
         }
       } else {
         const data = await res.json();
-        alert(data.error);
+        showToast(data.error || t.admin.error, 'error');
       }
     } catch (error) {
       console.error('Failed to update role', error);
+      showToast(t.admin.error, 'error');
     }
   };
 
+  const [pendingBanUserId, setPendingBanUserId] = useState<number | null>(null);
+
   const handleBanUser = async (userId: number, isBanned: boolean) => {
-    if (!confirm(`Êtes-vous sûr de vouloir ${isBanned ? 'bannir' : 'débannir'} cet utilisateur ?`)) return;
-    
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, isBanned, banReason: isBanned ? 'Violation des règles' : null })
+        body: JSON.stringify({ userId, isBanned, banReason: isBanned ? t.admin.banReasonDefault : null })
       });
       if (res.ok) {
         fetchUsers();
-        if (selectedUser?.id === userId) {
-          setSelectedUser({ ...selectedUser, is_banned: isBanned });
-        }
+        if (selectedUser?.id === userId) setSelectedUser({ ...selectedUser, is_banned: isBanned });
+        setPendingBanUserId(null);
       } else {
         const data = await res.json();
-        alert(data.error);
+        showToast(data.error || t.admin.error, 'error');
       }
-    } catch (error) {
-      console.error('Failed to ban user', error);
+    } catch {
+      showToast(t.admin.error, 'error');
     }
   };
 
@@ -101,12 +109,12 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
     <div className="flex h-full gap-6">
       <div className={`flex-1 flex flex-col ${selectedUser ? 'hidden lg:flex' : 'flex'}`}>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-white">Utilisateurs</h2>
+          <h2 className="text-3xl font-bold text-white">{t.admin.users}</h2>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
             <input 
               type="text" 
-              placeholder="Rechercher un utilisateur..." 
+              placeholder={t.admin.searchUser}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               className="pl-10 pr-4 py-2 bg-[#111] border border-white/10 rounded-lg text-white focus:outline-none focus:border-red-500 w-64"
@@ -119,11 +127,11 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-white/10 bg-white/5">
-                  <th className="p-4 font-medium text-zinc-400">Utilisateur</th>
-                  <th className="p-4 font-medium text-zinc-400">Rôle</th>
-                  <th className="p-4 font-medium text-zinc-400">Rang</th>
-                  <th className="p-4 font-medium text-zinc-400">Temps</th>
-                  <th className="p-4 font-medium text-zinc-400">Statut</th>
+                  <th className="p-4 font-medium text-zinc-400">{t.admin.user}</th>
+                  <th className="p-4 font-medium text-zinc-400">{t.admin.role}</th>
+                  <th className="p-4 font-medium text-zinc-400">{t.admin.rank}</th>
+                  <th className="p-4 font-medium text-zinc-400">{t.admin.time}</th>
+                  <th className="p-4 font-medium text-zinc-400">{t.admin.status}</th>
                 </tr>
               </thead>
               <tbody>
@@ -179,9 +187,9 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                     <td className="p-4 text-sm text-zinc-300">{Math.floor(user.total_watch_time / 60)}h</td>
                     <td className="p-4">
                       {user.is_banned ? (
-                        <span className="px-2 py-1 bg-red-500/20 text-red-500 rounded text-xs font-bold uppercase">Banni</span>
+                        <span className="px-2 py-1 bg-red-500/20 text-red-500 rounded text-xs font-bold uppercase">{t.admin.banned}</span>
                       ) : (
-                        <span className="px-2 py-1 bg-emerald-500/20 text-emerald-500 rounded text-xs font-bold uppercase">Actif</span>
+                        <span className="px-2 py-1 bg-emerald-500/20 text-emerald-500 rounded text-xs font-bold uppercase">{t.admin.active}</span>
                       )}
                     </td>
                   </tr>
@@ -197,15 +205,15 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
               onClick={() => setPage(p => Math.max(1, p - 1))}
               className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors"
             >
-              Précédent
+              {t.admin.prev}
             </button>
-            <span className="text-zinc-400">Page {page} sur {totalPages || 1}</span>
+            <span className="text-zinc-400">{t.interpolate(t.admin.pageOf, { page, total: totalPages || 1 })}</span>
             <button 
               disabled={page === totalPages || totalPages === 0}
               onClick={() => setPage(p => Math.min(totalPages, p + 1))}
               className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors"
             >
-              Suivant
+              {t.admin.next}
             </button>
           </div>
         </div>
@@ -221,7 +229,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
             className="w-full lg:w-96 bg-[#111] border border-white/10 rounded-xl flex flex-col overflow-hidden"
           >
             <div className="p-6 border-b border-white/10 flex justify-between items-start">
-              <h3 className="text-xl font-bold text-white">Profil Utilisateur</h3>
+              <h3 className="text-xl font-bold text-white">{t.admin.userProfile}</h3>
               <button 
                 onClick={() => setSelectedUser(null)}
                 className="text-zinc-400 hover:text-white"
@@ -247,24 +255,24 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-white/5 p-4 rounded-lg text-center">
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Rang</p>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t.admin.rank}</p>
                   <p className="font-bold text-white">{getRankFromWatchTime(selectedUser.total_watch_time, selectedUser.watched_count)?.name || '-'}</p>
                 </div>
                 <div className="bg-white/5 p-4 rounded-lg text-center">
-                  <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Temps</p>
+                  <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t.admin.time}</p>
                   <p className="font-bold text-white">{Math.floor(selectedUser.total_watch_time / 60)}h</p>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h5 className="font-medium text-white border-b border-white/10 pb-2">Gestion du Rôle</h5>
+                <h5 className="font-medium text-white border-b border-white/10 pb-2">{t.admin.roleManagement}</h5>
                 <select 
                   value={selectedUser.role_id || ''}
                   onChange={(e) => handleUpdateRole(selectedUser.id, parseInt(e.target.value))}
-                  disabled={!(currentUser.permissions ?? []).includes('edit_roles') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin' && !currentUser.is_founder)}
+                  disabled={(!(currentUser.permissions ?? []).includes('edit_roles') && !(currentUser.permissions ?? []).includes('manage_roles')) || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin' && !currentUser.is_founder)}
                   className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-red-500 disabled:opacity-50"
                 >
-                  <option value="" disabled>Sélectionner un rôle</option>
+                  <option value="" disabled>{t.admin.selectRole}</option>
                   {roles.map(role => (
                     <option key={role.id} value={role.id} disabled={role.priority >= currentUser.priority && currentUser.role_name !== 'Admin' && !currentUser.is_founder}>
                       {role.name}
@@ -272,21 +280,61 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                   ))}
                 </select>
                 <p className="text-xs text-zinc-500">
-                  Vous ne pouvez pas assigner ou modifier un rôle ayant une priorité supérieure ou égale à la vôtre.
+                  {t.admin.rolePriorityNotice}
                 </p>
               </div>
 
               <div className="space-y-4">
-                <h5 className="font-medium text-white border-b border-white/10 pb-2">Actions</h5>
+                <h5 className="font-medium text-white border-b border-white/10 pb-2">{t.admin.actions}</h5>
                 <button 
-                  onClick={() => handleBanUser(selectedUser.id, !selectedUser.is_banned)}
+                  onClick={() => setPendingBanUserId(selectedUser.id)}
                   disabled={!(currentUser.permissions ?? []).includes('ban_users') || (selectedUser.role_priority >= currentUser.priority && currentUser.role_name !== 'Admin' && !currentUser.is_founder)}
                   className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-bold transition-colors disabled:opacity-50 ${selectedUser.is_banned ? 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30' : 'bg-red-500/20 text-red-500 hover:bg-red-500/30'}`}
                 >
                   <ShieldAlert className="w-5 h-5" />
-                  {selectedUser.is_banned ? 'Débannir le compte' : 'Bannir le compte'}
+                  {selectedUser.is_banned ? t.admin.unbanAccount : t.admin.banAccount}
                 </button>
+              
+              {pendingBanUserId === selectedUser.id && (
+                <div className="space-y-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg mt-2">
+                  <p className="text-sm text-zinc-300">
+                    {selectedUser.is_banned ? t.admin.unbanConfirm : t.admin.banConfirm}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleBanUser(selectedUser.id, !selectedUser.is_banned)}
+                      className="flex-1 py-2 bg-red-600 rounded-lg text-sm font-bold hover:bg-red-700 transition-colors"
+                    >
+                      {t.admin.confirm}
+                    </button>
+                    <button
+                      onClick={() => setPendingBanUserId(null)}
+                      className="flex-1 py-2 bg-white/10 rounded-lg text-sm hover:bg-white/15 transition-colors"
+                    >
+                      {t.admin.cancel}
+                    </button>
+                  </div>
+                </div>
+              )}
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 50 }}
+            className="fixed bottom-6 right-6 z-50"
+          >
+            <div className={`px-4 py-3 rounded-lg shadow-xl flex items-center gap-3 ${
+              toast.type === 'success' ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
+            }`}>
+              <span className="font-medium">{toast.message}</span>
             </div>
           </motion.div>
         )}

@@ -4,6 +4,21 @@ import { checkAdminAccess } from '@/lib/adminAuth';
 
 export async function GET() {
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS pinned_sections (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        endpoint VARCHAR(255) NOT NULL,
+        priority INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Ensure title column exists for older tables
+    await pool.query(`
+      ALTER TABLE pinned_sections ADD COLUMN IF NOT EXISTS title VARCHAR(255) NOT NULL DEFAULT '';
+    `);
+
     const res = await pool.query('SELECT * FROM pinned_sections ORDER BY priority ASC');
     
     if (res.rows.length === 0) {
