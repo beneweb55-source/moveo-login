@@ -92,100 +92,79 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
   };
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h2 className="text-2xl md:text-3xl font-bold mb-8 text-white flex items-center gap-2">
-        <span className="w-1 h-8 bg-[#E50914] rounded-full mr-2"></span>
-        {title}
-      </h2>
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="flex items-center justify-between mb-12">
+        <h2 className="text-4xl md:text-5xl font-black text-white tracking-tighter">
+          {title}
+        </h2>
+        <div className="h-px flex-grow bg-white/10 ml-8" />
+      </div>
       
       <motion.div 
         variants={container}
         initial="hidden"
         whileInView="show"
         viewport={{ once: true }}
-        className="grid grid-cols-1 md:grid-cols-4 grid-rows-[400px_400px] md:grid-rows-[290px_290px] gap-4"
+        className="w-full"
       >
-        {/* Main Card (#1) */}
+        {/* Main Card (#1) - Full width cinematic feature */}
         <motion.div 
           variants={itemAnim}
-          className="md:col-span-2 md:row-span-2 relative group cursor-pointer rounded-2xl overflow-hidden shadow-xl shadow-black/50 h-[400px] md:h-full bg-zinc-900"
+          className="relative group cursor-pointer rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/80 bg-zinc-900 aspect-[21/9] md:aspect-[21/7] min-h-[500px]"
           onClick={() => router.push(`/${mainItem.media_type || "movie"}/${mainItem.id}`)}
         >
-          <div className="absolute top-4 left-4 z-20 bg-[#E50914] text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-            #1 {t.home.trending}
-          </div>
           <SafeImage
-            src={mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : `https://picsum.photos/seed/${mainItem.id}/800/1200`}
+            src={mainItem.backdrop_path ? `https://image.tmdb.org/t/p/original${mainItem.backdrop_path}` : (mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : `https://picsum.photos/seed/${mainItem.id}/1920/1080`)}
             alt={mainItem.title || mainItem.name}
             fallbackId={mainItem.id}
-            className="object-cover transition-transform duration-700 group-hover:scale-105 group-hover:brightness-75"
-            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover transition-transform duration-[3000ms] group-hover:scale-105"
+            sizes="100vw"
           />
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-            <div className="bg-white/20 backdrop-blur-md p-4 rounded-full border border-white/30">
-              <Play className="w-8 h-8 text-white fill-white" />
-            </div>
-          </div>
-          <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black via-black/80 to-transparent z-10">
-            <h3 className="text-3xl font-bold text-white mb-2 drop-shadow-md">
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent z-10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-transparent z-10" />
+          
+          <div className="absolute bottom-0 left-0 p-8 md:p-16 z-20 w-full md:w-2/3">
+            <motion.span 
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="inline-flex items-center gap-2 bg-[#E50914] text-white text-xs md:text-sm font-black px-5 py-2 rounded-full mb-6 shadow-xl tracking-widest uppercase"
+            >
+              <Star className="w-4 h-4 fill-current" />
+              #1 {t.home.trending}
+            </motion.span>
+            
+            <h3 className="text-5xl md:text-7xl lg:text-8xl font-black text-white mb-6 tracking-tighter leading-[0.9] drop-shadow-2xl">
               {mainItem.title || mainItem.name}
             </h3>
-            <div className="flex items-center gap-4 text-sm text-zinc-300">
-              <span className="flex items-center gap-1 text-yellow-400">
-                <Star className="w-4 h-4 fill-current" />
-                {mainItem.vote_average?.toFixed(1)}
-              </span>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                {new Date(mainItem.release_date || mainItem.first_air_date).getFullYear()}
-              </span>
-            </div>
-            <p className="mt-2 text-zinc-400 line-clamp-2 text-sm max-w-lg">
+            
+            <p className="text-zinc-300 text-lg md:text-xl line-clamp-3 max-w-2xl mb-8 font-medium leading-relaxed opacity-90">
               {mainItem.overview}
             </p>
+            
+            <div className="flex flex-wrap items-center gap-8 text-sm md:text-base text-white/80 font-bold">
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10">
+                <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                <span className="text-white">{mainItem.vote_average?.toFixed(1)}</span>
+              </div>
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10">
+                <Calendar className="w-5 h-5 text-zinc-400" />
+                <span>{new Date(mainItem.release_date || mainItem.first_air_date).getFullYear()}</span>
+              </div>
+              <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10">
+                <Play className="w-5 h-5 text-[#E50914] fill-current" />
+                <span className="uppercase tracking-wider">{t.home.trending}</span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Decorative element */}
+          <div className="absolute top-10 right-10 z-20 hidden lg:block">
+            <div className="w-32 h-32 rounded-full border-2 border-white/10 flex items-center justify-center backdrop-blur-sm group-hover:border-[#E50914]/50 transition-colors duration-500">
+              <Play className="w-12 h-12 text-white group-hover:text-[#E50914] transition-colors duration-500 fill-current" />
+            </div>
           </div>
         </motion.div>
-
-        {/* Secondary Cards */}
-        {secondaryItems?.map((item: any) => (
-          <motion.div
-            key={item.id}
-            variants={itemAnim}
-            className="md:col-span-1 md:row-span-1 relative group cursor-pointer rounded-2xl overflow-hidden shadow-lg shadow-black/30 h-[200px] md:h-full bg-zinc-900"
-            onClick={() => router.push(`/${item.media_type || "movie"}/${item.id}`)}
-          >
-            <SafeImage
-              src={item.poster_path ? `https://image.tmdb.org/t/p/w780${item.poster_path}` : `https://picsum.photos/seed/${item.id}/400/600`}
-              alt={item.title || item.name}
-              fallbackId={item.id}
-              className="object-cover transition-transform duration-500 group-hover:scale-110 group-hover:brightness-50"
-              sizes="(max-width: 768px) 50vw, 25vw"
-            />
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20">
-              <div className="bg-white/10 backdrop-blur-sm p-3 rounded-full border border-white/20">
-                <Play className="w-6 h-6 text-white fill-white" />
-              </div>
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black via-black/90 to-transparent translate-y-4 group-hover:translate-y-0 transition-transform duration-300 z-10">
-              <h4 className="text-lg font-bold text-white truncate drop-shadow-sm">
-                {item.title || item.name}
-              </h4>
-              <div className="flex items-center justify-between text-xs text-zinc-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-75">
-                <span className="flex items-center gap-1 text-yellow-400">
-                  <Star className="w-3 h-3 fill-current" />
-                  {item.vote_average?.toFixed(1)}
-                </span>
-                <span>
-                  {new Date(item.release_date || item.first_air_date).getFullYear()}
-                </span>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-        {/* Fill empty slots with placeholders if necessary */}
-        {Array.from({ length: Math.max(0, 4 - (secondaryItems?.length || 0)) }).map((_, i) => (
-          <div key={`placeholder-${i}`} className="hidden md:block md:col-span-1 md:row-span-1 bg-zinc-900/50 rounded-2xl" />
-        ))}
       </motion.div>
     </div>
   );
