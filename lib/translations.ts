@@ -138,7 +138,11 @@ export const translations = {
       passwordPlaceholder: "Mot de passe",
       namePlaceholder: "Nom complet",
       rememberMe: "Se souvenir de moi",
-      orContinueWith: "Ou continuer avec"
+      orContinueWith: "Ou continuer avec",
+      accountSuspended: "Compte suspendu",
+      suspendedMessage: "Votre compte a été suspendu par un administrateur.",
+      suspensionReason: "Raison",
+      contactSupport: "Contactez le support"
     },
     profile: {
       fileTooLarge: "Le fichier est trop volumineux (max 3MB)",
@@ -480,7 +484,11 @@ export const translations = {
       passwordPlaceholder: "Password",
       namePlaceholder: "Full Name",
       rememberMe: "Remember me",
-      orContinueWith: "Or continue with"
+      orContinueWith: "Or continue with",
+      accountSuspended: "Account Suspended",
+      suspendedMessage: "Your account has been suspended by an administrator.",
+      suspensionReason: "Reason",
+      contactSupport: "Contact support"
     },
     profile: {
       fileTooLarge: "File is too large (max 3MB)",

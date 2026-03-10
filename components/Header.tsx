@@ -52,7 +52,7 @@ const Header = () => {
           if (data.banned) {
             await fetch('/api/auth/logout', { method: 'POST' });
             setUser(null);
-            router.push(`/login?banned=1&reason=${encodeURIComponent(data.ban_reason || 'Violation des règles')}`);
+            router.push(`/banned?reason=${encodeURIComponent(data.ban_reason || 'Violation des règles')}`);
           }
         } else {
           setUser(null);

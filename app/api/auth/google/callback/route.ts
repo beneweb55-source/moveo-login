@@ -85,7 +85,13 @@ export async function GET(req: NextRequest) {
 
     // Create JWT
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
-    const token = await new SignJWT({ userId: user.id, email: user.email, name: user.name })
+    const token = await new SignJWT({ 
+      userId: user.id, 
+      email: user.email, 
+      name: user.name,
+      is_banned: user.is_banned,
+      ban_reason: user.ban_reason
+    })
       .setProtectedHeader({ alg: 'HS256' })
       .setIssuedAt()
       .setExpirationTime('7d')

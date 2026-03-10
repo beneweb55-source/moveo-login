@@ -303,15 +303,17 @@ function ProfileContent() {
           )}
           
           {/* Dégradé bas fort pour lisibilité du texte */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+          <div 
+            className="absolute inset-0 z-10 pointer-events-none" 
+            style={{ background: 'linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.9) 100%)' }} 
+          />
           
           {/* Edit overlay for banner */}
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-20">
-            <div className="flex flex-col items-center gap-2">
-              <Camera className="w-8 h-8 text-white" />
-              <span className="text-white text-sm font-bold uppercase tracking-wider">
-                {t.profile.editBanner}
-              </span>
+          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
+            <div className="max-w-7xl mx-auto h-full relative">
+              <div className="absolute top-6 right-4 sm:right-6 lg:right-8 w-10 h-10 flex items-center justify-center bg-black/40 hover:bg-black/70 rounded-full backdrop-blur-md border border-white/20 transition-colors shadow-lg">
+                <Camera className="w-5 h-5 text-white" />
+              </div>
             </div>
           </div>
         </div>
@@ -319,13 +321,13 @@ function ProfileContent() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Rangée 1 : avatar + nom + badges + bio */}
-        <div className="flex flex-col md:flex-row gap-6 items-end -mt-20 relative z-10">
+        <div className="flex flex-col md:flex-row gap-6 items-start md:items-end -mt-24 relative z-20">
           {/* Avatar */}
-          <div className="relative w-32 h-32 md:w-36 md:h-36 rounded-full overflow-hidden border-4 border-black bg-zinc-800 shadow-2xl group flex-shrink-0">
+          <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-black bg-zinc-800 shadow-2xl group flex-shrink-0">
             {formData.avatar_url || user.avatar_url ? (
               <Image src={formData.avatar_url || user.avatar_url} alt={user.name} fill className="object-cover" referrerPolicy="no-referrer" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-4xl font-bold bg-gradient-to-tr from-[#E50914] to-purple-600">
+              <div className="w-full h-full flex items-center justify-center text-5xl font-bold bg-gradient-to-tr from-[#E50914] to-purple-600">
                 {user.name?.charAt(0).toUpperCase()}
               </div>
             )}
@@ -340,38 +342,48 @@ function ProfileContent() {
           </div>
           
           {/* Basic Info */}
-          <div className="pb-4 flex-1">
-            <div className="flex flex-wrap items-center gap-2 mb-1">
-              <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">
-                {user.name}
-              </h1>
-              
-              {/* Role Badge */}
-              <div 
-                className="px-3 py-1 rounded-full border text-xs font-bold uppercase tracking-widest flex items-center gap-1.5"
-                style={{ borderColor: roleColor, color: roleColor, backgroundColor: 'transparent' }}
-              >
-                {user.role_name === 'admin' || user.role_name === 'Fondateur' ? <Shield size={12} /> : <User size={12} />}
-                {user.role_name || 'Membre'}
-              </div>
+          <div className="pb-2 md:pb-6 flex-1 w-full">
+            <div className="flex flex-col gap-2 md:gap-3">
+              <div className="flex flex-wrap items-end gap-4">
+                <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
+                  {user.name}
+                </h1>
+                
+                <div className="flex items-center gap-2 pb-1 md:pb-2">
+                  {/* Role Badge */}
+                  <div 
+                    className="px-2.5 py-1 rounded border text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"
+                    style={{ borderColor: roleColor, color: roleColor, backgroundColor: 'transparent' }}
+                  >
+                    {user.role_name === 'admin' || user.role_name === 'Fondateur' ? <Shield size={12} /> : <User size={12} />}
+                    {user.role_name || 'Membre'}
+                  </div>
 
-              {/* Rank Badge */}
-              <div 
-                className="px-3 py-1 rounded-full text-xs font-bold uppercase flex items-center gap-1.5 transition-all duration-300"
-                style={{
-                  backgroundColor: `${rank.color}1A`,
-                  color: rank.color,
-                  boxShadow: `0 0 8px ${rank.color}66`
-                }}
-              >
-                <RankIcon size={14} />
-                <span>{rank.name}</span>
+                  {/* Rank Badge */}
+                  <div 
+                    className="px-2.5 py-1 rounded text-[10px] font-bold uppercase flex items-center gap-1.5 transition-all duration-300"
+                    style={{
+                      backgroundColor: `${rank.color}1A`,
+                      color: rank.color,
+                      boxShadow: `0 0 8px ${rank.color}66`
+                    }}
+                  >
+                    <RankIcon size={12} />
+                    <span>{rank.name}</span>
+                  </div>
+                </div>
               </div>
+              
+              {user.bio && (
+                <p className="text-zinc-300 text-base md:text-lg max-w-2xl leading-relaxed drop-shadow-sm">
+                  {user.bio}
+                </p>
+              )}
+              
+              <p className="text-zinc-500 text-sm font-medium mt-1">
+                Membre depuis le {new Date(user.created_at).toLocaleDateString()}
+              </p>
             </div>
-            <p className="text-zinc-300 text-sm mb-1 drop-shadow">{user.bio || ''}</p>
-            <p className="text-zinc-500 text-xs">
-              Membre depuis le {new Date(user.created_at).toLocaleDateString()}
-            </p>
           </div>
         </div>
 
