@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Play, Star, Calendar } from "lucide-react";
@@ -10,16 +10,29 @@ import { motion } from "motion/react";
 import { useLanguage } from "@/context/LanguageContext";
 
 const SafeImage = ({ src, alt, fallbackId, className, sizes }: { src: string, alt: string, fallbackId: string | number, className?: string, sizes?: string }) => {
-  const [imgSrc, setImgSrc] = useState(src);
+  const fallbackUrl = `https://picsum.photos/seed/${fallbackId}/800/1200`;
+  const [imgSrc, setImgSrc] = useState(src || fallbackUrl);
+  const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    setImgSrc(src || fallbackUrl);
+    setErrored(false);
+  }, [src, fallbackUrl]);
+
   return (
     <Image
-      src={imgSrc}
+      src={errored ? fallbackUrl : (imgSrc || fallbackUrl)}
       alt={alt}
       fill
       referrerPolicy="no-referrer"
       className={className}
       sizes={sizes}
-      onError={() => setImgSrc(`https://picsum.photos/seed/${fallbackId}/800/1200`)}
+      onError={() => {
+        if (!errored) {
+          setErrored(true);
+          setImgSrc(fallbackUrl);
+        }
+      }}
     />
   );
 };
@@ -90,7 +103,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
         initial="hidden"
         whileInView="show"
         viewport={{ once: true }}
-        className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-4 md:h-[600px]"
+        className="grid grid-cols-1 md:grid-cols-4 grid-rows-[400px_400px] md:grid-rows-[290px_290px] gap-4"
       >
         {/* Main Card (#1) */}
         <motion.div 

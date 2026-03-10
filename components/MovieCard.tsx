@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Play, Star } from "lucide-react";
 import Image from "next/image";
@@ -15,11 +15,16 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const [posterUrl, setPosterUrl] = useState(
-    data.poster_path
-      ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
-      : "https://picsum.photos/seed/poster/400/600"
-  );
+  const getPosterUrl = (path: string | null, id: string | number) => 
+    path ? `https://image.tmdb.org/t/p/w500${path}` : `https://picsum.photos/seed/${id}/400/600`;
+
+  const [posterUrl, setPosterUrl] = useState(getPosterUrl(data.poster_path, data.id));
+  const [errored, setErrored] = useState(false);
+
+  useEffect(() => {
+    setPosterUrl(getPosterUrl(data.poster_path, data.id));
+    setErrored(false);
+  }, [data.poster_path, data.id]);
 
   const releaseYear = data.release_date
     ? new Date(data.release_date).getFullYear()
@@ -38,12 +43,16 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
       {/* Poster Container */}
       <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a] transition-all duration-300 ease-in-out group-hover/card:shadow-[0_0_20px_rgba(229,9,20,0.4)] group-hover/card:scale-105">
         <Image
-          src={posterUrl}
+          src={errored ? `https://picsum.photos/seed/${data.id}/400/600` : posterUrl}
           alt={data.title || data.name || t.details.noPoster}
           fill
           className="object-cover transition-transform duration-300 ease-in-out"
           referrerPolicy="no-referrer"
-          onError={() => setPosterUrl(`https://picsum.photos/seed/${data.id}/400/600`)}
+          onError={() => {
+            if (!errored) {
+              setErrored(true);
+            }
+          }}
         />
         
         {/* Badge for Media Type */}
