@@ -19,6 +19,7 @@ export const translations = {
       searchPlaceholder: "Rechercher un film, une série...",
       searchResults: "Voir tous les résultats pour",
       noResults: "Aucun résultat pour",
+      loading: "Chargement",
     },
     home: {
       welcome: "Bienvenue.",
@@ -371,6 +372,7 @@ export const translations = {
       searchPlaceholder: "Search for movies, TV shows...",
       searchResults: "See all results for",
       noResults: "No results found for",
+      loading: "Loading",
     },
     home: {
       welcome: "Welcome.",
