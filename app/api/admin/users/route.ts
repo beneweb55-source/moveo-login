@@ -14,6 +14,17 @@ export async function GET(req: Request) {
   const offset = (page - 1) * limit;
 
   try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS anonymous_watch_history (
+        id SERIAL PRIMARY KEY,
+        session_id VARCHAR(255) NOT NULL,
+        media_type VARCHAR(50),
+        media_id INTEGER,
+        minutes_watched INTEGER DEFAULT 0,
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
     let query = `
       SELECT u.id, u.name, u.email, u.avatar_url, u.created_at, u.is_banned, u.ban_reason, u.role_id,
              (SELECT COUNT(*) FROM user_list WHERE user_id = u.id AND list_type = 'watched') as watched_count,

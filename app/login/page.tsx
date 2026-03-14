@@ -90,7 +90,11 @@ export default function LoginPage() {
         router.refresh();
       } else {
         const data = await res.json();
-        setError(data.error || 'Failed to login');
+        if (data.error === 'ACCOUNT_BANNED') {
+          router.push(`/banned?reason=${encodeURIComponent(data.ban_reason || 'Violation des règles')}`);
+        } else {
+          setError(data.error || 'Failed to login');
+        }
       }
     } catch (err) {
       setError('An error occurred. Please try again.');

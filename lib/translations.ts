@@ -142,7 +142,12 @@ export const translations = {
       accountSuspended: "Compte suspendu",
       suspendedMessage: "Votre compte a été suspendu par un administrateur.",
       suspensionReason: "Raison",
-      contactSupport: "Contactez le support"
+      contactSupport: "Contactez le support",
+      bannedRegisterMessage: "Impossible de créer un compte avec cette adresse.",
+      banReason: "Raison du bannissement",
+      accountBanned: "Compte suspendu définitivement",
+      permanentBan: "Cette décision est définitive.",
+      signOut: "Se déconnecter"
     },
     profile: {
       fileTooLarge: "Le fichier est trop volumineux (max 3MB)",
@@ -287,6 +292,7 @@ export const translations = {
       banAccount: "Bannir le compte",
       unbanAccount: "Débannir le compte",
       banReasonDefault: "Violation des règles",
+      banReasonPlaceholder: "Raison du bannissement (optionnel)...",
       banConfirm: "Êtes-vous sûr de vouloir bannir cet utilisateur ?",
       unbanConfirm: "Êtes-vous sûr de vouloir débannir cet utilisateur ?",
       rolesManagement: "Gestion des Rôles",
@@ -488,7 +494,12 @@ export const translations = {
       accountSuspended: "Account Suspended",
       suspendedMessage: "Your account has been suspended by an administrator.",
       suspensionReason: "Reason",
-      contactSupport: "Contact support"
+      contactSupport: "Contact support",
+      bannedRegisterMessage: "Cannot create an account with this address.",
+      banReason: "Ban reason",
+      accountBanned: "Account permanently suspended",
+      permanentBan: "This decision is final.",
+      signOut: "Sign out"
     },
     profile: {
       fileTooLarge: "File is too large (max 3MB)",
@@ -633,6 +644,7 @@ export const translations = {
       banAccount: "Ban account",
       unbanAccount: "Unban account",
       banReasonDefault: "Violation of rules",
+      banReasonPlaceholder: "Ban reason (optional)...",
       banConfirm: "Are you sure you want to ban this user?",
       unbanConfirm: "Are you sure you want to unban this user?",
       rolesManagement: "Roles Management",

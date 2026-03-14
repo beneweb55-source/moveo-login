@@ -30,7 +30,7 @@ const Carousel = ({ data, loading, endpoint, title, renderItem }: CarouselProps)
 
   const skItem = () => {
     return (
-      <div className="w-[140px] md:w-[calc(25%-15px)] lg:w-[calc(20%-16px)] flex-shrink-0 animate-pulse">
+      <div className="w-[160px] md:w-[calc(25%-15px)] lg:w-[calc(20%-16px)] flex-shrink-0 animate-pulse">
         <div className="w-full aspect-[2/3] rounded-xl bg-white/10 mb-3" />
         <div className="flex flex-col gap-2">
           <div className="h-4 bg-white/10 rounded-md w-3/4" />
@@ -43,8 +43,8 @@ const Carousel = ({ data, loading, endpoint, title, renderItem }: CarouselProps)
   return (
     <div className="relative mb-12">
       {title && (
-        <h2 className="text-2xl md:text-3xl font-bold mb-8 text-white flex items-center gap-2">
-          <span className="w-1 h-8 bg-[#E50914] rounded-full mr-2"></span>
+        <h2 className="text-xl md:text-3xl font-bold mb-6 md:mb-8 text-white flex items-center gap-2 uppercase tracking-tight">
+          <span className="w-1 h-6 md:h-8 bg-[#E50914] rounded-full mr-2"></span>
           {title}
         </h2>
       )}
@@ -65,7 +65,7 @@ const Carousel = ({ data, loading, endpoint, title, renderItem }: CarouselProps)
             style={{ scrollSnapType: "x mandatory" }}
           >
             {data?.map((item) => (
-              <div key={item.id} className="w-[140px] md:w-[calc(25%-18px)] lg:w-[calc(20%-19px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
+              <div key={item.id} className="w-[160px] md:w-[calc(25%-18px)] lg:w-[calc(20%-19px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
                 {renderItem ? renderItem(item) : <MovieCard data={item} mediaType={endpoint} />}
               </div>
             ))}

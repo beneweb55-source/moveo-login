@@ -16,6 +16,11 @@ export async function POST(req: Request) {
     // Add a dummy entry to watch_history to adjust the total watch time
     // We can use a special media_type like 'admin_adjustment'
     await pool.query(`
+      ALTER TABLE watch_history ADD CONSTRAINT IF NOT EXISTS watch_history_unique 
+      UNIQUE (user_id, media_type, media_id);
+    `);
+
+    await pool.query(`
       INSERT INTO watch_history (user_id, media_type, media_id, minutes_watched)
       VALUES ($1, 'admin_adjustment', $2, $3)
       ON CONFLICT (user_id, media_type, media_id) 

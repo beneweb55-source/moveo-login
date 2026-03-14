@@ -9,7 +9,7 @@ const Footer = () => {
   const { t } = useLanguage();
 
   return (
-    <footer className="bg-[#0A0A0A] border-t border-white/5 pt-16 pb-8 mt-20">
+    <footer className="bg-[#0A0A0A] border-t border-white/5 pt-16 pb-24 md:pb-8 mt-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col items-center justify-center text-center">
           <Link href="/" className="flex items-center gap-2 mb-6 hover:scale-105 transition-transform duration-300">

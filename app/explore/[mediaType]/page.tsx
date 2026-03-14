@@ -166,7 +166,7 @@ const Explore = () => {
         </div>
 
         {loading && (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8">
             {[...Array(10)].map((_, i) => (
               <SkeletonCard key={i} />
             ))}
@@ -177,12 +177,12 @@ const Explore = () => {
           <>
             {data?.results?.length > 0 ? (
               <InfiniteScroll
-                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8"
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8"
                 dataLength={data?.results?.length || 0}
                 next={fetchNextPageData}
                 hasMore={pageNum <= data?.total_pages}
                 loader={
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8 mt-6 col-span-full w-full">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8 mt-6 col-span-full w-full">
                     {[...Array(5)].map((_, i) => (
                       <SkeletonCard key={i} />
                     ))}

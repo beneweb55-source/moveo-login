@@ -101,24 +101,24 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
   if (!user) return null;
 
   return (
-    <div className="flex flex-col gap-3 mt-6 mb-8">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-2 md:gap-3 mt-4 md:mt-6 mb-6 md:mb-8">
+      <div className="flex flex-wrap items-center gap-2 md:gap-3">
         <button
           onClick={() => toggleList('watchlist')}
           disabled={loading === 'watchlist'}
           title={t.actionButtons.addToList}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all duration-300 border ${
+          className={`flex items-center gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all duration-300 border ${
             lists.includes('watchlist')
               ? 'bg-blue-600/20 border-blue-500/50 text-blue-400 hover:bg-blue-600/30' 
               : 'bg-transparent border-white/20 text-white hover:border-white/50 hover:bg-white/5'
           }`}
         >
           {loading === 'watchlist' ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : lists.includes('watchlist') ? (
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5" />
           ) : (
-            <Bookmark className="w-4 h-4" />
+            <Bookmark className="w-3.5 h-3.5" />
           )}
           {t.actionButtons.myList}
         </button>
@@ -127,18 +127,18 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
           onClick={() => toggleList('favorites')}
           disabled={loading === 'favorites'}
           title={t.actionButtons.addToFavorites}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all duration-300 border ${
+          className={`flex items-center gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all duration-300 border ${
             lists.includes('favorites')
               ? 'bg-pink-500/20 border-pink-500/50 text-pink-400 hover:bg-pink-500/30' 
               : 'bg-transparent border-white/20 text-white hover:border-white/50 hover:bg-white/5'
           }`}
         >
           {loading === 'favorites' ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : lists.includes('favorites') ? (
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5" />
           ) : (
-            <Heart className="w-4 h-4" />
+            <Heart className="w-3.5 h-3.5" />
           )}
           {t.actionButtons.favorites}
         </button>
@@ -147,20 +147,21 @@ export default function ActionButtons({ id, type, title, posterPath }: ActionBut
           onClick={() => toggleList('watched')}
           disabled={loading === 'watched'}
           title={t.actionButtons.alreadyWatched}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-full font-medium transition-all duration-300 border ${
+          className={`flex items-center gap-2 px-3 py-2 md:px-4 md:py-2.5 rounded-full text-xs md:text-sm font-medium transition-all duration-300 border ${
             lists.includes('watched')
               ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30' 
               : 'bg-transparent border-white/20 text-white hover:border-white/50 hover:bg-white/5'
           }`}
         >
           {loading === 'watched' ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
           ) : lists.includes('watched') ? (
-            <Check className="w-4 h-4" />
+            <Check className="w-3.5 h-3.5" />
           ) : (
-            <Eye className="w-4 h-4" />
+            <Eye className="w-3.5 h-3.5" />
           )}
-          {t.actionButtons.alreadyWatched}
+          <span className="hidden xs:inline">{t.actionButtons.alreadyWatched}</span>
+          <span className="xs:hidden">{t.details.watch}</span>
         </button>
       </div>
       

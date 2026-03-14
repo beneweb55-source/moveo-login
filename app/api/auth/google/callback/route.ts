@@ -83,6 +83,29 @@ export async function GET(req: NextRequest) {
       user = result.rows[0];
     }
 
+    // Check if user is banned
+    if (user.is_banned) {
+      const reason = encodeURIComponent(user.ban_reason || 'Violation des règles');
+      const html = `
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.location.href = '/banned?reason=${reason}';
+                window.close();
+              } else {
+                window.location.href = '/banned?reason=${reason}';
+              }
+            </script>
+            <p>Account banned. Redirecting...</p>
+          </body>
+        </html>
+      `;
+      return new NextResponse(html, {
+        headers: { 'Content-Type': 'text/html' },
+      });
+    }
+
     // Create JWT
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
     const token = await new SignJWT({ 

@@ -13,6 +13,10 @@ export async function POST(req: Request) {
     // Check if user already exists
     const userCheck = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userCheck.rows.length > 0) {
+      const existingUser = userCheck.rows[0];
+      if (existingUser.is_banned) {
+        return NextResponse.json({ error: 'ACCOUNT_BANNED', ban_reason: existingUser.ban_reason || '' }, { status: 403 });
+      }
       return NextResponse.json({ error: 'User already exists' }, { status: 409 });
     }
 

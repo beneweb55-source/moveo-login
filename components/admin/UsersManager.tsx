@@ -84,18 +84,20 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
   };
 
   const [pendingBanUserId, setPendingBanUserId] = useState<number | null>(null);
+  const [banReasonInput, setBanReasonInput] = useState('');
 
   const handleBanUser = async (userId: number, isBanned: boolean) => {
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, isBanned, banReason: isBanned ? t.admin.banReasonDefault : null })
+        body: JSON.stringify({ userId, isBanned, banReason: isBanned ? (banReasonInput.trim() || t.admin.banReasonDefault) : null })
       });
       if (res.ok) {
         fetchUsers();
-        if (selectedUser?.id === userId) setSelectedUser({ ...selectedUser, is_banned: isBanned });
+        if (selectedUser?.id === userId) setSelectedUser({ ...selectedUser, is_banned: isBanned, ban_reason: isBanned ? (banReasonInput.trim() || t.admin.banReasonDefault) : null });
         setPendingBanUserId(null);
+        setBanReasonInput('');
       } else {
         const data = await res.json();
         showToast(data.error || t.admin.error, 'error');
@@ -300,15 +302,30 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                   <p className="text-sm text-zinc-300">
                     {selectedUser.is_banned ? t.admin.unbanConfirm : t.admin.banConfirm}
                   </p>
+                  
+                  {!selectedUser.is_banned && (
+                    <input
+                      type="text"
+                      placeholder={t.admin.banReasonPlaceholder || "Raison du bannissement (optionnel)..."}
+                      value={banReasonInput}
+                      onChange={(e) => setBanReasonInput(e.target.value)}
+                      autoFocus
+                      className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500"
+                    />
+                  )}
+
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleBanUser(selectedUser.id, !selectedUser.is_banned)}
-                      className="flex-1 py-2 bg-red-600 rounded-lg text-sm font-bold hover:bg-red-700 transition-colors"
+                      className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors ${selectedUser.is_banned ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
                     >
                       {t.admin.confirm}
                     </button>
                     <button
-                      onClick={() => setPendingBanUserId(null)}
+                      onClick={() => {
+                        setPendingBanUserId(null);
+                        setBanReasonInput('');
+                      }}
                       className="flex-1 py-2 bg-white/10 rounded-lg text-sm hover:bg-white/15 transition-colors"
                     >
                       {t.admin.cancel}

@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     // Check if user is banned
     if (user.is_banned) {
       return NextResponse.json(
-        { error: 'Votre compte a été suspendu. Raison : ' + (user.ban_reason || 'Violation des règles') },
+        { error: 'ACCOUNT_BANNED', ban_reason: user.ban_reason || '' },
         { status: 403 }
       );
     }

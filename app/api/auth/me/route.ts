@@ -20,7 +20,7 @@ export async function GET() {
       SELECT 
         u.id, u.name, u.email, u.bio, u.avatar_url, 
         u.banner_url, u.created_at, u.twitter_url, 
-        u.instagram_url, u.website_url,
+        u.instagram_url, u.website_url, u.is_banned, u.ban_reason,
         (SELECT COUNT(*) FROM user_list WHERE user_id = u.id AND list_type = 'watched') as watched_count,
         COALESCE((SELECT SUM(minutes_watched) FROM watch_history WHERE user_id = u.id), 0) as total_watch_time,
         u.role_id,
@@ -43,10 +43,12 @@ export async function GET() {
     
     // Check if user is banned
     if (user.is_banned) {
-      return NextResponse.json(
+      const response = NextResponse.json(
         { user: null, banned: true, ban_reason: user.ban_reason },
         { status: 403 }
       );
+      response.cookies.delete('auth_token');
+      return response;
     }
 
     let permissions = user.permissions || [];

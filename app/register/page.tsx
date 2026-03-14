@@ -95,7 +95,11 @@ export default function RegisterPage() {
         }, 2000);
       } else {
         const data = await res.json();
-        setError(data.error || 'Failed to register');
+        if (data.error === 'ACCOUNT_BANNED') {
+          setError(`${t.auth.bannedRegisterMessage} ${t.auth.banReason} : ${data.ban_reason}`);
+        } else {
+          setError(data.error || 'Failed to register');
+        }
       }
     } catch (err) {
       setError('An error occurred. Please try again.');

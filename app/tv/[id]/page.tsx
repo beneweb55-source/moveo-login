@@ -31,6 +31,24 @@ export default function TvDetails() {
   const y = useTransform(scrollY, [0, 500], [0, 200]);
 
   useEffect(() => {
+    if (data?.name) {
+      document.title = `Moveo — ${data.name}`;
+    } else {
+      document.title = 'Moveo';
+    }
+
+    return () => {
+      document.title = 'Moveo';
+    };
+  }, [data]);
+
+  useEffect(() => {
+    if (data?.name && selectedSeason !== undefined && selectedEpisode !== undefined) {
+      document.title = `Moveo — ${data.name} · S${selectedSeason}E${selectedEpisode}`;
+    }
+  }, [data, selectedSeason, selectedEpisode]);
+
+  useEffect(() => {
     const fetchDetails = async () => {
       setLoading(true);
       try {
@@ -123,7 +141,7 @@ export default function TvDetails() {
       </motion.nav>
 
       {/* Hero Section */}
-      <div className="relative w-full min-h-[80vh] flex items-start pt-32 pb-20 lg:items-center lg:pt-0 lg:pb-0">
+      <div className="relative w-full min-h-[60vh] md:min-h-[80vh] flex items-start pt-20 pb-12 lg:items-center lg:pt-0 lg:pb-0">
         {/* Parallax Backdrop */}
         <div className="absolute inset-0 overflow-hidden">
             <motion.div style={{ y }} className="relative w-full h-[120%] -top-[10%]">
@@ -141,8 +159,8 @@ export default function TvDetails() {
         </div>
 
         <ContentWrapper>
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-8 lg:gap-12 items-start lg:items-center mt-12 lg:mt-0">
-                {/* Poster */}
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-6 lg:gap-12 items-start lg:items-center mt-12 lg:mt-0">
+                {/* Poster - Hidden on mobile, visible on lg */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -165,58 +183,58 @@ export default function TvDetails() {
                 </motion.div>
 
                 {/* Info */}
-                <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-4 md:gap-6">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2 }}
                     >
                         {/* Badges */}
-                        <div className="flex flex-wrap items-center gap-3 mb-4">
+                        <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3 md:mb-4">
                             {data?.status && (
-                                <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-[#E50914] text-white rounded-full shadow-lg shadow-red-900/20">
+                                <span className="px-2 py-0.5 md:px-3 md:py-1 text-[9px] md:text-xs font-bold uppercase tracking-wider bg-[#E50914] text-white rounded-full shadow-lg shadow-red-900/20">
                                     {data.status}
                                 </span>
                             )}
                             {data?.genres?.map((g: any) => (
-                                <span key={g.id} className="px-3 py-1 text-xs font-medium uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/10 rounded-full">
+                                <span key={g.id} className="px-2 py-0.5 md:px-3 md:py-1 text-[9px] md:text-xs font-medium uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/10 rounded-full">
                                     {g.name}
                                 </span>
                             ))}
                         </div>
 
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] mb-4">
+                        <h1 className="text-3xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] mb-2 md:mb-4">
                             {data?.name}
                         </h1>
 
                         {data?.tagline && (
-                            <p className="text-xl text-white/60 italic font-serif mb-6">
+                            <p className="text-sm md:text-xl text-white/60 italic font-serif mb-4 md:mb-6">
                                 &ldquo;{data.tagline}&rdquo;
                             </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-6 text-sm md:text-base font-medium text-white/80 mb-8">
-                            <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
-                                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                        <div className="flex flex-wrap items-center gap-3 md:gap-6 text-[10px] md:text-base font-medium text-white/80 mb-6 md:mb-8">
+                            <div className="flex items-center gap-1.5 md:gap-2 bg-black/30 px-2 py-0.5 md:px-3 md:py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
+                                <Star className="w-3 h-3 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
                                 <span className="text-white">{rating}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-[#E50914]" />
+                            <div className="flex items-center gap-1.5 md:gap-2">
+                                <Calendar className="w-3 h-3 md:w-4 md:h-4 text-[#E50914]" />
                                 <span>{year}</span>
                             </div>
                             {data?.number_of_seasons && (
-                                <div className="flex items-center gap-2">
-                                    <Layers className="w-4 h-4 text-[#E50914]" />
+                                <div className="flex items-center gap-1.5 md:gap-2">
+                                    <Layers className="w-3 h-3 md:w-4 md:h-4 text-[#E50914]" />
                                     <span>{data.number_of_seasons} {t.details.season}{data.number_of_seasons > 1 ? 's' : ''}</span>
                                 </div>
                             )}
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-wrap items-center gap-4 mb-8">
+                        <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4 mb-8">
                             <button
                                 onClick={scrollToPlayer}
-                                className="flex items-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group"
+                                className="w-full sm:w-auto flex items-center justify-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group"
                             >
                                 <Play className="w-5 h-5 fill-current" />
                                 <span>{t.details.watch}</span>
@@ -232,10 +250,10 @@ export default function TvDetails() {
 
                         {/* Synopsis */}
                         <div className="max-w-3xl">
-                            <h3 className="text-lg font-bold mb-2 flex items-center gap-2">
+                            <h3 className="text-base md:text-lg font-bold mb-2 flex items-center gap-2">
                                 {t.details.synopsis}
                             </h3>
-                            <p className="text-lg text-white/70 leading-relaxed">
+                            <p className="text-sm md:text-lg text-white/70 leading-relaxed line-clamp-4 md:line-clamp-none">
                                 {data?.overview}
                             </p>
                         </div>

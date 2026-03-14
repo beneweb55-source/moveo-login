@@ -18,13 +18,18 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
   const getPosterUrl = (path: string | null, id: string | number) => 
     path ? `https://image.tmdb.org/t/p/w500${path}` : `https://picsum.photos/seed/${id}/400/600`;
 
-  const [posterUrl, setPosterUrl] = useState(getPosterUrl(data.poster_path, data.id));
   const [errored, setErrored] = useState(false);
 
-  useEffect(() => {
-    setPosterUrl(getPosterUrl(data.poster_path, data.id));
+  // Reset error state when data changes
+  const [prevId, setPrevId] = useState(data.id);
+  if (data.id !== prevId) {
+    setPrevId(data.id);
     setErrored(false);
-  }, [data.poster_path, data.id]);
+  }
+
+  const posterUrl = errored 
+    ? `https://picsum.photos/seed/${data.id}/400/600` 
+    : getPosterUrl(data.poster_path, data.id);
 
   const releaseYear = data.release_date
     ? new Date(data.release_date).getFullYear()
@@ -48,11 +53,7 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
           fill
           className="object-cover transition-transform duration-300 ease-in-out"
           referrerPolicy="no-referrer"
-          onError={() => {
-            if (!errored) {
-              setErrored(true);
-            }
-          }}
+          onError={() => setErrored(true)}
         />
         
         {/* Badge for Media Type */}
@@ -72,14 +73,14 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
 
       {/* Info Section */}
       <div className="flex flex-col px-1">
-        <h3 className="text-base font-semibold text-white truncate group-hover/card:text-[#E50914] transition-colors duration-300">
+        <h3 className="text-sm md:text-base font-semibold text-white truncate group-hover/card:text-[#E50914] transition-colors duration-300">
           {data.title || data.name}
         </h3>
-        <div className="flex items-center justify-between mt-1 opacity-60 group-hover/card:opacity-100 transition-opacity duration-300">
-          <span className="text-sm text-white">{releaseYear}</span>
+        <div className="flex items-center justify-between mt-0.5 md:mt-1 opacity-60 group-hover/card:opacity-100 transition-opacity duration-300">
+          <span className="text-[10px] md:text-sm text-white">{releaseYear}</span>
           <div className="flex items-center gap-1">
-            <Star className="w-3.5 h-3.5 text-yellow-500 fill-current" />
-            <span className="text-sm font-bold text-white">{rating}</span>
+            <Star className="w-3 md:w-3.5 h-3 md:h-3.5 text-yellow-500 fill-current" />
+            <span className="text-[10px] md:text-sm font-bold text-white">{rating}</span>
           </div>
         </div>
       </div>

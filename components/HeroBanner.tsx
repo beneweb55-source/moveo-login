@@ -31,7 +31,6 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
     // Load custom color from localStorage
     const savedColor = localStorage.getItem("moveo_greeting_color");
     if (savedColor) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCustomGreetingColor(savedColor);
     }
 
@@ -120,7 +119,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-[85vh] min-h-[700px] overflow-hidden bg-[#0A0A0A]">
+    <div ref={containerRef} className="relative w-full h-[70vh] md:h-[85vh] min-h-[550px] md:min-h-[700px] overflow-hidden bg-[#0A0A0A]">
       {/* Parallax Background */}
       {background && (
         <motion.div
@@ -140,23 +139,23 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
       <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#0A0A0A] z-10" />
 
       {/* Content */}
-      <div className="relative z-20 w-full h-full max-w-[1600px] mx-auto px-6 md:px-12 pb-20 md:pb-32 flex flex-col justify-end items-start">
+      <div className="relative z-20 w-full h-full max-w-[1600px] mx-auto px-4 md:px-12 pb-12 md:pb-32 flex flex-col justify-end items-start">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-          className="max-w-4xl"
+          className="max-w-4xl w-full"
         >
            {/* Mood Headline / Greeting */}
            {isUserLoading ? (
              <div className="mb-4 h-8 md:h-10"></div>
            ) : user ? (
-            <div className="mb-4 overflow-hidden">
+            <div className="mb-3 md:mb-4 overflow-hidden">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-lg md:text-xl font-extralight tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
+                className="text-sm md:text-xl font-extralight tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
               >
                 <span>{greetingText}</span>
                 <span className="font-light flex items-center gap-2" style={{ color: isEditingColor ? tempColor : finalGreetingColor }}>
@@ -207,12 +206,12 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
               </motion.h2>
             </div>
           ) : headline && (
-            <div className="mb-4 overflow-hidden">
+            <div className="mb-3 md:mb-4 overflow-hidden">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-2xl md:text-3xl font-medium tracking-wide uppercase"
+                className="text-xl md:text-3xl font-medium tracking-wide uppercase"
                 style={{ color: accentColor }}
               >
                 {headline}
@@ -221,13 +220,13 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           )}
 
           {/* Metadata Badge Row */}
-          <div className="flex flex-wrap items-center gap-3 mb-4 text-sm md:text-base font-medium">
-            <span className="px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-2">
-              {movie?.media_type === "tv" ? <Film className="w-4 h-4" /> : <Film className="w-4 h-4" />}
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-xs md:text-base font-medium">
+            <span className="px-2 py-1 md:px-3 md:py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-2">
+              <Film className="w-3 h-3 md:w-4 md:h-4" />
               {movie?.media_type === "tv" ? t.explore.exploreTv : t.explore.exploreMovies}
             </span>
             <span className="flex items-center gap-1 text-[#FFD700]">
-              <Star className="w-4 h-4 fill-current" />
+              <Star className="w-3.5 h-3.5 md:w-4 md:h-4 fill-current" />
               {movie?.vote_average?.toFixed(1)}
             </span>
             <span className="text-zinc-300">
@@ -238,33 +237,33 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           </div>
 
           {/* Title */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter text-white mb-6 drop-shadow-2xl leading-[0.9]">
+          <h1 className="text-4xl md:text-7xl lg:text-8xl font-black tracking-tighter text-white mb-4 md:mb-6 drop-shadow-2xl leading-[1.1] md:leading-[0.9]">
             {movie?.title || movie?.name}
           </h1>
 
           {/* Genres */}
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-x-2 gap-y-1 mb-4 md:mb-6">
             {movieGenres.map((genre: any, i: number) => {
               const genreName = typeof genre === 'object' ? genre.name : genre;
               return (
-                <span key={i} className="text-zinc-300 text-sm md:text-base">
+                <span key={i} className="text-zinc-300 text-[10px] md:text-base whitespace-nowrap">
                   {genreName}
-                  {i < movieGenres.length - 1 && <span className="mx-2 text-zinc-500">•</span>}
+                  {i < movieGenres.length - 1 && <span className="ml-2 text-zinc-500">•</span>}
                 </span>
               );
             })}
           </div>
 
           {/* Synopsis */}
-          <p className="text-lg md:text-xl text-zinc-300 mb-10 line-clamp-3 md:line-clamp-4 max-w-2xl leading-relaxed drop-shadow-md">
+          <p className="text-sm md:text-xl text-zinc-300 mb-6 md:mb-10 line-clamp-3 md:line-clamp-4 max-w-2xl leading-relaxed drop-shadow-md opacity-80">
             {movie?.overview}
           </p>
 
           {/* Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4">
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className="group w-full sm:w-auto flex items-center justify-center gap-3 bg-white text-black px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 shadow-lg hover:scale-105"
+              className="group w-full sm:w-auto flex items-center justify-center gap-3 bg-white text-black px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 shadow-lg hover:scale-105"
               style={{ 
                 boxShadow: `0 0 20px -5px ${accentColor}80` // 80 is alpha
               }}
@@ -277,14 +276,14 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
                 e.currentTarget.style.color = '#000000';
               }}
             >
-              <Play className="w-6 h-6 fill-current transition-transform group-hover:scale-110" />
+              <Play className="w-5 h-5 md:w-6 md:h-6 fill-current transition-transform group-hover:scale-110" />
               {t.home.watchNow}
             </button>
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className="w-full sm:w-auto flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/20 transition-all duration-300"
+              className="w-full sm:w-auto flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-white px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg hover:bg-white/20 transition-all duration-300"
             >
-              <Info className="w-6 h-6" />
+              <Info className="w-5 h-5 md:w-6 md:h-6" />
               {t.home.moreInfo}
             </button>
           </div>
