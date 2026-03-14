@@ -58,15 +58,18 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
     }
 
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-    const fetchEndpoint = endpoint || "/trending/all/day";
-    const fetchParams = { language: langParam, ...params };
+    const fetchEndpoint = "/trending/all/day";
+    const fetchParams = { language: langParam };
 
     fetchDataFromApi(fetchEndpoint, fetchParams).then((res) => {
       const results = res?.results || [];
       if (results.length > 0) {
-        // Pick random from top 5
-        const top5 = results.slice(0, 5);
-        const randomMovie = top5[Math.floor(Math.random() * top5.length)];
+        // Pick from top 15
+        const pool = results.slice(0, 15);
+        const currentHour = new Date().getHours();
+        const randomNum = Math.floor(Math.random() * pool.length);
+        const selectedIndex = (currentHour + randomNum) % pool.length;
+        const randomMovie = pool[selectedIndex];
         
         const bg = randomMovie?.backdrop_path 
           ? `https://image.tmdb.org/t/p/original${randomMovie.backdrop_path}`
@@ -76,7 +79,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
         setMovie(randomMovie);
       }
     });
-  }, [language, endpoint, params, customMovie]);
+  }, [language, customMovie]);
 
   const getGenreNames = (genreIds: number[]) => {
     if (!genreIds || !genres) return [];
