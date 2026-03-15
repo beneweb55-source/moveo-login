@@ -171,8 +171,9 @@ const Header = () => {
 
         const filteredResults = (data.results || [])
           .filter((item: any) => {
-            // Filter out people
-            if (item.media_type === 'person') return false;
+            if (item.media_type === 'person') {
+              return !!item.profile_path;
+            }
             // Filter out items without poster
             if (!item.poster_path) return false;
             // Filter out items without release date
@@ -307,36 +308,41 @@ const Header = () => {
                       </div>
                     )}
                     {results.map((item) => {
-                      const isMovie = item.media_type === "movie" || !item.media_type;
+                      const isPerson = item.media_type === "person";
+                      const isMovie = item.media_type === "movie" || (!item.media_type && !isPerson);
                       const title = item.title || item.name;
                       const date = item.release_date || item.first_air_date;
-                      const year = date ? new Date(date).getFullYear() : "N/A";
+                      const year = date ? new Date(date).getFullYear() : (isPerson ? item.known_for_department : "N/A");
                       const rating = item.vote_average ? item.vote_average.toFixed(1) : "NR";
-                      const posterUrl = item.poster_path 
-                        ? `https://image.tmdb.org/t/p/w92${item.poster_path}`
-                        : "https://picsum.photos/seed/poster/92/138";
+                      const posterUrl = isPerson
+                        ? (item.profile_path ? `https://image.tmdb.org/t/p/w92${item.profile_path}` : "https://picsum.photos/seed/poster/92/138")
+                        : (item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : "https://picsum.photos/seed/poster/92/138");
 
                       return (
                         <div 
                           key={item.id}
-                          onClick={() => router.push(`/${isMovie ? "movie" : "tv"}/${item.id}`)}
+                          onClick={() => router.push(`/${isPerson ? "person" : isMovie ? "movie" : "tv"}/${item.id}`)}
                           className="flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5 last:border-0"
                         >
-                          <div className="relative w-12 h-16 rounded overflow-hidden flex-shrink-0 bg-[#2a2a2a]">
+                          <div className={`relative flex-shrink-0 bg-[#2a2a2a] overflow-hidden ${isPerson ? 'w-12 h-12 rounded-full' : 'w-12 h-16 rounded'}`}>
                             <Image src={posterUrl} alt={title} fill className="object-cover" referrerPolicy="no-referrer" />
                           </div>
                           <div className="flex flex-col flex-1 min-w-0">
                             <h4 className="text-white font-medium text-sm truncate">{title}</h4>
                             <div className="flex items-center gap-2 text-xs text-white/50 mt-1">
                               <span>{year}</span>
-                              <span>•</span>
-                              <span className="flex items-center gap-1">
-                                <Star className="w-3 h-3 text-yellow-500 fill-current" />
-                                {rating}
-                              </span>
+                              {!isPerson && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                                    {rating}
+                                  </span>
+                                </>
+                              )}
                               <span>•</span>
                               <span className="uppercase text-[10px] tracking-wider border border-white/20 px-1 rounded whitespace-nowrap">
-                                {isMovie ? t.explore.exploreMovies : t.explore.exploreTv}
+                                {isPerson ? (language === 'fr' ? 'Personne' : 'Person') : (isMovie ? t.explore.exploreMovies : t.explore.exploreTv)}
                               </span>
                             </div>
                           </div>

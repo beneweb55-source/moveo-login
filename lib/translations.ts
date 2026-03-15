@@ -35,6 +35,9 @@ export const translations = {
       week: "Semaine",
       top10: "Top 10 en France",
       resumeWatching: "Reprendre la lecture",
+      youMightLike: "Vous aimerez aussi",
+      trailer: "Bande-Annonce",
+      cast: "Casting",
     },
     details: {
       back: "Retour",
@@ -74,6 +77,7 @@ export const translations = {
       status: "Statut",
       director: "Réalisateur",
       writer: "Scénariste",
+      biography: "Biographie",
     },
     actionButtons: {
       removedFrom: "Retiré de",
@@ -103,6 +107,13 @@ export const translations = {
       resultsFor: "Résultats pour",
       noResults: "Aucun résultat trouvé",
       tryAnother: "Nous n'avons trouvé aucune correspondance. Essayez une autre recherche.",
+      people: "Acteurs & Réalisateurs",
+      moviesBy: "Films de",
+    },
+    person: {
+      filmography: "Filmographie",
+      movies: "Films",
+      tvShows: "Séries",
     },
     cta: {
       discover: "Découvrir",
@@ -388,6 +399,9 @@ export const translations = {
       week: "Week",
       top10: "Top 10 in France",
       resumeWatching: "Resume Watching",
+      youMightLike: "You might also like",
+      trailer: "Trailer",
+      cast: "Cast",
     },
     details: {
       back: "Back",
@@ -427,6 +441,7 @@ export const translations = {
       status: "Status",
       director: "Director",
       writer: "Writer",
+      biography: "Biography",
     },
     actionButtons: {
       removedFrom: "Removed from",
@@ -456,6 +471,13 @@ export const translations = {
       resultsFor: "Results for",
       noResults: "No results found",
       tryAnother: "We couldn't find any matches. Try another search.",
+      people: "Actors & Directors",
+      moviesBy: "Movies starring",
+    },
+    person: {
+      filmography: "Filmography",
+      movies: "Movies",
+      tvShows: "TV Shows",
     },
     cta: {
       discover: "Discover",

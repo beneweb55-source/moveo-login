@@ -6,9 +6,11 @@ import { fetchDataFromApi } from "@/utils/api";
 import ContentWrapper from "@/components/ContentWrapper";
 import VideoPlayer from "@/components/VideoPlayer";
 import ActionButtons from "@/components/ActionButtons";
-import { Star, ArrowLeft, Calendar, Layers, Play, Info, ChevronDown, Tv, RefreshCw } from "lucide-react";
+import CastList from "@/components/CastList";
+import { Star, ArrowLeft, Calendar, Layers, Play, Info, ChevronDown, Tv, RefreshCw, X } from "lucide-react";
 import Image from "next/image";
-import { motion, useScroll, useTransform } from "motion/react";
+import { motion, useScroll, useTransform, AnimatePresence } from "motion/react";
+import Carousel from "@/components/Carousel";
 
 import { useLanguage } from "@/context/LanguageContext";
 import WatchTimer from "@/components/WatchTimer";
@@ -22,6 +24,7 @@ export default function TvDetails() {
   const [loading, setLoading] = useState(true);
   const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<HTMLDivElement>(null);
+  const [showTrailer, setShowTrailer] = useState(false);
   
   const [selectedSeason, setSelectedSeason] = useState(1);
   const [selectedEpisode, setSelectedEpisode] = useState(1);
@@ -52,7 +55,10 @@ export default function TvDetails() {
     const fetchDetails = async () => {
       setLoading(true);
       try {
-        const res = await fetchDataFromApi(`/tv/${id}`, { language: langParam });
+        const res = await fetchDataFromApi(`/tv/${id}`, { 
+          language: langParam,
+          append_to_response: "videos,credits,recommendations"
+        });
         setData(res);
         
         const firstSeason = res.seasons?.find((s: any) => s.season_number === 1) || res.seasons?.[0];
@@ -119,8 +125,17 @@ export default function TvDetails() {
   const releaseDate = data?.first_air_date;
   const year = releaseDate ? new Date(releaseDate).getFullYear() : "";
   const rating = data?.vote_average ? data.vote_average.toFixed(1) : "NR";
+  const seasonsCount = data?.number_of_seasons || 0;
 
   const availableSeasons = data?.seasons?.filter((s: any) => s.season_number > 0) || [];
+
+  const cast = data?.credits?.cast?.slice(0, 10) || [];
+  
+  const videos = data?.videos?.results || [];
+  const trailer = videos.find((v: any) => v.type === "Trailer" && v.site === "YouTube") 
+    || videos.find((v: any) => v.type === "Teaser" && v.site === "YouTube");
+
+  const recommendations = data?.recommendations?.results?.slice(0, 10) || [];
 
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] selection:text-white pb-20">
@@ -240,6 +255,16 @@ export default function TvDetails() {
                                 <span>{t.details.watch}</span>
                             </button>
 
+                            {trailer && (
+                                <button
+                                    onClick={() => setShowTrailer(true)}
+                                    className="w-full sm:w-auto flex items-center justify-center gap-3 bg-transparent hover:bg-[#E50914] border border-white text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg hover:border-transparent hover:shadow-red-900/50 hover:scale-105 group"
+                                >
+                                    <Play className="w-5 h-5" />
+                                    <span>{t.details.watchTrailer}</span>
+                                </button>
+                            )}
+
                             <ActionButtons
                                 id={id as string}
                                 type="tv"
@@ -249,7 +274,7 @@ export default function TvDetails() {
                         </div>
 
                         {/* Synopsis */}
-                        <div className="max-w-3xl">
+                        <div className="max-w-3xl mb-8">
                             <h3 className="text-base md:text-lg font-bold mb-2 flex items-center gap-2">
                                 {t.details.synopsis}
                             </h3>
@@ -257,6 +282,9 @@ export default function TvDetails() {
                                 {data?.overview}
                             </p>
                         </div>
+                        
+                        {/* Cast */}
+                        <CastList cast={data?.credits?.cast || []} />
                     </motion.div>
                 </div>
             </div>
@@ -266,7 +294,7 @@ export default function TvDetails() {
       {/* Player Section */}
       <div ref={playerRef} className="relative z-20 bg-[#0A0A0A]">
         <ContentWrapper>
-            <div className="py-20 border-t border-white/5">
+            <div className="py-20 border-t border-white/5 mt-10">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                     <div className="flex items-center gap-4">
                         <div className="w-1 h-8 bg-[#E50914] rounded-full" />
@@ -337,6 +365,56 @@ export default function TvDetails() {
             </div>
         </ContentWrapper>
       </div>
+
+      {/* Recommendations Section */}
+      {recommendations.length > 0 && (
+        <div className="relative z-20 bg-[#0A0A0A] pb-10">
+          <ContentWrapper>
+            <Carousel 
+              data={recommendations} 
+              loading={false} 
+              endpoint="tv" 
+              title={t.home.youMightLike || "You might also like"} 
+            />
+          </ContentWrapper>
+        </div>
+      )}
+
+      {/* Trailer Modal */}
+      {/* Trailer Modal */}
+      <AnimatePresence>
+        {showTrailer && trailer && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+            onClick={() => setShowTrailer(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-5xl aspect-video bg-black rounded-xl overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => setShowTrailer(false)}
+                className="absolute top-4 right-4 z-10 p-2 bg-black/50 hover:bg-[#E50914] text-white rounded-full transition-colors duration-300"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <iframe
+                src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1`}
+                title="Trailer"
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

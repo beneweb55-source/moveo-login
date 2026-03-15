@@ -61,11 +61,21 @@ const Explore = () => {
       setPageNum(1);
 
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+      
+      let finalSortBy = sortBy;
+      if (sortBy === "primary_release_date.desc" && mediaType === "tv") {
+        finalSortBy = "first_air_date.desc";
+      }
+
       const params: any = {
         language: langParam,
-        sort_by: sortBy,
+        sort_by: finalSortBy,
       };
       
+      if (sortBy === "vote_average.desc") {
+        params["vote_count.gte"] = 200;
+      }
+
       if (selectedGenre) {
         params.with_genres = selectedGenre;
       }
@@ -91,12 +101,22 @@ const Explore = () => {
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+    
+    let finalSortBy = sortBy;
+    if (sortBy === "primary_release_date.desc" && mediaType === "tv") {
+      finalSortBy = "first_air_date.desc";
+    }
+
     const params: any = {
       language: langParam,
-      sort_by: sortBy,
+      sort_by: finalSortBy,
       page: pageNum,
     };
     
+    if (sortBy === "vote_average.desc") {
+      params["vote_count.gte"] = 200;
+    }
+
     if (selectedGenre) {
       params.with_genres = selectedGenre;
     }

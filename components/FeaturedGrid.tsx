@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Play, Star, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, Star, Calendar, ChevronLeft, ChevronRight, Tv, Film } from "lucide-react";
 import { useSelector } from "react-redux";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -138,7 +138,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
               
               <div className="absolute bottom-0 left-0 p-6 md:p-16 z-20 w-full md:w-2/3">
                 <span className="inline-flex items-center gap-2 bg-[#E50914] text-white text-[10px] md:text-sm font-black px-4 py-1.5 md:px-5 md:py-2 rounded-full mb-3 md:mb-6 shadow-xl tracking-widest uppercase">
-                  <span className="text-lg leading-none">{mainItem.media_type === 'tv' ? '📺' : '🎬'}</span>
+                  {mainItem.media_type === 'tv' ? <Tv className="w-4 h-4 md:w-5 md:h-5" /> : <Film className="w-4 h-4 md:w-5 md:h-5" />}
                   #{activeIdx + 1} {t.home.trending}
                 </span>
                 

@@ -40,16 +40,22 @@ const KDramaPage = () => {
       setLoading(true);
       try {
         const sortKey = mediaType === "movie" && sortBy === "first_air_date.desc" 
-          ? "release_date.desc" 
+          ? "primary_release_date.desc" 
           : sortBy;
 
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-        const res = await fetchDataFromApi(`/discover/${mediaType}`, {
+        const params: any = {
           with_original_language: "ko",
           sort_by: sortKey,
           page: 1,
           language: langParam,
-        });
+        };
+
+        if (sortBy === "vote_average.desc") {
+          params["vote_count.gte"] = 200;
+        }
+
+        const res = await fetchDataFromApi(`/discover/${mediaType}`, params);
 
         // Extract new genres from this batch
         const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
@@ -77,16 +83,22 @@ const KDramaPage = () => {
   const fetchNextPageData = async () => {
     try {
       const sortKey = mediaType === "movie" && sortBy === "first_air_date.desc" 
-        ? "release_date.desc" 
+        ? "primary_release_date.desc" 
         : sortBy;
 
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-      const res = await fetchDataFromApi(`/discover/${mediaType}`, {
+      const params: any = {
         with_original_language: "ko",
         sort_by: sortKey,
         page: pageNum + 1,
         language: langParam,
-      });
+      };
+
+      if (sortBy === "vote_average.desc") {
+        params["vote_count.gte"] = 200;
+      }
+
+      const res = await fetchDataFromApi(`/discover/${mediaType}`, params);
       
       if (data?.results) {
         // Extract new genres

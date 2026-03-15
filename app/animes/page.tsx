@@ -45,12 +45,22 @@ const Animes = () => {
       setPageNum(1);
 
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+      
+      let finalSortBy = sortBy;
+      if (sortBy === "first_air_date.desc" && mediaType === "movie") {
+        finalSortBy = "primary_release_date.desc";
+      }
+
       const params: any = {
         language: langParam,
-        sort_by: sortBy,
+        sort_by: finalSortBy,
         with_genres: "16", // Animation Genre ID
         with_original_language: "ja", // Focus on Japanese Anime
       };
+      
+      if (sortBy === "vote_average.desc") {
+        params["vote_count.gte"] = 200;
+      }
       
       fetchDataFromApi(`/discover/${mediaType}`, params).then((res) => {
         // Extract new genres from this batch
@@ -75,13 +85,23 @@ const Animes = () => {
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+    
+    let finalSortBy = sortBy;
+    if (sortBy === "first_air_date.desc" && mediaType === "movie") {
+      finalSortBy = "primary_release_date.desc";
+    }
+
     const params: any = {
       language: langParam,
-      sort_by: sortBy,
+      sort_by: finalSortBy,
       page: pageNum,
       with_genres: "16",
       with_original_language: "ja",
     };
+    
+    if (sortBy === "vote_average.desc") {
+      params["vote_count.gte"] = 200;
+    }
     
     fetchDataFromApi(`/discover/${mediaType}`, params).then(
       (res) => {

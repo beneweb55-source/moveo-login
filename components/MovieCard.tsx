@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Play, Star } from "lucide-react";
 import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
+import { useSelector } from "react-redux";
 
 interface MovieCardProps {
   data: any;
@@ -14,6 +15,7 @@ interface MovieCardProps {
 const MovieCard = ({ data, mediaType }: MovieCardProps) => {
   const router = useRouter();
   const { t } = useLanguage();
+  const { genres } = useSelector((state: any) => state.home);
 
   const getPosterUrl = (path: string | null, id: string | number) => 
     path ? `https://image.tmdb.org/t/p/w500${path}` : `https://picsum.photos/seed/${id}/400/600`;
@@ -40,6 +42,13 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
   const rating = data.vote_average ? data.vote_average.toFixed(1) : "NR";
   const type = data.media_type || mediaType || "movie";
 
+  const getGenreNames = (genreIds: number[]) => {
+    if (!genreIds || !genres) return [];
+    return genreIds.map((id: number) => genres[id]?.name || genres[id]).filter((g: any) => g).slice(0, 2);
+  };
+
+  const movieGenres = getGenreNames(data.genre_ids);
+
   return (
     <div
       className="relative flex flex-col gap-3 cursor-pointer group/card w-full flex-shrink-0"
@@ -55,13 +64,6 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
           referrerPolicy="no-referrer"
           onError={() => setErrored(true)}
         />
-        
-        {/* Badge for Media Type */}
-        <div className="absolute top-2 left-2 z-10 opacity-100 group-hover/card:opacity-0 transition-opacity duration-300">
-          <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white bg-black/60 backdrop-blur-md rounded-md border border-white/10">
-            {type === 'tv' ? t.explore.exploreTv : t.explore.exploreMovies}
-          </span>
-        </div>
 
         {/* Dark Overlay & Play Button on Hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -83,6 +85,16 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
             <span className="text-[10px] md:text-sm font-bold text-white">{rating}</span>
           </div>
         </div>
+        {/* Genre Pills */}
+        {movieGenres.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300">
+            {movieGenres.map((genre: any, i: number) => (
+              <span key={i} className="bg-white/10 text-white/70 text-[9px] font-medium px-2 py-0.5 rounded-full border border-white/10">
+                {genre}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
