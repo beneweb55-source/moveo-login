@@ -117,7 +117,7 @@ export default function MovieDetails() {
       </motion.nav>
 
       {/* Hero Section */}
-      <div className="relative w-full min-h-[60vh] md:min-h-[80vh] flex items-start pt-20 pb-12 lg:items-center lg:pt-0 lg:pb-0">
+      <div className="relative w-full min-h-[60vh] md:min-h-[80vh] flex items-start pt-20 pb-12 lg:items-start lg:pt-32 lg:pb-12">
         {/* Parallax Backdrop */}
         <div className="absolute inset-0 overflow-hidden">
             <motion.div style={{ y }} className="relative w-full h-[120%] -top-[10%]">
@@ -135,13 +135,13 @@ export default function MovieDetails() {
         </div>
 
         <ContentWrapper>
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-6 lg:gap-12 items-start lg:items-center mt-12 lg:mt-0">
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-6 lg:gap-12 items-start mt-12 lg:mt-0">
                 {/* Poster - Hidden on mobile, visible on lg */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.8 }}
-                    className="hidden lg:block relative aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 group"
+                    className="hidden lg:block relative aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 group lg:sticky lg:top-32"
                 >
                      {posterUrl ? (
                         <Image
