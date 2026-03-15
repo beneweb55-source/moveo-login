@@ -151,7 +151,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                 </p>
                 
                 <div className="flex flex-wrap items-center gap-3 md:gap-4 text-[10px] md:text-base text-white/80 font-bold">
-                  <button className="flex items-center gap-2 bg-white text-black px-6 py-2 md:px-8 md:py-3 rounded-full hover:bg-zinc-200 transition-colors">
+                  <button className="flex items-center gap-2 bg-white text-black px-6 py-2 md:px-8 md:py-3 rounded-full hover:bg-zinc-200 transition-colors cursor-pointer">
                     <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
                     {t.home.watchNow}
                   </button>

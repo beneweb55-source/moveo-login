@@ -528,7 +528,7 @@ function ProfileContent() {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="bg-[#E50914] hover:bg-[#E50914]/90 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                      className="bg-[#E50914] hover:bg-[#E50914]/90 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                     >
                       {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Edit2 className="w-5 h-5" />}
                       Enregistrer les modifications
@@ -567,7 +567,7 @@ function ProfileContent() {
                       <button
                         type="submit"
                         disabled={savingPassword}
-                        className="bg-zinc-800 hover:bg-zinc-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                        className="bg-zinc-800 hover:bg-zinc-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                       >
                         {savingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Mettre à jour le mot de passe'}
                       </button>
@@ -580,7 +580,7 @@ function ProfileContent() {
                   <div className="flex flex-col sm:flex-row gap-4">
                     <button
                       onClick={handleLogout}
-                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <LogOut className="w-5 h-5" />
                       Se déconnecter
@@ -600,7 +600,7 @@ function ProfileContent() {
                         Êtes-vous sûr ? Cette action est irréversible et supprimera toutes vos données.
                       </p>
                       <div className="flex gap-2">
-                        <button onClick={handleDeleteAccount} className="px-4 py-2 bg-red-600 rounded-lg text-sm font-bold">
+                        <button onClick={handleDeleteAccount} className="px-4 py-2 bg-red-600 rounded-lg text-sm font-bold cursor-pointer">
                           Confirmer la suppression
                         </button>
                         <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 bg-white/10 rounded-lg text-sm">

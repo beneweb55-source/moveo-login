@@ -56,7 +56,7 @@ function BannedContent() {
 
         <button 
           onClick={handleLogout}
-          className="w-full px-6 py-4 bg-gradient-to-r from-red-600 to-red-800 rounded-xl font-bold text-white hover:from-red-500 hover:to-red-700 transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:-translate-y-0.5"
+          className="w-full px-6 py-4 bg-gradient-to-r from-red-600 to-red-800 rounded-xl font-bold text-white hover:from-red-500 hover:to-red-700 transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:-translate-y-0.5 cursor-pointer"
         >
           {t.auth.signOut || "Se déconnecter"}
         </button>

@@ -426,7 +426,7 @@ const Header = () => {
                     <div className="mt-2 pt-2 border-t border-white/10">
                       <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#E50914] hover:bg-[#E50914]/10 transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#E50914] hover:bg-[#E50914]/10 transition-colors cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
                         {t.nav.logout}
@@ -455,7 +455,7 @@ const Header = () => {
 
           <button
             onClick={toggleLanguage}
-            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium"
+            className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium cursor-pointer"
           >
             <Globe className="w-4 h-4 text-white/70" />
             <span className="uppercase">{language}</span>
@@ -697,7 +697,7 @@ const Header = () => {
 
                   <button 
                     onClick={handleSearchSubmit}
-                    className="w-full mt-10 py-5 text-center text-sm md:text-base font-black text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 uppercase tracking-widest"
+                    className="w-full mt-10 py-5 text-center text-sm md:text-base font-black text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 uppercase tracking-widest cursor-pointer"
                   >
                     {t.nav.searchResults} &quot;{query}&quot;
                   </button>

@@ -183,14 +183,14 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
                       
                       <button 
                         onClick={handleApplyColor}
-                        className="text-emerald-400 hover:text-emerald-300 hover:bg-white/10 rounded-full p-1.5 transition-all"
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-white/10 rounded-full p-1.5 transition-all cursor-pointer"
                         title="Apply"
                       >
                         <Check className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={handleCancelColor}
-                        className="text-rose-400 hover:text-rose-300 hover:bg-white/10 rounded-full p-1.5 transition-all"
+                        className="text-rose-400 hover:text-rose-300 hover:bg-white/10 rounded-full p-1.5 transition-all cursor-pointer"
                         title="Cancel"
                       >
                         <X className="w-4 h-4" />
@@ -199,7 +199,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
                   ) : (
                     <button 
                       onClick={handleEditClick}
-                      className="text-white/30 hover:text-white transition-colors focus:outline-none ml-1"
+                      className="text-white/30 hover:text-white transition-colors focus:outline-none ml-1 cursor-pointer"
                       title="Change color"
                     >
                       <Pencil className="w-4 h-4" />

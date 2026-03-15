@@ -208,7 +208,7 @@ export default function CustomVideoPlayer({
         {onBack && (
           <button 
             onClick={onBack}
-            className="px-6 py-2 bg-[#E50914] rounded-full font-bold hover:bg-red-700 transition-colors"
+            className="px-6 py-2 bg-[#E50914] rounded-full font-bold hover:bg-red-700 transition-colors cursor-pointer"
           >
             Retour au lecteur standard
           </button>
@@ -275,12 +275,12 @@ export default function CustomVideoPlayer({
         {/* Buttons Row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 md:gap-6">
-            <button onClick={togglePlay} className="hover:text-[#E50914] transition-colors">
+            <button onClick={togglePlay} className="hover:text-[#E50914] transition-colors cursor-pointer">
               {isPlaying ? <Pause className="w-6 h-6 md:w-8 md:h-8 fill-current" /> : <Play className="w-6 h-6 md:w-8 md:h-8 fill-current" />}
             </button>
 
             <div className="flex items-center gap-2 group/volume">
-              <button onClick={toggleMute} className="hover:text-[#E50914] transition-colors">
+              <button onClick={toggleMute} className="hover:text-[#E50914] transition-colors cursor-pointer">
                 {isMuted || volume === 0 ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
               </button>
               <div className="w-0 overflow-hidden group-hover/volume:w-24 transition-all duration-300">
@@ -335,7 +335,7 @@ export default function CustomVideoPlayer({
               </div>
             )}
 
-            <button onClick={toggleFullscreen} className="hover:text-[#E50914] transition-colors">
+            <button onClick={toggleFullscreen} className="hover:text-[#E50914] transition-colors cursor-pointer">
               <Maximize className="w-5 h-5 md:w-6 md:h-6" />
             </button>
           </div>

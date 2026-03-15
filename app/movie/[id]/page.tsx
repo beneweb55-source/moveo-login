@@ -208,7 +208,7 @@ export default function MovieDetails() {
                         <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4 mb-8">
                             <button
                                 onClick={scrollToPlayer}
-                                className="w-full sm:w-auto flex items-center justify-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group"
+                                className="w-full sm:w-auto flex items-center justify-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group cursor-pointer"
                             >
                                 <Play className="w-5 h-5 fill-current" />
                                 <span>{t.details.watch}</span>
@@ -262,7 +262,7 @@ export default function MovieDetails() {
                     
                     <button 
                         onClick={handleHardRefresh}
-                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-full text-xs font-medium transition-all duration-300 border border-white/5 hover:border-white/20 group"
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white rounded-full text-xs font-medium transition-all duration-300 border border-white/5 hover:border-white/20 group cursor-pointer"
                         title={t.details.reloadPlayer}
                     >
                         <RefreshCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-500" />

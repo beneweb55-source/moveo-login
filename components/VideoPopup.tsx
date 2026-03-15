@@ -24,7 +24,7 @@ const VideoPopup = ({ show, setShow, videoId, setVideoId }: VideoPopupProps) => 
       ></div>
       <div className="relative w-[90%] max-w-[900px] aspect-video bg-[#0A0A0A] rounded-xl overflow-hidden shadow-2xl scale-100 transition-transform duration-300">
         <button
-          className="absolute -top-10 right-0 text-white hover:text-[#E50914] transition-colors"
+          className="absolute -top-10 right-0 text-white hover:text-[#E50914] transition-colors cursor-pointer"
           onClick={hidePopup}
         >
           <X className="w-8 h-8" />
