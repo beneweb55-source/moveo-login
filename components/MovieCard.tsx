@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Play, Star } from "lucide-react";
 import Image from "next/image";
 import { useLanguage } from "@/context/LanguageContext";
@@ -13,7 +13,6 @@ interface MovieCardProps {
 }
 
 const MovieCard = ({ data, mediaType }: MovieCardProps) => {
-  const router = useRouter();
   const { t } = useLanguage();
   const { genres } = useSelector((state: any) => state.home);
 
@@ -50,9 +49,9 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
   const movieGenres = getGenreNames(data.genre_ids);
 
   return (
-    <div
+    <Link
+      href={`/${type}/${data.id}`}
       className="relative flex flex-col gap-3 cursor-pointer group/card w-full flex-shrink-0"
-      onClick={() => router.push(`/${type}/${data.id}`)}
     >
       {/* Poster Container */}
       <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a] transition-all duration-300 ease-in-out group-hover/card:shadow-[0_0_20px_rgba(229,9,20,0.4)] group-hover/card:scale-105">
@@ -96,7 +95,7 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
           </div>
         )}
       </div>
-    </div>
+    </Link>
   );
 };
 

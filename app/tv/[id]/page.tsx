@@ -29,13 +29,31 @@ export default function TvDetails() {
   const [selectedSeason, setSelectedSeason] = useState(1);
   const [selectedEpisode, setSelectedEpisode] = useState(1);
   const [episodesCount, setEpisodesCount] = useState(1);
+  const [episodesData, setEpisodesData] = useState<any[]>([]);
+  const [isEpisodeDropdownOpen, setIsEpisodeDropdownOpen] = useState(false);
+  const [isSeasonDropdownOpen, setIsSeasonDropdownOpen] = useState(false);
+  const episodeDropdownRef = useRef<HTMLDivElement>(null);
+  const seasonDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (episodeDropdownRef.current && !episodeDropdownRef.current.contains(event.target as Node)) {
+        setIsEpisodeDropdownOpen(false);
+      }
+      if (seasonDropdownRef.current && !seasonDropdownRef.current.contains(event.target as Node)) {
+        setIsSeasonDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 200]);
 
   useEffect(() => {
     if (data?.name) {
-      document.title = `Moveo — ${data.name}`;
+      document.title = `${data.name} - Moveo`;
     } else {
       document.title = 'Moveo';
     }
@@ -47,7 +65,7 @@ export default function TvDetails() {
 
   useEffect(() => {
     if (data?.name && selectedSeason !== undefined && selectedEpisode !== undefined) {
-      document.title = `Moveo — ${data.name} · S${selectedSeason}E${selectedEpisode}`;
+      document.title = `${data.name} S${selectedSeason}E${selectedEpisode} - Moveo`;
     }
   }, [data, selectedSeason, selectedEpisode]);
 
@@ -83,6 +101,7 @@ export default function TvDetails() {
         const res = await fetchDataFromApi(`/tv/${id}/season/${selectedSeason}`, { language: langParam });
         if (res && res.episodes) {
           setEpisodesCount(res.episodes.length);
+          setEpisodesData(res.episodes);
           setSelectedEpisode(1);
         }
       } catch (error) {
@@ -90,6 +109,7 @@ export default function TvDetails() {
         const seasonInfo = data.seasons?.find((s: any) => s.season_number === selectedSeason);
         if (seasonInfo) {
           setEpisodesCount(seasonInfo.episode_count);
+          setEpisodesData([]);
           setSelectedEpisode(1);
         }
       }
@@ -314,35 +334,114 @@ export default function TvDetails() {
                         {/* Selectors */}
                         <div className="flex flex-wrap gap-4">
                             {/* Season Selector */}
-                            <div className="relative group">
-                                <select
-                                    value={selectedSeason}
-                                    onChange={(e) => setSelectedSeason(Number(e.target.value))}
-                                    className="appearance-none bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-12 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px]"
+                            <div className="relative group" ref={seasonDropdownRef}>
+                                <button
+                                    onClick={() => {
+                                        setIsSeasonDropdownOpen(!isSeasonDropdownOpen);
+                                        setIsEpisodeDropdownOpen(false);
+                                    }}
+                                    className="flex items-center justify-between bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-4 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px]"
                                 >
-                                    {availableSeasons.map((season: any) => (
-                                        <option key={season.id} value={season.season_number}>
-                                            {t.details.season} {season.season_number}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-white transition-colors" />
+                                    <span>{t.details.season} {selectedSeason}</span>
+                                    <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${isSeasonDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {isSeasonDropdownOpen && (
+                                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] max-h-[300px] overflow-y-auto bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 scrollbar-hide">
+                                        {availableSeasons.map((season: any) => (
+                                            <div
+                                                key={season.id}
+                                                onClick={() => {
+                                                    setSelectedSeason(season.season_number);
+                                                    setIsSeasonDropdownOpen(false);
+                                                }}
+                                                className={`p-3 cursor-pointer transition-colors ${
+                                                    selectedSeason === season.season_number 
+                                                        ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
+                                                        : 'hover:bg-white/5 border-l-2 border-transparent'
+                                                }`}
+                                            >
+                                                <span className="text-sm font-medium">{t.details.season} {season.season_number}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Episode Selector */}
-                            <div className="relative group">
-                                <select
-                                    value={selectedEpisode}
-                                    onChange={(e) => setSelectedEpisode(Number(e.target.value))}
-                                    className="appearance-none bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-12 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px]"
+                            <div className="relative group" ref={episodeDropdownRef}>
+                                <button
+                                    onClick={() => {
+                                        setIsEpisodeDropdownOpen(!isEpisodeDropdownOpen);
+                                        setIsSeasonDropdownOpen(false);
+                                    }}
+                                    className="flex items-center justify-between bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-4 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px] md:min-w-[200px]"
                                 >
-                                    {Array.from({ length: episodesCount }, (_, i) => i + 1).map((ep) => (
-                                        <option key={ep} value={ep}>
-                                            {t.details.episode} {ep}
-                                        </option>
-                                    ))}
-                                </select>
-                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-white transition-colors" />
+                                    <span>{t.details.episode} {selectedEpisode}</span>
+                                    <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${isEpisodeDropdownOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {isEpisodeDropdownOpen && (
+                                    <div className="absolute left-0 top-full mt-2 w-[85vw] sm:w-[400px] max-w-[400px] max-h-[400px] overflow-y-auto bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 scrollbar-hide">
+                                        {episodesData.length > 0 ? (
+                                            episodesData.map((ep: any) => (
+                                                <div
+                                                    key={ep.id}
+                                                    onClick={() => {
+                                                        setSelectedEpisode(ep.episode_number);
+                                                        setIsEpisodeDropdownOpen(false);
+                                                    }}
+                                                    className={`flex gap-3 p-3 cursor-pointer transition-colors ${
+                                                        selectedEpisode === ep.episode_number 
+                                                            ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
+                                                            : 'hover:bg-white/5 border-l-2 border-transparent'
+                                                    }`}
+                                                >
+                                                    <div className="relative w-24 h-16 flex-shrink-0 rounded-md overflow-hidden bg-zinc-800">
+                                                        {ep.still_path ? (
+                                                            <Image
+                                                                src={`https://image.tmdb.org/t/p/w300${ep.still_path}`}
+                                                                alt={ep.name}
+                                                                fill
+                                                                className="object-cover"
+                                                                referrerPolicy="no-referrer"
+                                                            />
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                                                <Play className="w-6 h-6" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="text-sm font-semibold text-white truncate">
+                                                            {ep.episode_number}. {ep.name}
+                                                        </h4>
+                                                        <p className="text-xs text-zinc-400 line-clamp-2 mt-1">
+                                                            {ep.overview || "Aucune description disponible."}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            Array.from({ length: episodesCount }, (_, i) => i + 1).map((ep) => (
+                                                <div
+                                                    key={ep}
+                                                    onClick={() => {
+                                                        setSelectedEpisode(ep);
+                                                        setIsEpisodeDropdownOpen(false);
+                                                    }}
+                                                    className={`p-3 cursor-pointer transition-colors ${
+                                                        selectedEpisode === ep 
+                                                            ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
+                                                            : 'hover:bg-white/5 border-l-2 border-transparent'
+                                                    }`}
+                                                >
+                                                    <span className="text-sm font-medium">{t.details.episode} {ep}</span>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

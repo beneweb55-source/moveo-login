@@ -31,7 +31,7 @@ export default function MovieDetails() {
 
   useEffect(() => {
     if (data?.title) {
-      document.title = `Moveo — ${data.title}`;
+      document.title = `${data.title} - Moveo`;
     } else {
       document.title = 'Moveo';
     }

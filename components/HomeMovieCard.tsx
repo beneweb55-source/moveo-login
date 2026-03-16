@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Play, Star } from "lucide-react";
 import Image from "next/image";
 
@@ -10,8 +10,6 @@ interface HomeMovieCardProps {
 }
 
 const HomeMovieCard = ({ data }: HomeMovieCardProps) => {
-  const router = useRouter();
-
   const posterUrl = data.poster_path
     ? `https://image.tmdb.org/t/p/w500${data.poster_path}`
     : "https://picsum.photos/seed/poster/400/600";
@@ -25,9 +23,9 @@ const HomeMovieCard = ({ data }: HomeMovieCardProps) => {
   const rating = data.vote_average ? data.vote_average.toFixed(1) : "NR";
 
   return (
-    <div
+    <Link
+      href={`/${data.media_type || "movie"}/${data.id}`}
       className="relative flex flex-col gap-3 cursor-pointer group"
-      onClick={() => router.push(`/${data.media_type || "movie"}/${data.id}`)}
     >
       {/* Poster Container */}
       <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a]">
@@ -58,7 +56,7 @@ const HomeMovieCard = ({ data }: HomeMovieCardProps) => {
         </h3>
         <span className="text-sm text-white/50">{releaseYear}</span>
       </div>
-    </div>
+    </Link>
   );
 };
 

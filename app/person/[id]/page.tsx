@@ -44,7 +44,7 @@ export default function PersonDetails() {
 
   useEffect(() => {
     if (data?.name) {
-      document.title = `Moveo — ${data.name}`;
+      document.title = `${data.name} - Moveo`;
     } else {
       document.title = 'Moveo';
     }

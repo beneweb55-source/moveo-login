@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Play, Clock } from "lucide-react";
 import Image from "next/image";
 import { WatchHistoryItem } from "@/utils/historyManager";
@@ -12,23 +12,16 @@ interface HistoryCardProps {
 }
 
 const HistoryCard = ({ item }: HistoryCardProps) => {
-  const router = useRouter();
   const { t } = useLanguage();
 
   const posterUrl = item.poster_path
     ? (item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`)
     : "https://picsum.photos/seed/poster/400/600";
 
-  const handleResume = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    // Navigate to details page, maybe with a hash or query to auto-scroll/play
-    router.push(`/${item.type}/${item.id}`);
-  };
-
   return (
-    <div
+    <Link
+      href={`/${item.type}/${item.id}`}
       className="relative flex flex-col gap-3 cursor-pointer group/card w-full flex-shrink-0"
-      onClick={handleResume}
     >
       {/* Poster Container */}
       <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a] transition-all duration-300 ease-in-out group-hover/card:shadow-[0_0_20px_rgba(229,9,20,0.4)] group-hover/card:scale-105 border border-white/5">
@@ -87,7 +80,7 @@ const HistoryCard = ({ item }: HistoryCardProps) => {
           </span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 };
 

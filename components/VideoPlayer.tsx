@@ -109,6 +109,15 @@ const SERVERS = [
 // Fonction utilitaire de test (Pre-Flight Check via API Route)
 const checkServerHealth = async (url: string): Promise<boolean> => {
   try {
+    const cacheKey = `health_${url}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) {
+      const { status, timestamp } = JSON.parse(cached);
+      if (Date.now() - timestamp < 1000 * 60 * 5) { // 5 minutes cache
+        return status;
+      }
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout global pour l'appel API
 
@@ -121,9 +130,12 @@ const checkServerHealth = async (url: string): Promise<boolean> => {
 
     if (response.ok) {
       const data = await response.json();
-      return data.status === 'ok';
+      const isHealthy = data.status === 'ok';
+      sessionStorage.setItem(cacheKey, JSON.stringify({ status: isHealthy, timestamp: Date.now() }));
+      return isHealthy;
     }
     
+    sessionStorage.setItem(cacheKey, JSON.stringify({ status: false, timestamp: Date.now() }));
     return false;
   } catch (error) {
     return false;
@@ -190,11 +202,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
       
       let serverOrder = [...SERVERS.map((_, i) => i)]; // Liste des index [0, 1, 2...]
 
-      // Si une préférence existe, on la met en premier dans la liste à tester
+      // Si une préférence existe, on l'utilise directement pour éviter le throttling Vercel sur les onglets dupliqués
       if (savedServerName) {
         const prefIndex = SERVERS.findIndex(s => s.name === savedServerName);
         if (prefIndex !== -1) {
-          serverOrder = [prefIndex, ...serverOrder.filter(i => i !== prefIndex)];
+          console.log(`[SmartPlayer] Utilisation directe du serveur préféré : ${savedServerName}`);
+          setCurrentServer(prefIndex);
+          setIsChecking(false);
+          return;
         }
       }
 
