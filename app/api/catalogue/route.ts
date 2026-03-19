@@ -1,5 +1,12 @@
 import { NextResponse } from 'next/server';
-import pool from '@/lib/db';
+import { Pool } from 'pg';
+
+const scraperPool = new Pool({
+  connectionString: process.env.SCRAPER_DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
 export async function GET(request: Request) {
   try {
@@ -10,7 +17,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ found: false });
     }
 
-    const res = await pool.query(
+    const res = await scraperPool.query(
       'SELECT vidoza_url, voe_url, lang FROM catalogue WHERE tmdb_id = $1',
       [tmdb_id]
     );
