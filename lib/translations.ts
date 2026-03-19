@@ -78,6 +78,7 @@ export const translations = {
       director: "Réalisateur",
       writer: "Scénariste",
       biography: "Biographie",
+      moveoServer: "Moveo (Premium)",
     },
     actionButtons: {
       removedFrom: "Retiré de",
@@ -442,6 +443,7 @@ export const translations = {
       director: "Director",
       writer: "Writer",
       biography: "Biography",
+      moveoServer: "Moveo (Premium)",
     },
     actionButtons: {
       removedFrom: "Removed from",

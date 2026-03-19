@@ -4,6 +4,25 @@ import pool from '@/lib/db';
 export async function GET() {
   try {
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS catalogue (
+        tmdb_id           VARCHAR(20) PRIMARY KEY,
+        imdb_id           VARCHAR(20),
+        title             VARCHAR(500),
+        original_title    VARCHAR(500),
+        year              CHAR(4),
+        overview          TEXT,
+        poster_path       VARCHAR(200),
+        backdrop_path     VARCHAR(200),
+        genres            VARCHAR(300),
+        vote_average      FLOAT,
+        runtime           INT,
+        original_language CHAR(5),
+        vidoza_url        VARCHAR(512),
+        voe_url           VARCHAR(512),
+        lang              VARCHAR(20),
+        date_ajout        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS watch_history (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

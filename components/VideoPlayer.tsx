@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ExternalLink, Server, Zap, Globe, Film, Loader2, AlertCircle } from "lucide-react";
+import { ExternalLink, Server, Zap, Globe, Film, Loader2, AlertCircle, Star } from "lucide-react";
 
 import { saveWatchHistory, getWatchHistory } from "@/utils/historyManager";
 import { useLanguage } from "@/context/LanguageContext";
@@ -142,8 +142,16 @@ const checkServerHealth = async (url: string): Promise<boolean> => {
   }
 };
 
+const toVidozaEmbed = (url: string): string => {
+  // Transforme https://vidoza.net/1984170 → https://vidoza.net/embed-1984170.html
+  const match = url.match(/vidoza\.net\/([a-zA-Z0-9]+)/);
+  if (match) return `https://vidoza.net/embed-${match[1]}.html`;
+  return url; // fallback si format inattendu
+};
+
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, genres, title, posterPath }) => {
   const { t } = useLanguage();
+  const [serverList, setServerList] = useState(SERVERS);
   const [currentServer, setCurrentServer] = useState<number | null>(null);
   const [isChecking, setIsChecking] = useState(true);
   const [checkingServerName, setCheckingServerName] = useState<string>("");
@@ -159,17 +167,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
 
     const timeoutId = setTimeout(() => {
       // Si après 6s l'iframe n'a pas chargé, on passe au suivant
-      console.warn(`[SmartPlayer] Timeout (6s) sur le serveur ${SERVERS[currentServer].name}. Changement automatique...`);
+      console.warn(`[SmartPlayer] Timeout (6s) sur le serveur ${serverList[currentServer].name}. Changement automatique...`);
       setIsSwitching(true);
       
       // Petit délai pour afficher le message avant de changer
       setTimeout(() => {
-        const nextIndex = (currentServer + 1) % SERVERS.length;
-        // On évite de boucler à l'infini si on revient au début et qu'on a déjà tout testé, 
-        // mais ici on suppose que le pre-flight a déjà filtré les morts.
-        // On passe juste au suivant dans la liste.
+        const nextIndex = (currentServer + 1) % serverList.length;
         setCurrentServer(nextIndex);
-        localStorage.setItem("preferredServer", SERVERS[nextIndex].name);
+        localStorage.setItem("preferredServer", serverList[nextIndex].name);
         setIsSwitching(false);
         setIframeLoaded(false); // Reset pour le nouveau serveur
       }, 1500);
@@ -177,34 +182,71 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
     }, 6000);
 
     return () => clearTimeout(timeoutId);
-  }, [currentServer, isChecking, iframeLoaded]);
-
-  // Reset iframeLoaded quand on change de serveur manuellement ou automatiquement
-  // useEffect(() => {
-  //   setIframeLoaded(false);
-  //   setIsSwitching(false);
-  // }, [currentServer]);
+  }, [currentServer, isChecking, iframeLoaded, serverList]);
 
   // Logique de sélection intelligente au montage (Parallélisée)
   useEffect(() => {
     let isMounted = true;
 
-    const findBestServer = async () => {
+    const init = async () => {
+      let customServers: any[] = [];
+      
+      if (type === 'movie') {
+        try {
+          const res = await fetch(`/api/catalogue?tmdb_id=${id}`);
+          const data = await res.json();
+          
+          if (data.vidoza_url) {
+            customServers.push({
+              name: "Vidoza [Notre Catalogue]",
+              group: "Notre Catalogue",
+              icon: Zap,
+              url: () => toVidozaEmbed(data.vidoza_url)
+            });
+          }
+          if (data.voe_url) {
+            customServers.push({
+              name: "VOE [Notre Catalogue]",
+              group: "Notre Catalogue",
+              icon: Zap,
+              url: () => data.voe_url
+            });
+          }
+        } catch (error) {
+          console.error("Catalogue fetch error", error);
+        }
+      }
+
+      const updatedServers = [...customServers, ...SERVERS];
+      if (isMounted) {
+        setServerList(updatedServers);
+        findBestServer(updatedServers, customServers.length > 0);
+      }
+    };
+
+    const findBestServer = async (currentServers: any[], hasCustomServers: boolean) => {
       setIsChecking(true);
       setAllServersFailed(false);
       setCurrentServer(null);
       setIframeLoaded(false);
+
+      // Si on a des serveurs custom, on sélectionne le premier directement sans vérifier
+      if (hasCustomServers) {
+        setCurrentServer(0);
+        setIsChecking(false);
+        return;
+      }
 
       // 1. Récupérer la préférence utilisateur (Historique spécifique > Préférence globale)
       const history = getWatchHistory();
       const historyItem = history.find((item) => item.id === id);
       const savedServerName = historyItem?.provider || localStorage.getItem("preferredServer");
       
-      let serverOrder = [...SERVERS.map((_, i) => i)]; // Liste des index [0, 1, 2...]
+      let serverOrder = [...currentServers.map((_, i) => i)]; // Liste des index [0, 1, 2...]
 
       // Si une préférence existe, on l'utilise directement pour éviter le throttling Vercel sur les onglets dupliqués
       if (savedServerName) {
-        const prefIndex = SERVERS.findIndex(s => s.name === savedServerName);
+        const prefIndex = currentServers.findIndex(s => s.name === savedServerName);
         if (prefIndex !== -1) {
           console.log(`[SmartPlayer] Utilisation directe du serveur préféré : ${savedServerName}`);
           setCurrentServer(prefIndex);
@@ -220,13 +262,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         if (!isMounted) return;
 
         const batchIndices = serverOrder.slice(i, i + BATCH_SIZE);
-        const batchServers = batchIndices.map(index => SERVERS[index]);
+        const batchServers = batchIndices.map(index => currentServers[index]);
         
         setCheckingServerName(batchServers.map(s => s.name).join(", "));
 
         // Lancer les tests en parallèle pour ce lot
         const promises = batchIndices.map(async (index) => {
-          const server = SERVERS[index];
+          const server = currentServers[index];
           const url = server.url(type, id, season, episode);
           const isHealthy = await checkServerHealth(url);
           return { index, isHealthy, name: server.name };
@@ -277,7 +319,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
       }
     };
 
-    findBestServer();
+    init();
 
     return () => { isMounted = false; };
   }, [id, type, season, episode, title, posterPath]);
@@ -324,7 +366,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
             poster_path: posterPath || "",
             season,
             episode,
-            provider: SERVERS[currentServer].name,
+            provider: serverList[currentServer].name,
             last_watched: now,
             timestamp: currentTime,
             duration: duration
@@ -336,7 +378,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [id, type, title, posterPath, season, episode, currentServer]);
+  }, [id, type, title, posterPath, season, episode, currentServer, serverList]);
 
   // Mettre à jour l'historique périodiquement (toutes les minutes) pour le "last_watched"
   useEffect(() => {
@@ -350,15 +392,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         poster_path: posterPath || "",
         season,
         episode,
-        provider: SERVERS[currentServer].name,
+        provider: serverList[currentServer].name,
         last_watched: Date.now(),
       });
     }, 60000);
 
     return () => clearInterval(interval);
-  }, [currentServer, id, type, title, posterPath, season, episode]);
+  }, [currentServer, id, type, title, posterPath, season, episode, serverList]);
 
-  const videoUrl = currentServer !== null ? SERVERS[currentServer].url(type, id, season, episode) : "";
+  const videoUrl = currentServer !== null ? serverList[currentServer].url(type, id, season, episode) : "";
 
   return (
     <div className="w-full max-w-5xl mx-auto mt-8 mb-12">
@@ -384,11 +426,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         )}
 
         {/* CAS 3 : Serveur trouvé et validé */}
-        {!isChecking && currentServer !== null && (
+        {(!isChecking && currentServer !== null) && (
           <>
-            {(SERVERS[currentServer] as any).warningKey && (
+            {(serverList[currentServer] as any).warningKey && (
               <div className="absolute top-0 left-0 right-0 z-10 bg-yellow-500/90 text-black text-xs font-bold px-4 py-2 text-center backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-500">
-                ⚠️ {(t.details as any)[(SERVERS[currentServer] as any).warningKey]}
+                ⚠️ {(t.details as any)[(serverList[currentServer] as any).warningKey]}
               </div>
             )}
             <iframe
@@ -398,19 +440,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
               referrerPolicy="no-referrer"
               title="Video Player"
               onLoad={() => {
-                console.log(`[SmartPlayer] Iframe chargée pour ${SERVERS[currentServer].name}`);
+                console.log(`[SmartPlayer] Iframe chargée pour ${serverList[currentServer].name}`);
                 setIframeLoaded(true);
               }}
               onError={() => {
-                 // Note: onError ne se déclenche pas souvent pour les iframes cross-origin, 
-                 // mais on le met au cas où.
-                 console.error(`[SmartPlayer] Erreur iframe pour ${SERVERS[currentServer].name}`);
-                 // On force le switch immédiatement
+                 console.error(`[SmartPlayer] Erreur iframe pour ${serverList[currentServer].name}`);
                  setIsSwitching(true);
                  setTimeout(() => {
-                   const nextIndex = (currentServer + 1) % SERVERS.length;
+                   const nextIndex = (currentServer + 1) % serverList.length;
                    setCurrentServer(nextIndex);
-                   localStorage.setItem("preferredServer", SERVERS[nextIndex].name);
+                   localStorage.setItem("preferredServer", serverList[nextIndex].name);
                    setIsSwitching(false);
                    setIframeLoaded(false);
                  }, 1000);
@@ -441,12 +480,50 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
           )}
         </div>
 
+        {/* Notre Catalogue Servers */}
+        {serverList.some(s => s.group === "Notre Catalogue") && (
+          <div className="space-y-3 transition-opacity duration-300">
+            <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.moveoServer || "Notre Catalogue"}</h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {serverList.filter(s => s.group === "Notre Catalogue").map((server) => {
+                const index = serverList.indexOf(server);
+                const isActive = currentServer === index;
+                const Icon = server.icon;
+                
+                return (
+                  <button
+                    key={server.name}
+                    onClick={() => {
+                      setCurrentServer(index);
+                      localStorage.setItem("preferredServer", server.name);
+                      setIframeLoaded(false);
+                      setIsSwitching(false);
+                    }}
+                    className={`
+                      relative flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-lg font-medium text-sm transition-all duration-300
+                      ${isActive 
+                        ? "bg-[#E50914] text-white border-2 border-[#E50914] shadow-[0_0_20px_rgba(229,9,20,0.4)]" 
+                        : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700"
+                      }
+                    `}
+                  >
+                    <div className="flex items-center gap-2 relative z-10">
+                      <Star className={`w-4 h-4 ${isActive ? "text-white fill-current" : "text-yellow-500 fill-current"}`} />
+                      <span>{server.name.split(" ")[0]}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Recommended Servers */}
         <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
           <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.recommended}</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {SERVERS.filter(s => s.group === "Recommended").map((server) => {
-              const index = SERVERS.indexOf(server);
+            {serverList.filter(s => s.group === "Recommended").map((server) => {
+              const index = serverList.indexOf(server);
               const isActive = currentServer === index;
               const Icon = server.icon;
               
@@ -500,8 +577,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
           <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.alternative}</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {SERVERS.filter(s => s.group !== "Recommended").map((server) => {
-              const index = SERVERS.indexOf(server);
+            {serverList.filter(s => s.group !== "Recommended" && s.group !== "Notre Catalogue").map((server) => {
+              const index = serverList.indexOf(server);
               const isActive = currentServer === index;
               
               return (
