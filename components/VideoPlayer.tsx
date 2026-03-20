@@ -166,8 +166,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
     if (currentServer === null || isChecking || iframeLoaded) return;
 
     const timeoutId = setTimeout(() => {
-      // Si après 6s l'iframe n'a pas chargé, on passe au suivant
-      console.warn(`[SmartPlayer] Timeout (6s) sur le serveur ${serverList[currentServer].name}. Changement automatique...`);
+      // Si après 30s l'iframe n'a pas chargé, on passe au suivant
+      console.warn(`[SmartPlayer] Timeout (30s) sur le serveur ${serverList[currentServer].name}. Changement automatique...`);
       setIsSwitching(true);
       
       // Petit délai pour afficher le message avant de changer
@@ -179,7 +179,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         setIframeLoaded(false); // Reset pour le nouveau serveur
       }, 1500);
 
-    }, 6000);
+    }, 30000);
 
     return () => clearTimeout(timeoutId);
   }, [currentServer, isChecking, iframeLoaded, serverList]);

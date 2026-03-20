@@ -5,7 +5,9 @@ export async function GET() {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS catalogue (
-        tmdb_id           VARCHAR(20) PRIMARY KEY,
+        tmdb_id           VARCHAR(20),
+        season            INTEGER DEFAULT 0,
+        episode           INTEGER DEFAULT 0,
         imdb_id           VARCHAR(20),
         title             VARCHAR(500),
         original_title    VARCHAR(500),
@@ -20,7 +22,8 @@ export async function GET() {
         vidoza_url        VARCHAR(512),
         voe_url           VARCHAR(512),
         lang              VARCHAR(20),
-        date_ajout        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        date_ajout        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (tmdb_id, season, episode)
       );
 
       CREATE TABLE IF NOT EXISTS watch_history (

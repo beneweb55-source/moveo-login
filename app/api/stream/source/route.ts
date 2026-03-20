@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const CONSUMET_URL = process.env.CONSUMET_API_URL || "https://api.consumet.org";
+const CONSUMET_URL = process.env.NEXT_PUBLIC_CONSUMET_API_URL || "https://api.consumet.org";
 
 export async function POST(req: NextRequest) {
   try {
