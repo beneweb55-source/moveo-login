@@ -26,6 +26,17 @@ export async function GET() {
         PRIMARY KEY (tmdb_id, season, episode)
       );
 
+      CREATE TABLE IF NOT EXISTS film_requests (
+        id           SERIAL PRIMARY KEY,
+        tmdb_id      VARCHAR(20) UNIQUE NOT NULL,
+        title        VARCHAR(500),
+        year         CHAR(4),
+        requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        status       VARCHAR(20) DEFAULT 'pending',
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        processed_at TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS watch_history (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

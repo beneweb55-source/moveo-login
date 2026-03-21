@@ -7,7 +7,7 @@ import ContentWrapper from "@/components/ContentWrapper";
 import VideoPlayer from "@/components/VideoPlayer";
 import ActionButtons from "@/components/ActionButtons";
 import CastList from "@/components/CastList";
-import { Star, ArrowLeft, Clock, Calendar, Play, Film, RefreshCw, X } from "lucide-react";
+import { Star, ArrowLeft, Clock, Calendar, Play, Film, RefreshCw, X, Loader2, Check, Plus } from "lucide-react";
 import Image from "next/image";
 import { motion, useScroll, useTransform, AnimatePresence } from "motion/react";
 import Carousel from "@/components/Carousel";
@@ -25,6 +25,10 @@ export default function MovieDetails() {
   const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<HTMLDivElement>(null);
   const [showTrailer, setShowTrailer] = useState(false);
+
+  const [moveoFound, setMoveoFound] = useState<boolean | null>(null);
+  type RequestState = 'idle' | 'loading' | 'requested' | 'already' | 'error';
+  const [requestState, setRequestState] = useState<RequestState>('idle');
 
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 200]);
@@ -58,6 +62,35 @@ export default function MovieDetails() {
     };
     fetchDetails();
   }, [id, langParam]);
+
+  useEffect(() => {
+    if (!id) return;
+    fetch(`/api/catalogue?tmdb_id=${id}`)
+      .then(r => r.json())
+      .then(d => setMoveoFound(d.found))
+      .catch(() => setMoveoFound(false));
+  }, [id]);
+
+  const handleRequest = async () => {
+    setRequestState('loading');
+    try {
+      const res = await fetch('/api/film-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tmdb_id: id, title: data?.title, year: String(year) })
+      });
+      if (res.status === 401) {
+        router.push('/login');
+        return;
+      }
+      const json = await res.json();
+      if (json.status === 'requested') setRequestState('requested');
+      else if (json.status === 'already_available' || json.status === 'already_requested') setRequestState('already');
+      else setRequestState('error');
+    } catch {
+      setRequestState('error');
+    }
+  };
 
   const scrollToPlayer = () => {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -222,6 +255,32 @@ export default function MovieDetails() {
                                     <Play className="w-5 h-5" />
                                     <span>{t.details.watchTrailer}</span>
                                 </button>
+                            )}
+
+                            {moveoFound === false && (
+                              <button
+                                onClick={handleRequest}
+                                disabled={requestState === 'loading' || requestState === 'requested' || requestState === 'already'}
+                                className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 md:py-4 rounded-full font-bold transition-all duration-300 border text-sm ${
+                                  requestState === 'requested'
+                                    ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10 cursor-default'
+                                    : requestState === 'already'
+                                      ? 'border-zinc-600 text-zinc-500 bg-zinc-800/50 cursor-default'
+                                      : requestState === 'error'
+                                        ? 'border-red-500 text-red-400 hover:bg-red-500/10'
+                                        : 'border-white/20 text-white/70 hover:border-[#E50914] hover:text-white hover:bg-[#E50914]/10'
+                                }`}
+                              >
+                                {requestState === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {requestState === 'requested' && <Check className="w-4 h-4" />}
+                                {requestState === 'idle' && <Plus className="w-4 h-4" />}
+                                <span>
+                                  {requestState === 'requested' ? t.details.requestSent
+                                   : requestState === 'already' ? t.details.requestAlready
+                                   : requestState === 'error' ? t.details.requestError
+                                   : t.details.requestMovie}
+                                </span>
+                              </button>
                             )}
 
                             <ActionButtons

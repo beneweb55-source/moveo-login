@@ -79,6 +79,10 @@ export const translations = {
       writer: "Scénariste",
       biography: "Biographie",
       moveoServer: "Moveo (Premium)",
+      requestMovie: "Demander en VF",
+      requestSent: "Demande envoyée ✓",
+      requestAlready: "Déjà dans la file",
+      requestError: "Erreur, réessaie",
     },
     actionButtons: {
       removedFrom: "Retiré de",
@@ -444,6 +448,10 @@ export const translations = {
       writer: "Writer",
       biography: "Biography",
       moveoServer: "Moveo (Premium)",
+      requestMovie: "Request in French",
+      requestSent: "Request sent ✓",
+      requestAlready: "Already queued",
+      requestError: "Error, try again",
     },
     actionButtons: {
       removedFrom: "Removed from",
