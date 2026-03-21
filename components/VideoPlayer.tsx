@@ -144,14 +144,27 @@ const checkServerHealth = async (url: string): Promise<boolean> => {
 
 const toVoeEmbed = (url: string): string => {
   if (!url) return "";
+  
+  // Si l'URL contient déjà /e/, elle est probablement déjà au bon format d'embed
   if (url.includes('/e/')) return url;
+  
   try {
     const urlObj = new URL(url);
+    
+    // Format 1: https://voe.sx/xxxxxx -> https://voe.sx/e/xxxxxx
     if (!urlObj.pathname.startsWith('/e/')) {
-      urlObj.pathname = '/e' + urlObj.pathname;
+      // On s'assure de ne pas ajouter /e/ si c'est déjà là d'une autre manière
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      if (pathParts.length > 0 && pathParts[0] !== 'e') {
+        urlObj.pathname = '/e/' + pathParts.join('/');
+      }
     }
     return urlObj.toString();
   } catch (e) {
+    // Si ce n'est pas une URL valide, on essaie de la construire si ça ressemble à un ID
+    if (url && !url.includes('http')) {
+      return `https://voe.sx/e/${url}`;
+    }
     return url;
   }
 };
@@ -206,12 +219,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         const res = await fetch(fetchUrl);
         const data = await res.json();
         
+        console.log(`[SmartPlayer] Data received from catalogue API:`, data);
+        
         if (data.voe_url) {
+          const finalVoeUrl = toVoeEmbed(data.voe_url);
+          console.log(`[SmartPlayer] Original VOE URL: ${data.voe_url} -> Final Embed URL: ${finalVoeUrl}`);
+          
           customServers.push({
             name: "VOE [MOVEO PREMIUM]",
             group: "MOVEO PREMIUM",
             icon: Zap,
-            url: () => toVoeEmbed(data.voe_url),
+            url: () => finalVoeUrl,
             lang: data.lang
           });
         }

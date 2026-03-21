@@ -32,6 +32,8 @@ export async function GET(request: Request) {
       [tmdb_id]
     );
 
+    console.log(`[Catalogue API] Query for tmdb_id ${tmdb_id} returned:`, res.rows[0]);
+
     if (res.rows.length > 0) {
       const row = res.rows[0];
       if (row.vidoza_url || row.voe_url) {

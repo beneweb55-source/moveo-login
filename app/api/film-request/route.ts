@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         tmdb_id VARCHAR(20) UNIQUE NOT NULL,
         title VARCHAR(500),
         year CHAR(4),
-        requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        requested_by INTEGER,
         status VARCHAR(20) DEFAULT 'pending',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         processed_at TIMESTAMP
