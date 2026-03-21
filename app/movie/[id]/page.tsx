@@ -25,7 +25,6 @@ export default function MovieDetails() {
   const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<HTMLDivElement>(null);
   const [showTrailer, setShowTrailer] = useState(false);
-
   const [moveoFound, setMoveoFound] = useState<boolean | null>(null);
   type RequestState = 'idle' | 'loading' | 'requested' | 'already' | 'error';
   const [requestState, setRequestState] = useState<RequestState>('idle');
@@ -71,6 +70,14 @@ export default function MovieDetails() {
       .catch(() => setMoveoFound(false));
   }, [id]);
 
+  const scrollToPlayer = () => {
+    playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const handleHardRefresh = () => {
+    setPlayerKey(prev => prev + 1);
+  };
+
   const handleRequest = async () => {
     setRequestState('loading');
     try {
@@ -90,14 +97,6 @@ export default function MovieDetails() {
     } catch {
       setRequestState('error');
     }
-  };
-
-  const scrollToPlayer = () => {
-    playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-  };
-
-  const handleHardRefresh = () => {
-    setPlayerKey(prev => prev + 1);
   };
 
   if (loading) {
@@ -238,7 +237,7 @@ export default function MovieDetails() {
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4 mb-8">
+                        <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 md:gap-4 mb-8">
                             <button
                                 onClick={scrollToPlayer}
                                 className="w-full sm:w-auto flex items-center justify-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group cursor-pointer"
@@ -258,29 +257,21 @@ export default function MovieDetails() {
                             )}
 
                             {moveoFound === false && (
-                              <button
-                                onClick={handleRequest}
-                                disabled={requestState === 'loading' || requestState === 'requested' || requestState === 'already'}
-                                className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 md:py-4 rounded-full font-bold transition-all duration-300 border text-sm ${
-                                  requestState === 'requested'
-                                    ? 'border-emerald-500 text-emerald-400 bg-emerald-500/10 cursor-default'
-                                    : requestState === 'already'
-                                      ? 'border-zinc-600 text-zinc-500 bg-zinc-800/50 cursor-default'
-                                      : requestState === 'error'
-                                        ? 'border-red-500 text-red-400 hover:bg-red-500/10'
-                                        : 'border-white/20 text-white/70 hover:border-[#E50914] hover:text-white hover:bg-[#E50914]/10'
-                                }`}
-                              >
-                                {requestState === 'loading' && <Loader2 className="w-4 h-4 animate-spin" />}
-                                {requestState === 'requested' && <Check className="w-4 h-4" />}
-                                {requestState === 'idle' && <Plus className="w-4 h-4" />}
-                                <span>
-                                  {requestState === 'requested' ? t.details.requestSent
-                                   : requestState === 'already' ? t.details.requestAlready
-                                   : requestState === 'error' ? t.details.requestError
-                                   : t.details.requestMovie}
-                                </span>
-                              </button>
+                                <button
+                                    onClick={handleRequest}
+                                    disabled={requestState === 'loading' || requestState === 'requested' || requestState === 'already'}
+                                    className={`w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg whitespace-nowrap ${ requestState === 'requested' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 cursor-default' : requestState === 'already' ? 'bg-zinc-800/80 text-zinc-400 border border-zinc-700 cursor-default' : requestState === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30' : 'bg-transparent hover:bg-white/10 border border-white/50 text-white hover:border-white hover:scale-105 group' }`}
+                                >
+                                    {requestState === 'loading' && <Loader2 className="w-5 h-5 animate-spin" />}
+                                    {requestState === 'requested' && <Check className="w-5 h-5" />}
+                                    {requestState === 'idle' && <Plus className="w-5 h-5" />}
+                                    <span>
+                                      {requestState === 'requested' ? t.details.requestSent
+                                       : requestState === 'already' ? t.details.requestAlready
+                                       : requestState === 'error' ? t.details.requestError
+                                       : t.details.requestMovie}
+                                    </span>
+                                </button>
                             )}
 
                             <ActionButtons

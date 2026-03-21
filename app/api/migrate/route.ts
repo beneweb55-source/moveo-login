@@ -27,13 +27,13 @@ export async function GET() {
       );
 
       CREATE TABLE IF NOT EXISTS film_requests (
-        id           SERIAL PRIMARY KEY,
-        tmdb_id      VARCHAR(20) UNIQUE NOT NULL,
-        title        VARCHAR(500),
-        year         CHAR(4),
+        id SERIAL PRIMARY KEY,
+        tmdb_id VARCHAR(20) UNIQUE NOT NULL,
+        title VARCHAR(500),
+        year CHAR(4),
         requested_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
-        status       VARCHAR(20) DEFAULT 'pending',
-        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        status VARCHAR(20) DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         processed_at TIMESTAMP
       );
 
