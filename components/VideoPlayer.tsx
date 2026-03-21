@@ -142,11 +142,18 @@ const checkServerHealth = async (url: string): Promise<boolean> => {
   }
 };
 
-const toVidozaEmbed = (url: string): string => {
-  // Transforme https://vidoza.net/1984170 → https://vidoza.net/embed-1984170.html
-  const match = url.match(/vidoza\.net\/([a-zA-Z0-9]+)/);
-  if (match) return `https://vidoza.net/embed-${match[1]}.html`;
-  return url; // fallback si format inattendu
+const toVoeEmbed = (url: string): string => {
+  if (!url) return "";
+  if (url.includes('/e/')) return url;
+  try {
+    const urlObj = new URL(url);
+    if (!urlObj.pathname.startsWith('/e/')) {
+      urlObj.pathname = '/e' + urlObj.pathname;
+    }
+    return urlObj.toString();
+  } catch (e) {
+    return url;
+  }
 };
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, genres, title, posterPath }) => {
@@ -191,30 +198,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
     const init = async () => {
       let customServers: any[] = [];
       
-      if (type === 'movie') {
-        try {
-          const res = await fetch(`/api/catalogue?tmdb_id=${id}`);
-          const data = await res.json();
+      try {
+        const fetchUrl = type === 'movie' 
+          ? `/api/catalogue?tmdb_id=${id}`
+          : `/api/catalogue?tmdb_id=${id}&season=${season}&episode=${episode}`;
           
-          if (data.vidoza_url) {
-            customServers.push({
-              name: "Vidoza [Notre Catalogue]",
-              group: "Notre Catalogue",
-              icon: Zap,
-              url: () => toVidozaEmbed(data.vidoza_url)
-            });
-          }
-          if (data.voe_url) {
-            customServers.push({
-              name: "VOE [Notre Catalogue]",
-              group: "Notre Catalogue",
-              icon: Zap,
-              url: () => data.voe_url
-            });
-          }
-        } catch (error) {
-          console.error("Catalogue fetch error", error);
+        const res = await fetch(fetchUrl);
+        const data = await res.json();
+        
+        if (data.voe_url) {
+          customServers.push({
+            name: "VOE [MOVEO PREMIUM]",
+            group: "MOVEO PREMIUM",
+            icon: Zap,
+            url: () => toVoeEmbed(data.voe_url),
+            lang: data.lang
+          });
         }
+      } catch (error) {
+        console.error("Catalogue fetch error", error);
       }
 
       const updatedServers = [...customServers, ...SERVERS];
@@ -480,12 +482,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
           )}
         </div>
 
-        {/* Notre Catalogue Servers */}
-        {serverList.some(s => s.group === "Notre Catalogue") && (
+        {/* MOVEO PREMIUM Servers */}
+        {serverList.some(s => s.group === "MOVEO PREMIUM") && (
           <div className="space-y-3 transition-opacity duration-300">
-            <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.moveoServer || "Notre Catalogue"}</h4>
+            <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.moveoServer || "MOVEO PREMIUM"}</h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {serverList.filter(s => s.group === "Notre Catalogue").map((server) => {
+              {serverList.filter(s => s.group === "MOVEO PREMIUM").map((server) => {
                 const index = serverList.indexOf(server);
                 const isActive = currentServer === index;
                 const Icon = server.icon;
@@ -511,6 +513,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
                       <Star className={`w-4 h-4 ${isActive ? "text-white fill-current" : "text-yellow-500 fill-current"}`} />
                       <span>{server.name.split(" ")[0]}</span>
                     </div>
+                    {/* Badge langue dynamique */}
+                    {(server as any).lang && (
+                      <div className="flex items-center gap-1.5 mt-1 relative z-10">
+                        {(server as any).lang === "VF" && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">🇫🇷 VF</span>
+                        )}
+                        {(server as any).lang === "VOSTFR" && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">🇫🇷 VOSTFR</span>
+                        )}
+                      </div>
+                    )}
                   </button>
                 );
               })}
@@ -577,7 +590,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
           <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.alternative}</h4>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {serverList.filter(s => s.group !== "Recommended" && s.group !== "Notre Catalogue").map((server) => {
+            {serverList.filter(s => s.group !== "Recommended" && s.group !== "MOVEO PREMIUM").map((server) => {
               const index = serverList.indexOf(server);
               const isActive = currentServer === index;
               
