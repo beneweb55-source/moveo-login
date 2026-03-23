@@ -392,7 +392,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 src={videoUrl}
                 className="w-full h-full relative z-20"
                 allowFullScreen
-                referrerPolicy="no-referrer"
+                allow="autoplay; fullscreen"
                 title="Video Player"
                 onLoad={() => setIframeLoaded(true)}
               />
