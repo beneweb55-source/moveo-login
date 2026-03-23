@@ -24,40 +24,48 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { tmdb_id, title, year } = await request.json();
+    const { tmdb_id, title, year, type, season, episode } = await request.json();
 
     if (!tmdb_id) {
       return NextResponse.json({ error: 'Missing tmdb_id' }, { status: 400 });
     }
 
     // Check if already in catalogue
-    const catalogueRes = await pool.query(
-      'SELECT voe_url FROM catalogue WHERE tmdb_id = $1 LIMIT 1',
-      [tmdb_id]
-    );
+    if (type === 'tv' && season && episode) {
+      const seriesRes = await pool.query(
+        'SELECT voe_url FROM series_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
+        [tmdb_id, season, episode]
+      );
+      if (seriesRes.rows.length > 0 && seriesRes.rows[0].voe_url) {
+        return NextResponse.json({ status: 'already_available' });
+      }
 
-    if (catalogueRes.rows.length > 0 && catalogueRes.rows[0].voe_url) {
-      return NextResponse.json({ status: 'already_available' });
+      const animeRes = await pool.query(
+        'SELECT voe_url FROM anime_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
+        [tmdb_id, season, episode]
+      );
+      if (animeRes.rows.length > 0 && animeRes.rows[0].voe_url) {
+        return NextResponse.json({ status: 'already_available' });
+      }
+    } else {
+      const catalogueRes = await pool.query(
+        'SELECT voe_url FROM catalogue WHERE tmdb_id = $1 LIMIT 1',
+        [tmdb_id]
+      );
+
+      if (catalogueRes.rows.length > 0 && catalogueRes.rows[0].voe_url) {
+        return NextResponse.json({ status: 'already_available' });
+      }
     }
-
-    // Ensure table exists
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS film_requests (
-        id SERIAL PRIMARY KEY,
-        tmdb_id VARCHAR(20) UNIQUE NOT NULL,
-        title VARCHAR(500),
-        year CHAR(4),
-        requested_by INTEGER,
-        status VARCHAR(20) DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        processed_at TIMESTAMP
-      )
-    `);
 
     // Check if already requested
     const requestRes = await pool.query(
-      'SELECT status FROM film_requests WHERE tmdb_id = $1 LIMIT 1',
-      [tmdb_id]
+      `SELECT status FROM content_requests 
+       WHERE tmdb_id = $1 AND type = $2 
+       AND (season IS NULL OR season = $3) 
+       AND (episode IS NULL OR episode = $4)
+       LIMIT 1`,
+      [tmdb_id, type || 'movie', season || null, episode || null]
     );
 
     if (requestRes.rows.length > 0) {
@@ -66,8 +74,9 @@ export async function POST(request: Request) {
 
     // Insert new request
     await pool.query(
-      'INSERT INTO film_requests (tmdb_id, title, year, requested_by) VALUES ($1, $2, $3, $4)',
-      [tmdb_id, title, year, userId]
+      `INSERT INTO content_requests (tmdb_id, title, year, type, season, episode, requested_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [tmdb_id, title, year, type || 'movie', season || null, episode || null, userId]
     );
 
     return NextResponse.json({ status: 'requested' });

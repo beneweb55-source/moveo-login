@@ -197,14 +197,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleRequestFilm = async () => {
     setRequestStatus('loading');
     try {
-      const res = await fetch('/api/request-film', {
+      const res = await fetch('/api/film-request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tmdb_id: id,
           title: title,
           year: year,
-          type: type
+          type: type,
+          season: season,
+          episode: episode
         })
       });
       
