@@ -38,6 +38,7 @@ export default function PersonDetails() {
   const [sortBy, setSortBy] = useState<string>("popularity.desc");
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [genres, setGenres] = useState<Genre[]>([]);
+  const [allCredits, setAllCredits] = useState<any[]>([]);
   const [credits, setCredits] = useState<any>(null);
   const [creditsPage, setCreditsPage] = useState(1);
   const [creditsLoading, setCreditsLoading] = useState(false);
@@ -94,29 +95,53 @@ export default function PersonDetails() {
       setCredits(null);
       setCreditsPage(1);
 
-      let finalSortBy = sortBy;
-      if (sortBy === "releaseDate.desc") {
-        finalSortBy = mediaTypeFilter === "tv" ? "first_air_date.desc" : "primary_release_date.desc";
-      }
-
-      const params: any = {
-        language: langParam,
-        with_cast: id,
-        sort_by: finalSortBy,
-        page: 1,
-      };
-
-      if (sortBy === "vote_average.desc") {
-        params["vote_count.gte"] = 50;
-      }
-
-      if (selectedGenre) {
-        params.with_genres = selectedGenre;
-      }
-
       try {
-        const res = await fetchDataFromApi(`/discover/${mediaTypeFilter}`, params);
-        setCredits(res);
+        const res = await fetchDataFromApi(`/person/${id}/${mediaTypeFilter}_credits`, {
+          language: langParam,
+        });
+        
+        let items = res.cast || [];
+        
+        // Remove duplicates (sometimes TMDB returns the same movie/show multiple times for different roles)
+        const uniqueItems = [];
+        const seenIds = new Set();
+        for (const item of items) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            uniqueItems.push(item);
+          }
+        }
+        items = uniqueItems;
+
+        // Filter by genre
+        if (selectedGenre) {
+          items = items.filter((item: any) => item.genre_ids?.includes(Number(selectedGenre)));
+        }
+
+        // Filter by vote_average if needed
+        if (sortBy === "vote_average.desc") {
+          items = items.filter((item: any) => item.vote_count >= 50);
+        }
+
+        // Sort
+        items.sort((a: any, b: any) => {
+          if (sortBy === "popularity.desc") {
+            return (b.popularity || 0) - (a.popularity || 0);
+          } else if (sortBy === "vote_average.desc") {
+            return (b.vote_average || 0) - (a.vote_average || 0);
+          } else if (sortBy === "releaseDate.desc") {
+            const dateA = new Date(a.release_date || a.first_air_date || "1900-01-01").getTime();
+            const dateB = new Date(b.release_date || b.first_air_date || "1900-01-01").getTime();
+            return dateB - dateA;
+          }
+          return 0;
+        });
+
+        setAllCredits(items);
+        setCredits({
+          results: items.slice(0, 20),
+          total_pages: Math.ceil(items.length / 20)
+        });
         setCreditsPage(2);
       } catch (error) {
         console.error("Error fetching credits:", error);
@@ -130,39 +155,16 @@ export default function PersonDetails() {
 
   // Fetch Next Page of Credits
   const fetchNextCreditsPage = async () => {
-    let finalSortBy = sortBy;
-    if (sortBy === "releaseDate.desc") {
-      finalSortBy = mediaTypeFilter === "tv" ? "first_air_date.desc" : "primary_release_date.desc";
-    }
-
-    const params: any = {
-      language: langParam,
-      with_cast: id,
-      sort_by: finalSortBy,
-      page: creditsPage,
-    };
-
-    if (sortBy === "vote_average.desc") {
-      params["vote_count.gte"] = 50;
-    }
-
-    if (selectedGenre) {
-      params.with_genres = selectedGenre;
-    }
-
-    try {
-      const res = await fetchDataFromApi(`/discover/${mediaTypeFilter}`, params);
-      if (credits?.results) {
-        setCredits({
-          ...credits,
-          results: [...credits.results, ...res.results],
-        });
-      } else {
-        setCredits(res);
-      }
-      setCreditsPage((prev) => prev + 1);
-    } catch (error) {
-      console.error("Error fetching next credits page:", error);
+    const startIndex = (creditsPage - 1) * 20;
+    const endIndex = startIndex + 20;
+    const nextItems = allCredits.slice(startIndex, endIndex);
+    
+    if (nextItems.length > 0) {
+      setCredits({
+        ...credits,
+        results: [...credits.results, ...nextItems]
+      });
+      setCreditsPage(prev => prev + 1);
     }
   };
 
