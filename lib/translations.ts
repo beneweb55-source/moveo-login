@@ -88,6 +88,8 @@ export const translations = {
       requestEncoding: "Demander l'encodage prioritaire",
       sending: "Envoi en cours...",
       error: "Une erreur est survenue",
+      prevEpisode: "Épisode Précédent",
+      nextEpisode: "Épisode Suivant",
     },
     actionButtons: {
       removedFrom: "Retiré de",
@@ -462,6 +464,8 @@ export const translations = {
       requestEncoding: "Request priority encoding",
       sending: "Sending...",
       error: "An error occurred",
+      prevEpisode: "Previous Episode",
+      nextEpisode: "Next Episode",
     },
     actionButtons: {
       removedFrom: "Removed from",
