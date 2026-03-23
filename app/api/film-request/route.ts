@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import * as jose from 'jose';
 import pool from '@/lib/db';
+import { Pool } from 'pg';
+
+const scraperPool = new Pool({
+  connectionString: process.env.SCRAPER_DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback_secret_key_for_development_only'
@@ -32,7 +38,7 @@ export async function POST(request: Request) {
 
     // Check if already in catalogue
     if (type === 'tv' && season && episode) {
-      const seriesRes = await pool.query(
+      const seriesRes = await scraperPool.query(
         'SELECT voe_url FROM series_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
         [tmdb_id, season, episode]
       );
@@ -40,7 +46,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ status: 'already_available' });
       }
 
-      const animeRes = await pool.query(
+      const animeRes = await scraperPool.query(
         'SELECT voe_url FROM anime_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
         [tmdb_id, season, episode]
       );
