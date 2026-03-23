@@ -328,7 +328,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <Lock className="w-6 h-6 text-white/50" />
               </div>
               <h3 className="text-xl font-light tracking-tight text-white mb-2">
-                {t.details.encodingTitle || "Contenu en cours d'encodage"}
+                {t.interpolate(t.details.encodingTitle, { lang: activeLang }) || "Contenu en cours d'encodage"}
               </h3>
               <p className="text-sm text-white/40 max-w-md mb-8 leading-relaxed">
                 {t.details.encodingDesc || "Ce contenu n'est pas encore disponible sur nos serveurs sécurisés Moveo Premium en " + activeLang + ". Vous pouvez demander son encodage prioritaire ou utiliser une source alternative ci-dessous."}

@@ -157,6 +157,30 @@ export default function TvDetails() {
 
   const recommendations = data?.recommendations?.results?.slice(0, 10) || [];
 
+  const currentSeasonIndex = availableSeasons.findIndex((s: any) => s.season_number === selectedSeason);
+  const hasPrev = selectedEpisode > 1 || currentSeasonIndex > 0;
+  const hasNext = selectedEpisode < episodesCount || currentSeasonIndex < availableSeasons.length - 1;
+
+  const handlePrev = () => {
+    if (selectedEpisode > 1) {
+      setSelectedEpisode(selectedEpisode - 1);
+    } else if (currentSeasonIndex > 0) {
+      const prevSeason = availableSeasons[currentSeasonIndex - 1];
+      setSelectedSeason(prevSeason.season_number);
+      setSelectedEpisode(prevSeason.episode_count);
+    }
+  };
+
+  const handleNext = () => {
+    if (selectedEpisode < episodesCount) {
+      setSelectedEpisode(selectedEpisode + 1);
+    } else if (currentSeasonIndex < availableSeasons.length - 1) {
+      const nextSeason = availableSeasons[currentSeasonIndex + 1];
+      setSelectedSeason(nextSeason.season_number);
+      setSelectedEpisode(1);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] selection:text-white pb-20">
       <WatchTimer mediaType="tv" mediaId={id as string} />
@@ -459,6 +483,10 @@ export default function TvDetails() {
                         year={year ? String(year) : undefined}
                         genres={data?.genres}
                         posterPath={data?.poster_path}
+                        hasNext={hasNext}
+                        hasPrev={hasPrev}
+                        onNext={handleNext}
+                        onPrev={handlePrev}
                     />
                 </div>
             </div>
