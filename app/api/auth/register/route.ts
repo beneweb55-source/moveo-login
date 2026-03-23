@@ -2,12 +2,37 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import pool from '@/lib/db';
 
+async function verifyTurnstileToken(token: string) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  if (!secret) {
+    console.warn("TURNSTILE_SECRET_KEY is not set. Skipping Turnstile verification.");
+    return true;
+  }
+
+  const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`,
+  });
+
+  const data = await res.json();
+  return data.success;
+}
+
 export async function POST(req: Request) {
   try {
-    const { email, password, name } = await req.json();
+    const { email, password, name, turnstileToken } = await req.json();
 
     if (!email || !password || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Verify Turnstile token
+    const isHuman = await verifyTurnstileToken(turnstileToken || '');
+    if (!isHuman) {
+      return NextResponse.json({ error: 'Invalid captcha. Please try again.' }, { status: 403 });
     }
 
     // Check if user already exists

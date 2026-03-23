@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'motion/react';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
+import HCaptcha from '@hcaptcha/react-hcaptcha';
 import { fetchDataFromApi } from '../../utils/api';
 import Img from '../../components/Img';
 import { useLanguage } from '@/context/LanguageContext';
@@ -15,6 +16,8 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [background, setBackground] = useState<string>('');
+  const [captchaToken, setCaptchaToken] = useState<string>('');
+  const captchaRef = useRef<HCaptcha>(null);
   const router = useRouter();
   const { t } = useLanguage();
 
@@ -39,7 +42,27 @@ export default function LoginPage() {
   }, []);
 
   const handleGoogleLogin = async () => {
+    if (!captchaToken) {
+      setError('Please complete the captcha');
+      return;
+    }
+
     try {
+      // Verify Captcha
+      const captchaRes = await fetch('/api/verify-hcaptcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: captchaToken }),
+      });
+
+      const captchaData = await captchaRes.json();
+      if (!captchaData.success) {
+        setError('Captcha verification failed. Please try again.');
+        captchaRef.current?.resetCaptcha();
+        setCaptchaToken('');
+        return;
+      }
+
       const origin = window.location.origin;
       const res = await fetch(`/api/auth/google/url?origin=${encodeURIComponent(origin)}`);
       const { url } = await res.json();
@@ -70,6 +93,8 @@ export default function LoginPage() {
     } catch (error) {
       console.error('Google login failed:', error);
       setError('Google login failed. Please try again.');
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken('');
     }
   };
 
@@ -78,7 +103,29 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
 
+    if (!captchaToken) {
+      setError('Please complete the captcha');
+      setLoading(false);
+      return;
+    }
+
     try {
+      // Verify Captcha
+      const captchaRes = await fetch('/api/verify-hcaptcha', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: captchaToken }),
+      });
+
+      const captchaData = await captchaRes.json();
+      if (!captchaData.success) {
+        setError('Captcha verification failed. Please try again.');
+        captchaRef.current?.resetCaptcha();
+        setCaptchaToken('');
+        setLoading(false);
+        return;
+      }
+
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,10 +141,14 @@ export default function LoginPage() {
           router.push(`/banned?reason=${encodeURIComponent(data.ban_reason || 'Violation des règles')}`);
         } else {
           setError(data.error || 'Failed to login');
+          captchaRef.current?.resetCaptcha();
+          setCaptchaToken('');
         }
       }
     } catch (err) {
       setError('An error occurred. Please try again.');
+      captchaRef.current?.resetCaptcha();
+      setCaptchaToken('');
     } finally {
       setLoading(false);
     }
@@ -213,9 +264,19 @@ export default function LoginPage() {
               </div>
             </div>
 
+            <div className="flex justify-center">
+              <HCaptcha
+                sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY || '81cabbe0-0f18-4588-9850-8e7209d69ae2'}
+                onVerify={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken('')}
+                ref={captchaRef}
+                theme="dark"
+              />
+            </div>
+
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !captchaToken}
               className="group relative flex w-full justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 py-3.5 px-4 text-sm font-bold text-white hover:from-red-500 hover:to-orange-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-red-600/20 hover:shadow-red-600/40 hover:scale-[1.02] active:scale-[0.98]"
             >
               {loading ? (
@@ -242,8 +303,9 @@ export default function LoginPage() {
             <div className="flex justify-center">
               <button
                 type="button"
+                disabled={!captchaToken}
                 onClick={handleGoogleLogin}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-white/20 cursor-pointer active:scale-[0.98] transition-all duration-200"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-white/20 cursor-pointer active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
                   <path
