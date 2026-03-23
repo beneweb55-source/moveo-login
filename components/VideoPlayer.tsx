@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ExternalLink, Server, Zap, Globe, Film, Loader2, AlertCircle, Star } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { ExternalLink, Server, Globe, Loader2, AlertCircle, CheckCircle2, Database, Lock, Play, SkipBack, SkipForward } from "lucide-react";
+import Image from "next/image";
 
 import { saveWatchHistory, getWatchHistory } from "@/utils/historyManager";
 import { useLanguage } from "@/context/LanguageContext";
@@ -16,126 +18,93 @@ interface VideoPlayerProps {
   year?: string;
   genres?: { id: number; name: string }[];
   posterPath?: string;
+  hasNext?: boolean;
+  hasPrev?: boolean;
+  onNext?: () => void;
+  onPrev?: () => void;
 }
 
-const SERVERS = [
-  // --- GROUPE 1 : Les Plus Fiables ---
+type Language = "VF" | "VOSTFR";
+
+interface ServerObj {
+  name: string;
+  group: string;
+  icon: React.ElementType;
+  warningKey?: string;
+  url: (type: string, id: string, s?: number, e?: number) => string;
+}
+
+const ALTERNATIVE_SERVERS: ServerObj[] = [
   {
     name: "VidSrc.to",
-    group: "Recommended",
-    icon: Zap,
+    group: "Alternative",
+    icon: Server,
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://vidsrc.to/embed/movie/${id}`
-        : `https://vidsrc.to/embed/tv/${id}/${s}/${e}`,
+      type === "movie" ? `https://vidsrc.to/embed/movie/${id}` : `https://vidsrc.to/embed/tv/${id}/${s}/${e}`,
   },
   {
     name: "VidSrc.me",
-    group: "Recommended",
+    group: "Alternative",
     icon: Globe,
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://vidsrc.me/embed/movie?tmdb=${id}`
-        : `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
+      type === "movie" ? `https://vidsrc.me/embed/movie?tmdb=${id}` : `https://vidsrc.me/embed/tv?tmdb=${id}&season=${s}&episode=${e}`,
   },
   {
     name: "2Embed",
-    group: "Recommended",
+    group: "Alternative",
     icon: Globe,
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://www.2embed.cc/embed/${id}`
-        : `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
+      type === "movie" ? `https://www.2embed.cc/embed/${id}` : `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
   },
   {
     name: "AutoEmbed",
-    group: "Recommended",
+    group: "Alternative",
     icon: Server,
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://player.autoembed.cc/embed/movie/${id}`
-        : `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
+      type === "movie" ? `https://player.autoembed.cc/embed/movie/${id}` : `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
   },
   {
     name: "SuperEmbed",
-    group: "Recommended",
-    icon: Zap,
+    group: "Alternative",
+    icon: Server,
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://multiembed.mov/?video_id=${id}&tmdb=1`
-        : `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`,
+      type === "movie" ? `https://multiembed.mov/?video_id=${id}&tmdb=1` : `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`,
   },
-  // --- GROUPE 2 : Nouveaux challengers ---
   {
     name: "VidLink",
     group: "Alternative",
-    icon: Zap,
+    icon: Server,
     warningKey: "disableAdblock",
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://vidlink.pro/movie/${id}`
-        : `https://vidlink.pro/tv/${id}/${s}/${e}`,
+      type === "movie" ? `https://vidlink.pro/movie/${id}` : `https://vidlink.pro/tv/${id}/${s}/${e}`,
   },
   {
     name: "Frembed",
     group: "Alternative",
     icon: Globe,
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://frembed.work/api/film.php?id=${id}`
-        : `https://frembed.work/api/serie.php?id=${id}&sa=${s}&epi=${e}`,
-  },
-  {
-    name: "SmashyStream",
-    group: "Alternative",
-    icon: Globe,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://embed.smashystream.com/playere.php?tmdb=${id}`
-        : `https://embed.smashystream.com/playere.php?tmdb=${id}&season=${s}&episode=${e}`,
-  },
-  // --- GROUPE 3 : Les Anciens ---
-  {
-    name: "MoviesAPI",
-    group: "Legacy",
-    icon: Film,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie"
-        ? `https://moviesapi.club/movie/${id}`
-        : `https://moviesapi.club/tv/${id}-${s}-${e}`,
+      type === "movie" ? `https://frembed.work/api/film.php?id=${id}` : `https://frembed.work/api/serie.php?id=${id}&sa=${s}&epi=${e}`,
   },
 ];
 
-// Fonction utilitaire de test (Pre-Flight Check via API Route)
 const checkServerHealth = async (url: string): Promise<boolean> => {
   try {
     const cacheKey = `health_${url}`;
     const cached = sessionStorage.getItem(cacheKey);
     if (cached) {
       const { status, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < 1000 * 60 * 5) { // 5 minutes cache
-        return status;
-      }
+      if (Date.now() - timestamp < 1000 * 60 * 5) return status;
     }
-
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout global pour l'appel API
-
-    // On passe par notre route API pour contourner les problèmes de CORS et avoir un vrai status code
-    const response = await fetch(`/api/check-server?url=${encodeURIComponent(url)}`, {
-      signal: controller.signal,
-    });
-    
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const response = await fetch(`/api/check-server?url=${encodeURIComponent(url)}`, { signal: controller.signal });
     clearTimeout(timeoutId);
-
     if (response.ok) {
       const data = await response.json();
       const isHealthy = data.status === 'ok';
       sessionStorage.setItem(cacheKey, JSON.stringify({ status: isHealthy, timestamp: Date.now() }));
       return isHealthy;
     }
-    
-    sessionStorage.setItem(cacheKey, JSON.stringify({ status: false, timestamp: Date.now() }));
     return false;
   } catch (error) {
     return false;
@@ -144,16 +113,10 @@ const checkServerHealth = async (url: string): Promise<boolean> => {
 
 const toVoeEmbed = (url: string): string => {
   if (!url) return "";
-  
-  // Si l'URL contient déjà /e/, elle est probablement déjà au bon format d'embed
   if (url.includes('/e/')) return url;
-  
   try {
     const urlObj = new URL(url);
-    
-    // Format 1: https://voe.sx/xxxxxx -> https://voe.sx/e/xxxxxx
     if (!urlObj.pathname.startsWith('/e/')) {
-      // On s'assure de ne pas ajouter /e/ si c'est déjà là d'une autre manière
       const pathParts = urlObj.pathname.split('/').filter(Boolean);
       if (pathParts.length > 0 && pathParts[0] !== 'e') {
         urlObj.pathname = '/e/' + pathParts.join('/');
@@ -161,56 +124,36 @@ const toVoeEmbed = (url: string): string => {
     }
     return urlObj.toString();
   } catch (e) {
-    // Si ce n'est pas une URL valide, on essaie de la construire si ça ressemble à un ID
-    if (url && !url.includes('http')) {
-      return `https://voe.sx/e/${url}`;
-    }
+    if (url && !url.includes('http')) return `https://voe.sx/e/${url}`;
     return url;
   }
 };
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, genres, title, posterPath }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
+  id, type, season, episode, genres, title, posterPath, year,
+  hasNext, hasPrev, onNext, onPrev
+}) => {
   const { t } = useLanguage();
-  const [serverList, setServerList] = useState(SERVERS);
-  const [currentServer, setCurrentServer] = useState<number | null>(null);
+  
+  const [activeLang, setActiveLang] = useState<Language>("VF");
+  // Stocke les URLs premium trouvées par langue
+  const [premiumUrls, setPremiumUrls] = useState<Record<string, string>>({});
+  
+  // Le serveur actif peut être "MOVEO PREMIUM" ou un serveur alternatif
+  const [activeServerName, setActiveServerName] = useState<string>("MOVEO PREMIUM");
+  
   const [isChecking, setIsChecking] = useState(true);
-  const [checkingServerName, setCheckingServerName] = useState<string>("");
-  const [allServersFailed, setAllServersFailed] = useState(false);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
-  const isAnime = genres?.some(g => g.id === 16);
+  const lastSaveTime = useRef(0);
 
-  // Watchdog pour surveiller le chargement de l'iframe
-  useEffect(() => {
-    if (currentServer === null || isChecking || iframeLoaded) return;
-
-    const timeoutId = setTimeout(() => {
-      // Si après 30s l'iframe n'a pas chargé, on passe au suivant
-      console.warn(`[SmartPlayer] Timeout (30s) sur le serveur ${serverList[currentServer].name}. Changement automatique...`);
-      setIsSwitching(true);
-      
-      // Petit délai pour afficher le message avant de changer
-      setTimeout(() => {
-        const nextIndex = (currentServer + 1) % serverList.length;
-        setCurrentServer(nextIndex);
-        localStorage.setItem("preferredServer", serverList[nextIndex].name);
-        setIsSwitching(false);
-        setIframeLoaded(false); // Reset pour le nouveau serveur
-      }, 1500);
-
-    }, 30000);
-
-    return () => clearTimeout(timeoutId);
-  }, [currentServer, isChecking, iframeLoaded, serverList]);
-
-  // Logique de sélection intelligente au montage (Parallélisée)
+  // 1. Initialisation : Fetch Premium Servers
   useEffect(() => {
     let isMounted = true;
-
-    const init = async () => {
-      let customServers: any[] = [];
-      
+    const fetchPremium = async () => {
+      setIsChecking(true);
       try {
         const fetchUrl = type === 'movie' 
           ? `/api/catalogue?tmdb_id=${id}`
@@ -219,435 +162,370 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ id, type, season, episode, ge
         const res = await fetch(fetchUrl);
         const data = await res.json();
         
-        console.log(`[SmartPlayer] Data received from catalogue API:`, data);
-        
-        if (data.voe_url) {
-          const finalVoeUrl = toVoeEmbed(data.voe_url);
-          console.log(`[SmartPlayer] Original VOE URL: ${data.voe_url} -> Final Embed URL: ${finalVoeUrl}`);
-          
-          customServers.push({
-            name: "VOE [MOVEO PREMIUM]",
-            group: "MOVEO PREMIUM",
-            icon: Zap,
-            url: () => finalVoeUrl,
-            lang: data.lang
-          });
+        if (data.voe_url && isMounted) {
+          const serverLang = data.lang === "VOSTFR" ? "VOSTFR" : "VF";
+          setPremiumUrls(prev => ({ ...prev, [serverLang]: toVoeEmbed(data.voe_url) }));
+          setActiveLang(serverLang);
         }
       } catch (error) {
         console.error("Catalogue fetch error", error);
-      }
-
-      const updatedServers = [...customServers, ...SERVERS];
-      if (isMounted) {
-        setServerList(updatedServers);
-        findBestServer(updatedServers, customServers.length > 0);
+      } finally {
+        if (isMounted) setIsChecking(false);
       }
     };
 
-    const findBestServer = async (currentServers: any[], hasCustomServers: boolean) => {
-      setIsChecking(true);
-      setAllServersFailed(false);
-      setCurrentServer(null);
-      setIframeLoaded(false);
-
-      // Si on a des serveurs custom, on sélectionne le premier directement sans vérifier
-      if (hasCustomServers) {
-        setCurrentServer(0);
-        setIsChecking(false);
-        return;
-      }
-
-      // 1. Récupérer la préférence utilisateur (Historique spécifique > Préférence globale)
-      const history = getWatchHistory();
-      const historyItem = history.find((item) => item.id === id);
-      const savedServerName = historyItem?.provider || localStorage.getItem("preferredServer");
-      
-      let serverOrder = [...currentServers.map((_, i) => i)]; // Liste des index [0, 1, 2...]
-
-      // Si une préférence existe, on l'utilise directement pour éviter le throttling Vercel sur les onglets dupliqués
-      if (savedServerName) {
-        const prefIndex = currentServers.findIndex(s => s.name === savedServerName);
-        if (prefIndex !== -1) {
-          console.log(`[SmartPlayer] Utilisation directe du serveur préféré : ${savedServerName}`);
-          setCurrentServer(prefIndex);
-          setIsChecking(false);
-          return;
-        }
-      }
-
-      // 2. Tester les serveurs par lots (Batch processing) pour plus de rapidité
-      const BATCH_SIZE = 3;
-      
-      for (let i = 0; i < serverOrder.length; i += BATCH_SIZE) {
-        if (!isMounted) return;
-
-        const batchIndices = serverOrder.slice(i, i + BATCH_SIZE);
-        const batchServers = batchIndices.map(index => currentServers[index]);
-        
-        setCheckingServerName(batchServers.map(s => s.name).join(", "));
-
-        // Lancer les tests en parallèle pour ce lot
-        const promises = batchIndices.map(async (index) => {
-          const server = currentServers[index];
-          const url = server.url(type, id, season, episode);
-          const isHealthy = await checkServerHealth(url);
-          return { index, isHealthy, name: server.name };
-        });
-
-        const results = await Promise.all(promises);
-
-        // Trouver le premier serveur valide dans ce lot (en respectant l'ordre de priorité original du lot)
-        const validResult = results.find(r => r.isHealthy);
-
-        if (validResult) {
-          if (!isMounted) return;
-          
-          console.log(`[SmartPlayer] Serveur validé (Batch) : ${validResult.name}`);
-          setCurrentServer(validResult.index);
-          setIsChecking(false);
-          
-          // Sauvegarder ce serveur comme fonctionnel pour la prochaine fois
-          localStorage.setItem("preferredServer", validResult.name);
-          
-          // Sauvegarder dans l'historique
-          if (title) {
-            saveWatchHistory({
-              id,
-              type,
-              title,
-              poster_path: posterPath || "",
-              season,
-              episode,
-              provider: validResult.name,
-              last_watched: Date.now(),
-            });
-          }
-          
-          return; // On a trouvé, on arrête tout
-        } else {
-          console.warn(`[SmartPlayer] Lot échoué : ${batchServers.map(s => s.name).join(", ")}`);
-        }
-      }
-
-      // 3. Si on arrive ici, aucun serveur n'a répondu
-      if (isMounted) {
-        console.warn("[SmartPlayer] Aucun serveur validé. Fallback sur le premier choix.");
-        // Au lieu d'afficher l'erreur, on force le premier serveur de la liste (qui est le préféré si dispo)
-        setCurrentServer(serverOrder[0]);
-        setAllServersFailed(false);
-        setIsChecking(false);
-      }
-    };
-
-    init();
-
+    fetchPremium();
     return () => { isMounted = false; };
-  }, [id, type, season, episode, title, posterPath]);
+  }, [id, type, season, episode]);
 
-  const lastSaveTime = useRef(0);
+  // 2. Handle Language Change
+  const handleLangChange = (lang: Language) => {
+    setActiveLang(lang);
+    setIframeLoaded(false);
+    setRequestStatus('idle');
+  };
 
-  // Listen for messages from iframe (for progress tracking)
+  // 3. Handle Server Change
+  const handleServerChange = (serverName: string) => {
+    setActiveServerName(serverName);
+    setIframeLoaded(false);
+    setRequestStatus('idle');
+    localStorage.setItem("preferredServer", serverName);
+  };
+
+  // 4. Request Film Logic
+  const handleRequestFilm = async () => {
+    setRequestStatus('loading');
+    try {
+      const res = await fetch('/api/request-film', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tmdb_id: id,
+          title: title,
+          year: year,
+          type: type
+        })
+      });
+      
+      if (res.ok) {
+        setRequestStatus('success');
+      } else {
+        setRequestStatus('error');
+      }
+    } catch (error) {
+      setRequestStatus('error');
+    }
+  };
+
+  // 5. Watchdog & History
+  useEffect(() => {
+    if (activeServerName === "MOVEO PREMIUM" || isChecking || iframeLoaded) return;
+    const timeoutId = setTimeout(() => {
+      setIsSwitching(true);
+      setTimeout(() => {
+        const currentIndex = ALTERNATIVE_SERVERS.findIndex(s => s.name === activeServerName);
+        const nextServer = ALTERNATIVE_SERVERS[(Math.max(0, currentIndex) + 1) % ALTERNATIVE_SERVERS.length];
+        setActiveServerName(nextServer.name);
+        setIsSwitching(false);
+        setIframeLoaded(false);
+      }, 1500);
+    }, 30000);
+    return () => clearTimeout(timeoutId);
+  }, [activeServerName, isChecking, iframeLoaded]);
+
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (!event.data) return;
+      if (!event.data || !title) return;
       
-      // Try to extract currentTime and duration from various common formats
-      let currentTime = 0;
-      let duration = 0;
-      let eventType = "";
-
-      // Format 1: { event: "timeupdate", data: { currentTime, duration } }
+      let currentTime = 0, duration = 0, eventType = "";
       if (event.data.event === "timeupdate" && event.data.data) {
-        currentTime = event.data.data.currentTime;
-        duration = event.data.data.duration;
-        eventType = "timeupdate";
-      }
-      // Format 2: { type: "MEDIA_DATA", data: { currentTime, duration } }
-      else if (event.data.type === "MEDIA_DATA" && event.data.data) {
-        currentTime = event.data.data.currentTime;
-        duration = event.data.data.duration;
-        eventType = "timeupdate";
-      }
-      // Format 3: { type: "timeupdate", currentTime, duration } (Direct)
-      else if (event.data.type === "timeupdate") {
-        currentTime = event.data.currentTime;
-        duration = event.data.duration;
-        eventType = "timeupdate";
+        currentTime = event.data.data.currentTime; duration = event.data.data.duration; eventType = "timeupdate";
+      } else if (event.data.type === "MEDIA_DATA" && event.data.data) {
+        currentTime = event.data.data.currentTime; duration = event.data.data.duration; eventType = "timeupdate";
+      } else if (event.data.type === "timeupdate") {
+        currentTime = event.data.currentTime; duration = event.data.duration; eventType = "timeupdate";
       }
 
-      if (eventType === "timeupdate" && duration > 0 && title && currentServer !== null) {
+      if (eventType === "timeupdate" && duration > 0) {
         const now = Date.now();
-        // Throttle updates to every 5 seconds
         if (now - lastSaveTime.current > 5000) {
           saveWatchHistory({
-            id,
-            type,
-            title,
-            poster_path: posterPath || "",
-            season,
-            episode,
-            provider: serverList[currentServer].name,
-            last_watched: now,
-            timestamp: currentTime,
-            duration: duration
+            id, type, title, poster_path: posterPath || "", season, episode,
+            provider: activeServerName, last_watched: now, timestamp: currentTime, duration
           });
           lastSaveTime.current = now;
         }
       }
     };
-
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, [id, type, title, posterPath, season, episode, currentServer, serverList]);
+  }, [id, type, title, posterPath, season, episode, activeServerName]);
 
-  // Mettre à jour l'historique périodiquement (toutes les minutes) pour le "last_watched"
-  useEffect(() => {
-    if (currentServer === null || !title) return;
-
-    const interval = setInterval(() => {
-      saveWatchHistory({
-        id,
-        type,
-        title,
-        poster_path: posterPath || "",
-        season,
-        episode,
-        provider: serverList[currentServer].name,
-        last_watched: Date.now(),
-      });
-    }, 60000);
-
-    return () => clearInterval(interval);
-  }, [currentServer, id, type, title, posterPath, season, episode, serverList]);
-
-  const videoUrl = currentServer !== null ? serverList[currentServer].url(type, id, season, episode) : "";
+  // Determine current video URL
+  let videoUrl = "";
+  let isPremiumAvailable = false;
+  
+  if (activeServerName === "MOVEO PREMIUM") {
+    if (premiumUrls[activeLang]) {
+      videoUrl = premiumUrls[activeLang];
+      isPremiumAvailable = true;
+    }
+  } else {
+    const altServer = ALTERNATIVE_SERVERS.find(s => s.name === activeServerName);
+    if (altServer) {
+      videoUrl = altServer.url(type, id, season, episode);
+    }
+  }
 
   return (
-    <div className="w-full max-w-5xl mx-auto mt-8 mb-12">
-      {/* Video Player Container */}
-      <div className="relative w-full aspect-video bg-[#0A0A0A] rounded-xl overflow-hidden shadow-[0_0_40px_-10px_rgba(0,0,0,0.5)] border border-zinc-800 mb-8 group">
+    <div className="w-full max-w-6xl mx-auto mt-8 mb-16 px-4 md:px-0">
+      
+      {/* --- MOVEO PLAYER WRAPPER (DARK LUXURY) --- */}
+      <div className="relative w-full aspect-video bg-[#030303] rounded-2xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 ring-1 ring-white/5 mb-6 group">
         
-        {/* CAS 1 : En cours de vérification (Pre-Flight Check) */}
-        {isChecking && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-zinc-950 text-white">
-            <Loader2 className="w-12 h-12 text-[#E50914] animate-spin mb-4" />
-            <h3 className="text-lg font-bold animate-pulse">{t.details.searchingServer}</h3>
-            <p className="text-zinc-500 text-sm mt-2">{t.details.testing} {checkingServerName}</p>
-          </div>
-        )}
-
-        {/* CAS 1.5 : Changement automatique (Watchdog) */}
-        {isSwitching && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-sm text-white transition-all duration-300">
-            <Loader2 className="w-10 h-10 text-orange-500 animate-spin mb-3" />
-            <h3 className="text-lg font-bold text-orange-500">{t.details.slowServerDetected}</h3>
-            <p className="text-zinc-300 text-sm mt-1">{t.details.autoSwitching}</p>
-          </div>
-        )}
-
-        {/* CAS 3 : Serveur trouvé et validé */}
-        {(!isChecking && currentServer !== null) && (
-          <>
-            {(serverList[currentServer] as any).warningKey && (
-              <div className="absolute top-0 left-0 right-0 z-10 bg-yellow-500/90 text-black text-xs font-bold px-4 py-2 text-center backdrop-blur-sm animate-in fade-in slide-in-from-top-2 duration-500">
-                ⚠️ {(t.details as any)[(serverList[currentServer] as any).warningKey]}
-              </div>
-            )}
-            <iframe
-              src={videoUrl}
-              className="w-full h-full"
-              allowFullScreen
-              referrerPolicy="no-referrer"
-              title="Video Player"
-              onLoad={() => {
-                console.log(`[SmartPlayer] Iframe chargée pour ${serverList[currentServer].name}`);
-                setIframeLoaded(true);
-              }}
-              onError={() => {
-                 console.error(`[SmartPlayer] Erreur iframe pour ${serverList[currentServer].name}`);
-                 setIsSwitching(true);
-                 setTimeout(() => {
-                   const nextIndex = (currentServer + 1) % serverList.length;
-                   setCurrentServer(nextIndex);
-                   localStorage.setItem("preferredServer", serverList[nextIndex].name);
-                   setIsSwitching(false);
-                   setIframeLoaded(false);
-                 }, 1000);
-              }}
+        {/* Background Poster Blur (Subtle Luxury Effect) */}
+        {posterPath && (
+          <div className="absolute inset-0 z-0 pointer-events-none opacity-20 mix-blend-luminosity">
+            <Image
+              src={`https://image.tmdb.org/t/p/original${posterPath}`}
+              alt="Background"
+              fill
+              unoptimized={true}
+              className="object-cover blur-[100px] scale-110"
             />
-          </>
+          </div>
         )}
+
+        <AnimatePresence mode="wait">
+          {isChecking ? (
+            <motion.div 
+              key="checking"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#030303]/80 backdrop-blur-xl text-white"
+            >
+              <Loader2 className="w-8 h-8 text-white/50 animate-spin mb-6" />
+              <h3 className="text-sm font-medium tracking-widest uppercase text-white/70">{t.details.searchingServer || "Initialisation du flux..."}</h3>
+            </motion.div>
+          ) : isSwitching ? (
+            <motion.div 
+              key="switching"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#030303]/90 backdrop-blur-xl text-white"
+            >
+              <Loader2 className="w-8 h-8 text-white/50 animate-spin mb-4" />
+              <h3 className="text-sm font-medium tracking-widest uppercase text-white/70">{t.details.slowServerDetected || "Recherche d'une source optimale..."}</h3>
+            </motion.div>
+          ) : activeServerName === "MOVEO PREMIUM" && !isPremiumAvailable ? (
+            <motion.div 
+              key="not-available"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#030303]/60 backdrop-blur-2xl text-white p-6 text-center"
+            >
+              <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(255,255,255,0.03)]">
+                <Lock className="w-6 h-6 text-white/50" />
+              </div>
+              <h3 className="text-xl font-light tracking-tight text-white mb-2">
+                {t.details.encodingTitle || "Contenu en cours d'encodage"}
+              </h3>
+              <p className="text-sm text-white/40 max-w-md mb-8 leading-relaxed">
+                {t.details.encodingDesc || "Ce contenu n'est pas encore disponible sur nos serveurs sécurisés Moveo Premium en " + activeLang + ". Vous pouvez demander son encodage prioritaire ou utiliser une source alternative ci-dessous."}
+              </p>
+              
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleRequestFilm}
+                disabled={requestStatus !== 'idle'}
+                className={`px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-medium transition-all duration-300 ${
+                  requestStatus === 'success' ? 'bg-white/10 text-white border border-white/20' :
+                  requestStatus === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
+                  'bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]'
+                }`}
+              >
+                {requestStatus === 'idle' && <><Database className="w-4 h-4" /> {t.details.requestEncoding || "Demander l'encodage prioritaire"}</>}
+                {requestStatus === 'loading' && <><Loader2 className="w-4 h-4 animate-spin" /> {t.details.sending || "Envoi en cours..."}</>}
+                {requestStatus === 'success' && <><CheckCircle2 className="w-4 h-4" /> {t.details.requestSent || "Demande envoyée avec succès"}</>}
+                {requestStatus === 'error' && <><AlertCircle className="w-4 h-4" /> {t.details.error || "Une erreur est survenue"}</>}
+              </motion.button>
+            </motion.div>
+          ) : videoUrl ? (
+            <motion.div
+              key={videoUrl}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6 }}
+              className="w-full h-full relative z-10"
+            >
+              {!iframeLoaded && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#030303]">
+                  <Loader2 className="w-6 h-6 text-white/30 animate-spin" />
+                </div>
+              )}
+              <iframe
+                src={videoUrl}
+                className="w-full h-full relative z-20"
+                allowFullScreen
+                referrerPolicy="no-referrer"
+                title="Video Player"
+                onLoad={() => setIframeLoaded(true)}
+              />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
 
-      {/* Server Selection Grid */}
-      <div className="space-y-6">
-        {/* Header & External Link */}
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <span className="w-1 h-6 bg-[#E50914] rounded-full"></span>
-            {t.details.playbackSources}
-          </h3>
-          {currentServer !== null && (
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-300 hover:text-white hover:border-[#E50914] hover:bg-zinc-800 transition-all duration-300 group"
-            >
-              <span>{t.details.openInNewTab}</span>
-              <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </a>
-          )}
-        </div>
+      {/* --- NAVIGATION DES ÉPISODES (Séries Uniquement) --- */}
+      {type === "tv" && (
+        <div className="flex items-center justify-between w-full mb-8 bg-[#0a0a0a] px-3 py-2.5 rounded-xl border border-white/5 shadow-inner">
+          <motion.button
+            whileHover={hasPrev ? { scale: 1.02, backgroundColor: "rgba(255,255,255,0.05)" } : {}}
+            whileTap={hasPrev ? { scale: 0.98 } : {}}
+            onClick={hasPrev ? onPrev : undefined}
+            disabled={!hasPrev}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+              hasPrev ? "text-white cursor-pointer" : "text-white/20 cursor-not-allowed"
+            }`}
+          >
+            <SkipBack className="w-4 h-4" />
+            <span className="hidden sm:inline">{t.details.prevEpisode || "Épisode Précédent"}</span>
+          </motion.button>
+          
+          <div className="text-xs sm:text-sm font-semibold text-white/40 tracking-widest uppercase">
+            {t.details.season || "Saison"} {season} <span className="mx-2 text-white/20">•</span> {t.details.episode || "Épisode"} {episode}
+          </div>
 
-        {/* MOVEO PREMIUM Servers */}
-        {serverList.some(s => s.group === "MOVEO PREMIUM") && (
-          <div className="space-y-3 transition-opacity duration-300">
-            <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.moveoServer || "MOVEO PREMIUM"}</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {serverList.filter(s => s.group === "MOVEO PREMIUM").map((server) => {
-                const index = serverList.indexOf(server);
-                const isActive = currentServer === index;
-                const Icon = server.icon;
-                
+          <motion.button
+            whileHover={hasNext ? { scale: 1.02, backgroundColor: "rgba(255,255,255,0.05)" } : {}}
+            whileTap={hasNext ? { scale: 0.98 } : {}}
+            onClick={hasNext ? onNext : undefined}
+            disabled={!hasNext}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+              hasNext ? "text-white cursor-pointer" : "text-white/20 cursor-not-allowed"
+            }`}
+          >
+            <span className="hidden sm:inline">{t.details.nextEpisode || "Épisode Suivant"}</span>
+            <SkipForward className="w-4 h-4" />
+          </motion.button>
+        </div>
+      )}
+
+      {/* --- CONTRÔLES (DARK LUXURY) --- */}
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        
+        {/* Colonne Gauche : Langue & Premium */}
+        <div className="w-full lg:w-1/3 flex flex-col gap-8">
+          
+          {/* Sélecteur de Langue (Segmented Control) */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">Audio</h3>
+            <div className="flex p-1 bg-[#0a0a0a] rounded-xl border border-white/10 w-fit shadow-inner">
+              {(["VF", "VOSTFR"] as Language[]).map((lang) => {
+                const isActive = activeLang === lang;
                 return (
                   <button
-                    key={server.name}
-                    onClick={() => {
-                      setCurrentServer(index);
-                      localStorage.setItem("preferredServer", server.name);
-                      setIframeLoaded(false);
-                      setIsSwitching(false);
-                    }}
-                    className={`
-                      relative flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-lg font-medium text-sm transition-all duration-300
-                      ${isActive 
-                        ? "bg-[#E50914] text-white border-2 border-[#E50914] shadow-[0_0_20px_rgba(229,9,20,0.4)]" 
-                        : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700"
-                      }
-                    `}
+                    key={lang}
+                    onClick={() => handleLangChange(lang)}
+                    className={`relative px-8 py-2.5 rounded-lg text-xs font-bold transition-all duration-300 z-10 ${
+                      isActive ? "text-white" : "text-white/40 hover:text-white/70"
+                    }`}
                   >
-                    <div className="flex items-center gap-2 relative z-10">
-                      <Star className={`w-4 h-4 ${isActive ? "text-white fill-current" : "text-yellow-500 fill-current"}`} />
-                      <span>{server.name.split(" ")[0]}</span>
-                    </div>
-                    {/* Badge langue dynamique */}
-                    {(server as any).lang && (
-                      <div className="flex items-center gap-1.5 mt-1 relative z-10">
-                        {(server as any).lang === "VF" && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-green-500/20 text-green-400 border border-green-500/30">🇫🇷 VF</span>
-                        )}
-                        {(server as any).lang === "VOSTFR" && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">🇫🇷 VOSTFR</span>
-                        )}
-                      </div>
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeLangBg"
+                        className="absolute inset-0 bg-white/10 rounded-lg border border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
+                        initial={false}
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      />
                     )}
+                    <span className="relative z-20 flex items-center gap-2">
+                      {lang}
+                      {premiumUrls[lang] && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                      )}
+                    </span>
                   </button>
                 );
               })}
             </div>
           </div>
-        )}
 
-        {/* Recommended Servers */}
-        <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
-          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.recommended}</h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-            {serverList.filter(s => s.group === "Recommended").map((server) => {
-              const index = serverList.indexOf(server);
-              const isActive = currentServer === index;
+          {/* Serveur Premium */}
+          <div className="flex flex-col gap-3">
+            <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">Source Principale</h3>
+            <button
+              onClick={() => handleServerChange("MOVEO PREMIUM")}
+              className={`relative w-full p-4 rounded-xl text-left overflow-hidden transition-all duration-500 border ${
+                activeServerName === "MOVEO PREMIUM" 
+                  ? "bg-white/5 border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.03)]" 
+                  : "bg-[#0a0a0a] border-white/5 hover:bg-white/5"
+              }`}
+            >
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className={`p-2 rounded-lg flex items-center justify-center ${activeServerName === "MOVEO PREMIUM" ? "bg-white/10" : "bg-white/5"}`}>
+                    <Image 
+                      src="/favicon.png" 
+                      alt="Moveo" 
+                      width={20} 
+                      height={20} 
+                      unoptimized={true} 
+                      className={`w-5 h-5 object-contain transition-opacity duration-300 ${activeServerName === "MOVEO PREMIUM" ? "opacity-100" : "opacity-50"}`}
+                    />
+                  </div>
+                  <div>
+                    <h4 className={`font-medium text-sm flex items-center gap-2 ${activeServerName === "MOVEO PREMIUM" ? "text-white" : "text-white/60"}`}>
+                      MOVEO PREMIUM
+                    </h4>
+                    <p className="text-xs text-white/40 mt-0.5">Réseau Sécurisé Privé</p>
+                  </div>
+                </div>
+                {activeServerName === "MOVEO PREMIUM" && <CheckCircle2 className="w-4 h-4 text-white/50" />}
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Colonne Droite : Serveurs Alternatifs */}
+        <div className="w-full lg:w-2/3 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">Sources Alternatives</h3>
+            {videoUrl && (
+              <a
+                href={videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-white/40 hover:text-white/80 transition-all group"
+              >
+                <span>{t.details.openInNewTab || "Ouvrir"}</span>
+                <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </a>
+            )}
+          </div>
+          
+          <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
+            {ALTERNATIVE_SERVERS.map((server) => {
+              const isActive = activeServerName === server.name;
               const Icon = server.icon;
-              
               return (
                 <button
                   key={server.name}
-                  onClick={() => {
-                    setCurrentServer(index);
-                    localStorage.setItem("preferredServer", server.name);
-                    setIframeLoaded(false);
-                    setIsSwitching(false);
-                  }}
-                  className={`
-                    relative flex flex-col items-center justify-center gap-1.5 px-3 py-3 rounded-lg font-medium text-sm transition-all duration-300
-                    ${isActive 
-                      ? "bg-zinc-800 text-white border-2 border-[#E50914] shadow-[0_0_20px_rgba(229,9,20,0.2)]" 
-                      : "bg-zinc-900 text-zinc-400 border border-zinc-800 hover:bg-zinc-800 hover:text-white hover:border-zinc-700"
-                    }
-                  `}
+                  onClick={() => handleServerChange(server.name)}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+                    isActive 
+                      ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10" 
+                      : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
+                  }`}
                 >
-                  {isActive && (
-                    <div className="absolute inset-0 bg-[#E50914]/5 rounded-lg animate-pulse" />
-                  )}
-                  <div className="flex items-center gap-2 relative z-10">
-                    <Icon className={`w-4 h-4 ${isActive ? "text-[#E50914]" : "text-zinc-500"}`} />
-                    <span>{server.name}</span>
-                  </div>
-                  
-                  {/* Badges intuitifs */}
-                  <div className="flex items-center gap-1.5 mt-1 relative z-10">
-                    {server.name === "2Embed" && (
-                      <>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">VF/VO</span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-300 border border-zinc-600/50" title={t.details.internalServerChoice}>⚙️ Multi</span>
-                      </>
-                    )}
-                    {(server.name === "VidSrc.to" || server.name === "VidSrc.me" || server.name === "AutoEmbed") && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">VO/EN</span>
-                    )}
-                    {(server.name === "VidSrc.to" || server.name === "VidSrc.me") && isAnime && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" title={t.details.wrongEpisodeWarning}>⚠️ {t.details.errors}</span>
-                    )}
-                  </div>
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-white/30"}`} />
+                  {server.name}
                 </button>
               );
             })}
           </div>
+          <p className="text-[10px] text-white/20 px-2 mt-2 uppercase tracking-wider">
+            Les sources alternatives proviennent de serveurs tiers publics.
+          </p>
         </div>
 
-        {/* Alternative Servers */}
-        <div className={`space-y-3 transition-opacity duration-300 ${isChecking ? "opacity-50 pointer-events-none grayscale" : "opacity-100"}`}>
-          <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-widest ml-1">{t.details.alternative}</h4>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-            {serverList.filter(s => s.group !== "Recommended" && s.group !== "MOVEO PREMIUM").map((server) => {
-              const index = serverList.indexOf(server);
-              const isActive = currentServer === index;
-              
-              return (
-                <button
-                  key={server.name}
-                  onClick={() => {
-                    setCurrentServer(index);
-                    localStorage.setItem("preferredServer", server.name);
-                    setIframeLoaded(false);
-                    setIsSwitching(false);
-                  }}
-                  className={`
-                    relative flex flex-col items-center justify-center gap-1 px-2 py-2.5 rounded-lg font-medium text-xs transition-all duration-300
-                    ${isActive 
-                      ? "bg-zinc-800 text-white border border-[#E50914] shadow-[0_0_15px_rgba(229,9,20,0.15)]" 
-                      : "bg-zinc-900/50 text-zinc-500 border border-zinc-800/50 hover:bg-zinc-900 hover:text-zinc-300 hover:border-zinc-700"
-                    }
-                  `}
-                >
-                  <span className="relative z-10">{server.name}</span>
-                  
-                  {/* Badges intuitifs */}
-                  <div className="flex items-center gap-1 mt-0.5 relative z-10">
-                    {server.name === "Frembed" && (
-                      <>
-                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">🇫🇷 VF/VO</span>
-                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-zinc-700/50 text-zinc-300 border border-zinc-600/50" title={t.details.internalServerChoice}>⚙️ Multi</span>
-                      </>
-                    )}
-                    {server.name === "VidLink" && isAnime && (
-                      <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-[#E50914]/20 text-[#E50914] border border-[#E50914]/30">VOSTFR</span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
       </div>
     </div>
   );
