@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ExternalLink, Server, Globe, Loader2, AlertCircle, CheckCircle2, Database, Lock, Play, SkipBack, SkipForward } from "lucide-react";
+import { ExternalLink, Server, Globe, Loader2, AlertCircle, CheckCircle2, Database, Lock, Play, SkipBack, SkipForward, Zap } from "lucide-react";
 import Image from "next/image";
 
 import { saveWatchHistory, getWatchHistory } from "@/utils/historyManager";
@@ -36,6 +36,20 @@ interface ServerObj {
 
 const ALTERNATIVE_SERVERS: ServerObj[] = [
   {
+    name: "Frembed",
+    group: "Alternative",
+    icon: Globe,
+    url: (type: string, id: string, s?: number, e?: number) =>
+      type === "movie" ? `https://frembed.work/api/film.php?id=${id}` : `https://frembed.work/api/serie.php?id=${id}&sa=${s}&epi=${e}`,
+  },
+  {
+    name: "SuperEmbed",
+    group: "Alternative",
+    icon: Server,
+    url: (type: string, id: string, s?: number, e?: number) =>
+      type === "movie" ? `https://multiembed.mov/?video_id=${id}&tmdb=1` : `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`,
+  },
+  {
     name: "VidSrc.to",
     group: "Alternative",
     icon: Server,
@@ -57,18 +71,13 @@ const ALTERNATIVE_SERVERS: ServerObj[] = [
       type === "movie" ? `https://www.2embed.cc/embed/${id}` : `https://www.2embed.cc/embedtv/${id}&s=${s}&e=${e}`,
   },
   {
-    name: "AutoEmbed",
+    name: "SmashyStream",
     group: "Alternative",
-    icon: Server,
+    icon: Zap,
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie" ? `https://player.autoembed.cc/embed/movie/${id}` : `https://player.autoembed.cc/embed/tv/${id}/${s}/${e}`,
-  },
-  {
-    name: "SuperEmbed",
-    group: "Alternative",
-    icon: Server,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie" ? `https://multiembed.mov/?video_id=${id}&tmdb=1` : `https://multiembed.mov/?video_id=${id}&tmdb=1&s=${s}&e=${e}`,
+      type === "movie"
+        ? `https://player.smashy.stream/movie/${id}`
+        : `https://player.smashy.stream/tv/${id}?s=${s}&e=${e}`,
   },
   {
     name: "VidLink",
@@ -77,13 +86,6 @@ const ALTERNATIVE_SERVERS: ServerObj[] = [
     warningKey: "disableAdblock",
     url: (type: string, id: string, s?: number, e?: number) =>
       type === "movie" ? `https://vidlink.pro/movie/${id}` : `https://vidlink.pro/tv/${id}/${s}/${e}`,
-  },
-  {
-    name: "Frembed",
-    group: "Alternative",
-    icon: Globe,
-    url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie" ? `https://frembed.work/api/film.php?id=${id}` : `https://frembed.work/api/serie.php?id=${id}&sa=${s}&epi=${e}`,
   },
 ];
 
@@ -140,7 +142,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [premiumUrls, setPremiumUrls] = useState<Record<string, string>>({});
   
   // Le serveur actif peut être "MOVEO PREMIUM" ou un serveur alternatif
-  const [activeServerName, setActiveServerName] = useState<string>("MOVEO PREMIUM");
+  const [activeServerName, setActiveServerName] = useState<string>("Frembed");
   
   const [isChecking, setIsChecking] = useState(true);
   const [iframeLoaded, setIframeLoaded] = useState(false);
@@ -162,13 +164,37 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const res = await fetch(fetchUrl);
         const data = await res.json();
         
+        let moveoWorks = false;
         if (data.voe_url && isMounted) {
           const serverLang = data.lang === "VOSTFR" ? "VOSTFR" : "VF";
-          setPremiumUrls(prev => ({ ...prev, [serverLang]: toVoeEmbed(data.voe_url) }));
+          const voeUrl = toVoeEmbed(data.voe_url);
+          setPremiumUrls(prev => ({ ...prev, [serverLang]: voeUrl }));
           setActiveLang(serverLang);
+          
+          // Vérifier si Moveo Premium fonctionne (pas d'erreur 404)
+          moveoWorks = await checkServerHealth(voeUrl);
+          if (moveoWorks && isMounted) {
+            setActiveServerName("MOVEO PREMIUM");
+          }
+        }
+        
+        if (isMounted && !moveoWorks) {
+          // Moveo indisponible ou en erreur 404 → tenter Frembed d'abord
+          const frembedServer = ALTERNATIVE_SERVERS.find(s => s.name === "Frembed");
+          if (frembedServer) {
+            const frembedUrl = frembedServer.url(type, id, season, episode);
+            const frembedHealthy = await checkServerHealth(frembedUrl);
+            if (frembedHealthy && isMounted) {
+              setActiveServerName("Frembed");
+            } else if (isMounted) {
+              // Frembed en erreur → fallback SuperEmbed
+              setActiveServerName("SuperEmbed");
+            }
+          }
         }
       } catch (error) {
         console.error("Catalogue fetch error", error);
+        if (isMounted) setActiveServerName("SuperEmbed");
       } finally {
         if (isMounted) setIsChecking(false);
       }
