@@ -106,26 +106,10 @@ export default function RegisterPage() {
     }
 
     try {
-      // Verify Captcha
-      const captchaRes = await fetch('/api/verify-hcaptcha', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: captchaToken }),
-      });
-
-      const captchaData = await captchaRes.json();
-      if (!captchaData.success) {
-        setError('Captcha verification failed. Please try again.');
-        captchaRef.current?.resetCaptcha();
-        setCaptchaToken('');
-        setLoading(false);
-        return;
-      }
-
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, captchaToken }),
       });
 
       if (res.ok) {
