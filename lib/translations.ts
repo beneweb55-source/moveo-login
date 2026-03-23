@@ -83,6 +83,11 @@ export const translations = {
       requestSent: "Demande envoyée",
       requestAlready: "Déjà dans la file",
       requestError: "Erreur, réessaie",
+      encodingTitle: "Contenu en cours d'encodage",
+      encodingDesc: "Ce contenu n'est pas encore disponible sur nos serveurs sécurisés Moveo Premium. Vous pouvez demander son encodage prioritaire ou utiliser une source alternative ci-dessous.",
+      requestEncoding: "Demander l'encodage prioritaire",
+      sending: "Envoi en cours...",
+      error: "Une erreur est survenue",
     },
     actionButtons: {
       removedFrom: "Retiré de",
@@ -452,6 +457,11 @@ export const translations = {
       requestSent: "Request sent",
       requestAlready: "Already queued",
       requestError: "Error, try again",
+      encodingTitle: "Content being encoded",
+      encodingDesc: "This content is not yet available on our secure Moveo Premium servers. You can request priority encoding or use an alternative source below.",
+      requestEncoding: "Request priority encoding",
+      sending: "Sending...",
+      error: "An error occurred",
     },
     actionButtons: {
       removedFrom: "Removed from",
