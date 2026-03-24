@@ -45,6 +45,7 @@ const Animes = () => {
       setPageNum(1);
 
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+      const now = new Date().toISOString().split('T')[0];
       
       let finalSortBy = sortBy;
       if (sortBy === "first_air_date.desc" && mediaType === "movie") {
@@ -57,6 +58,13 @@ const Animes = () => {
         with_genres: "16", // Animation Genre ID
         with_original_language: "ja", // Focus on Japanese Anime
       };
+
+      // Add date limit to avoid future releases filling the first page
+      if (mediaType === "movie") {
+        params["primary_release_date.lte"] = now;
+      } else {
+        params["first_air_date.lte"] = now;
+      }
       
       if (sortBy === "vote_average.desc") {
         params["vote_count.gte"] = 200;
@@ -85,6 +93,7 @@ const Animes = () => {
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+    const now = new Date().toISOString().split('T')[0];
     
     let finalSortBy = sortBy;
     if (sortBy === "first_air_date.desc" && mediaType === "movie") {
@@ -98,6 +107,13 @@ const Animes = () => {
       with_genres: "16",
       with_original_language: "ja",
     };
+
+    // Add date limit to avoid future releases filling the first page
+    if (mediaType === "movie") {
+      params["primary_release_date.lte"] = now;
+    } else {
+      params["first_air_date.lte"] = now;
+    }
     
     if (sortBy === "vote_average.desc") {
       params["vote_count.gte"] = 200;

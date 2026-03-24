@@ -44,12 +44,20 @@ const KDramaPage = () => {
           : sortBy;
 
         const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+        const now = new Date().toISOString().split('T')[0];
         const params: any = {
           with_original_language: "ko",
           sort_by: sortKey,
           page: 1,
           language: langParam,
         };
+
+        // Add date limit to avoid future releases filling the first page
+        if (mediaType === "movie") {
+          params["primary_release_date.lte"] = now;
+        } else {
+          params["first_air_date.lte"] = now;
+        }
 
         if (sortBy === "vote_average.desc") {
           params["vote_count.gte"] = 200;
@@ -87,12 +95,20 @@ const KDramaPage = () => {
         : sortBy;
 
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+      const now = new Date().toISOString().split('T')[0];
       const params: any = {
         with_original_language: "ko",
         sort_by: sortKey,
         page: pageNum + 1,
         language: langParam,
       };
+
+      // Add date limit to avoid future releases filling the first page
+      if (mediaType === "movie") {
+        params["primary_release_date.lte"] = now;
+      } else {
+        params["first_air_date.lte"] = now;
+      }
 
       if (sortBy === "vote_average.desc") {
         params["vote_count.gte"] = 200;

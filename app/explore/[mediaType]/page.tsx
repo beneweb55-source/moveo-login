@@ -61,6 +61,7 @@ const Explore = () => {
       setPageNum(1);
 
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+      const now = new Date().toISOString().split('T')[0];
       
       let finalSortBy = sortBy;
       if (sortBy === "primary_release_date.desc" && mediaType === "tv") {
@@ -71,6 +72,13 @@ const Explore = () => {
         language: langParam,
         sort_by: finalSortBy,
       };
+
+      // Add date limit to avoid future releases filling the first page
+      if (mediaType === "movie") {
+        params["primary_release_date.lte"] = now;
+      } else {
+        params["first_air_date.lte"] = now;
+      }
       
       if (sortBy === "vote_average.desc") {
         params["vote_count.gte"] = 200;
@@ -101,6 +109,7 @@ const Explore = () => {
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+    const now = new Date().toISOString().split('T')[0];
     
     let finalSortBy = sortBy;
     if (sortBy === "primary_release_date.desc" && mediaType === "tv") {
@@ -112,6 +121,13 @@ const Explore = () => {
       sort_by: finalSortBy,
       page: pageNum,
     };
+
+    // Add date limit to avoid future releases filling the first page
+    if (mediaType === "movie") {
+      params["primary_release_date.lte"] = now;
+    } else {
+      params["first_air_date.lte"] = now;
+    }
     
     if (sortBy === "vote_average.desc") {
       params["vote_count.gte"] = 200;

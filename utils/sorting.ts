@@ -99,7 +99,7 @@ export const calculateScore = (item: any, userGenres: Set<number>) => {
   return finalScore;
 };
 
-export const sortItems = (items: any[], userGenres: Set<number>, options?: { minVoteCount?: number, minVoteAverage?: number, excludeGenres?: boolean, sortBy?: string }) => {
+export const sortItems = (items: any[], userGenres: Set<number>, options?: { minVoteCount?: number, minVoteAverage?: number, excludeGenres?: boolean, sortBy?: string, minReleaseYear?: number }) => {
   if (!items || items.length === 0) return [];
   
   const sortBy = options?.sortBy || "popularity.desc";

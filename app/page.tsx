@@ -25,7 +25,7 @@ export default function Home() {
   const profile = useMoveoCore();
   const [customHero, setCustomHero] = useState<any>(null);
   const [pinnedSections, setPinnedSections] = useState<any[]>([]);
-  const [sectionData, setSectionData] = useState<Record<number, any[]>>({});
+  const [sectionData, setSectionData] = useState<Record<string | number, any[]>>({});
 
   useEffect(() => {
     const fetchSettings = async () => {
