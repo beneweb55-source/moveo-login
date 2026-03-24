@@ -245,6 +245,74 @@ const Header = () => {
                 className="w-full bg-white/10 border border-white/10 rounded-full py-2 pl-10 pr-10 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-black/80 transition-all duration-300"
               />
             </form>
+
+            {/* Search Dropdown */}
+            <AnimatePresence>
+              {showSearchDropdown && (query.trim() !== "") && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute top-full left-0 right-0 mt-2 bg-[#141414] border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50"
+                >
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 text-[#E50914] animate-spin" />
+                    </div>
+                  ) : results.length > 0 ? (
+                    <div className="max-h-[70vh] overflow-y-auto py-2">
+                      {aiReasoning && (
+                        <div className="px-4 py-3 mx-2 mb-2 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-start gap-3">
+                          <Sparkles className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-xs text-blue-200/80 leading-relaxed">{aiReasoning}</p>
+                        </div>
+                      )}
+                      {results.map((item) => (
+                        <div
+                          key={item.id}
+                          onClick={() => {
+                            router.push(`/${item.media_type === "person" ? "person" : (item.media_type === "movie" || !item.media_type) ? "movie" : "tv"}/${item.id}`);
+                            setShowSearchDropdown(false);
+                          }}
+                          className="flex items-center gap-4 px-4 py-2 hover:bg-white/5 cursor-pointer transition-colors"
+                        >
+                          <div className={`relative flex-shrink-0 bg-zinc-800 overflow-hidden ${item.media_type === 'person' ? 'w-10 h-10 rounded-full' : 'w-10 h-14 rounded-md'}`}>
+                            <Image 
+                              src={item.poster_path || item.profile_path ? `https://image.tmdb.org/t/p/w92${item.poster_path || item.profile_path}` : "https://picsum.photos/seed/poster/92/138"} 
+                              alt={item.title || item.name} 
+                              fill 
+                              className="object-cover" 
+                              referrerPolicy="no-referrer" 
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-white text-sm font-medium truncate">{item.title || item.name}</h4>
+                            <p className="text-white/50 text-xs mt-0.5">
+                              {item.release_date || item.first_air_date ? new Date(item.release_date || item.first_air_date).getFullYear() : item.known_for_department}
+                              {" • "}
+                              <span className="uppercase">{item.media_type === 'movie' ? t.explore.exploreMovies : item.media_type === 'tv' ? t.explore.exploreTv : 'Personne'}</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                      <div 
+                        onClick={() => {
+                          router.push(`/search/${query}`);
+                          setShowSearchDropdown(false);
+                        }}
+                        className="px-4 py-3 mt-2 border-t border-white/5 text-center text-sm text-[#E50914] hover:bg-white/5 cursor-pointer transition-colors"
+                      >
+                        Voir tous les résultats pour "{query}"
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-white/50 text-sm">
+                      Aucun résultat pour "{query}"
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Actions */}
@@ -267,7 +335,7 @@ const Header = () => {
             </button>
 
             {/* User Profile */}
-            {user && (
+            {user ? (
               <div className="relative" id="user-dropdown-container">
                 <button
                   onClick={() => setShowUserDropdown(!showUserDropdown)}
@@ -369,6 +437,11 @@ const Header = () => {
                   </div>
                 </BottomSheet>
               </div>
+            ) : (
+              <Link href="/login" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#E50914] hover:bg-[#E50914]/80 text-white rounded-full text-sm font-medium transition-colors">
+                <User className="w-4 h-4" />
+                <span>{t.nav?.login || "Connexion"}</span>
+              </Link>
             )}
           </div>
         </div>
