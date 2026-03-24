@@ -302,12 +302,12 @@ const Header = () => {
                         }}
                         className="px-4 py-3 mt-2 border-t border-white/5 text-center text-sm text-[#E50914] hover:bg-white/5 cursor-pointer transition-colors"
                       >
-                        Voir tous les résultats pour "{query}"
+                        Voir tous les résultats pour &quot;{query}&quot;
                       </div>
                     </div>
                   ) : (
                     <div className="py-8 text-center text-white/50 text-sm">
-                      Aucun résultat pour "{query}"
+                      Aucun résultat pour &quot;{query}&quot;
                     </div>
                   )}
                 </motion.div>
@@ -440,7 +440,7 @@ const Header = () => {
             ) : (
               <Link href="/login" className="hidden sm:flex items-center gap-2 px-4 py-2 bg-[#E50914] hover:bg-[#E50914]/80 text-white rounded-full text-sm font-medium transition-colors">
                 <User className="w-4 h-4" />
-                <span>{t.nav?.login || "Connexion"}</span>
+                <span>{t.nav?.signIn || "Connexion"}</span>
               </Link>
             )}
           </div>
