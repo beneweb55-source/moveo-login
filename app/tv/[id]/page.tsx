@@ -219,13 +219,13 @@ export default function TvDetails() {
         </div>
 
         <ContentWrapper>
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8 lg:gap-16 items-start mt-16 lg:mt-0 px-4 sm:px-0">
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 lg:gap-16 items-start mt-16 lg:mt-0 px-4 sm:px-0">
                 {/* Poster - Hidden on mobile, visible on lg */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="hidden lg:block relative aspect-[2/3] rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] border border-white/10 group lg:sticky lg:top-32"
+                    className="hidden lg:block relative aspect-[2/3] rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] border border-white/10 group"
                 >
                      {posterUrl ? (
                         <Image
@@ -243,7 +243,7 @@ export default function TvDetails() {
                 </motion.div>
 
                 {/* Info */}
-                <div className="flex flex-col gap-6 md:gap-10">
+                <div className="flex flex-col gap-6 md:gap-10 min-w-0">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -263,49 +263,49 @@ export default function TvDetails() {
                             ))}
                         </div>
 
-                        <h1 className="text-4xl md:text-7xl lg:text-9xl font-black tracking-tighter leading-[0.9] mb-6 md:mb-10 drop-shadow-2xl">
+                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter leading-[1.1] mb-6 md:mb-10 drop-shadow-2xl break-words">
                             {data?.name}
                         </h1>
 
                         {data?.tagline && (
-                            <p className="text-lg md:text-3xl text-white/50 italic font-serif mb-8 md:mb-12 leading-relaxed max-w-4xl">
+                            <p className="text-lg md:text-xl lg:text-2xl text-white/50 italic font-serif mb-8 md:mb-12 leading-relaxed max-w-4xl">
                                 &ldquo;{data.tagline}&rdquo;
                             </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-4 md:gap-10 text-xs md:text-xl font-black text-white/60 mb-10 md:mb-16">
-                            <div className="flex items-center gap-2 md:gap-3 bg-white/5 px-4 py-2 md:px-6 md:py-3 rounded-2xl border border-white/10 backdrop-blur-2xl">
-                                <Star className="w-4 h-4 md:w-6 md:h-6 text-yellow-500 fill-yellow-500" />
+                        <div className="flex flex-wrap items-center gap-4 md:gap-8 text-xs md:text-base lg:text-lg font-black text-white/60 mb-10 md:mb-16">
+                            <div className="flex items-center gap-2 md:gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 backdrop-blur-2xl">
+                                <Star className="w-4 h-4 md:w-5 md:h-5 text-yellow-500 fill-yellow-500" />
                                 <span className="text-white">{rating}</span>
                             </div>
-                            <div className="flex items-center gap-2 md:gap-4">
-                                <Calendar className="w-4 h-4 md:w-6 md:h-6 text-[#E50914]" />
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-[#E50914]" />
                                 <span className="tracking-widest">{year}</span>
                             </div>
                             {data?.number_of_seasons && (
-                                <div className="flex items-center gap-2 md:gap-4">
-                                    <Layers className="w-4 h-4 md:w-6 md:h-6 text-[#E50914]" />
+                                <div className="flex items-center gap-2 md:gap-3">
+                                    <Layers className="w-4 h-4 md:w-5 md:h-5 text-[#E50914]" />
                                     <span className="tracking-widest capitalize">{data.number_of_seasons} {t.details.season}{data.number_of_seasons > 1 ? 's' : ''}</span>
                                 </div>
                             )}
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col sm:flex-row items-center gap-4 md:gap-6 mb-12 md:mb-20">
+                        <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 md:gap-6 mb-12 md:mb-20">
                             <button
                                 onClick={scrollToPlayer}
-                                className="w-full sm:w-auto flex items-center justify-center gap-4 bg-white text-black hover:bg-zinc-200 px-10 py-4 md:py-5 rounded-full font-black transition-all duration-500 shadow-2xl hover:scale-105 active:scale-95 group cursor-pointer"
+                                className="w-full sm:w-auto flex items-center justify-center gap-4 bg-white text-black hover:bg-zinc-200 px-8 py-3 md:py-4 rounded-full font-black transition-all duration-500 shadow-2xl hover:scale-105 active:scale-95 group cursor-pointer"
                             >
-                                <Play className="w-6 h-6 fill-current" />
+                                <Play className="w-5 h-5 fill-current" />
                                 <span className="uppercase tracking-widest text-sm md:text-base">{t.details.watch}</span>
                             </button>
 
                             {trailer && (
                                 <button
                                     onClick={() => setShowTrailer(true)}
-                                    className="w-full sm:w-auto flex items-center justify-center gap-4 bg-transparent hover:bg-white/10 border-2 border-white/20 text-white px-10 py-4 md:py-5 rounded-full font-black transition-all duration-500 shadow-2xl hover:border-white hover:scale-105 active:scale-95 group"
+                                    className="w-full sm:w-auto flex items-center justify-center gap-4 bg-transparent hover:bg-white/10 border-2 border-white/20 text-white px-8 py-3 md:py-4 rounded-full font-black transition-all duration-500 shadow-2xl hover:border-white hover:scale-105 active:scale-95 group"
                                 >
-                                    <Play className="w-6 h-6" />
+                                    <Play className="w-5 h-5" />
                                     <span className="uppercase tracking-widest text-sm md:text-base">{t.details.watchTrailer}</span>
                                 </button>
                             )}
@@ -320,11 +320,11 @@ export default function TvDetails() {
 
                         {/* Synopsis */}
                         <div className="max-w-4xl mb-12 md:mb-20">
-                            <h3 className="text-xl md:text-3xl font-black mb-4 md:mb-6 flex items-center gap-3 uppercase tracking-tighter">
+                            <h3 className="text-xl md:text-2xl font-black mb-4 md:mb-6 flex items-center gap-3 uppercase tracking-tighter">
                                 <span className="w-1 h-6 md:h-8 bg-[#E50914] rounded-full" />
                                 {t.details.synopsis}
                             </h3>
-                            <p className="text-base md:text-2xl text-white/70 leading-relaxed font-medium">
+                            <p className="text-base md:text-lg lg:text-xl text-white/70 leading-relaxed font-medium">
                                 {data?.overview}
                             </p>
                         </div>
@@ -647,8 +647,10 @@ export default function TvDetails() {
                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1`}
                 title="Trailer"
                 className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture"
                 allowFullScreen
+                webkitAllowFullScreen
+                mozAllowFullScreen
               />
             </motion.div>
           </motion.div>

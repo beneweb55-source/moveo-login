@@ -424,7 +424,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 src={videoUrl}
                 className="w-full h-full relative z-20"
                 allowFullScreen
-                allow="autoplay; fullscreen"
+                webkitAllowFullScreen
+                mozAllowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture"
                 title="Video Player"
                 onLoad={() => setIframeLoaded(true)}
               />

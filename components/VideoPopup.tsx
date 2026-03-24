@@ -33,7 +33,9 @@ const VideoPopup = ({ show, setShow, videoId, setVideoId }: VideoPopupProps) => 
           src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=1`}
           className="w-full h-full"
           allowFullScreen
-          allow="autoplay; encrypted-media"
+          webkitAllowFullScreen
+          mozAllowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture"
           title="YouTube Video Player"
         />
       </div>
