@@ -59,7 +59,7 @@ export default function MyList() {
     <div className="min-h-screen pt-24 pb-12 bg-[#0A0A0A]">
       <ContentWrapper>
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">{t.profile.myList}</h1>
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">{t.profile.myList}</h1>
           <p className="text-white/50">{t.profile.myListDesc}</p>
         </div>
 
@@ -74,7 +74,7 @@ export default function MyList() {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
             {list.map((item) => {
               const posterUrl = item.poster_path
                 ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
@@ -112,7 +112,7 @@ export default function MyList() {
                       </div>
                       <h3 className="text-white font-bold text-sm line-clamp-2">{item.title}</h3>
                       <span className="text-white/50 text-xs uppercase tracking-wider mt-1 block">
-                        {item.media_type === 'movie' ? t.explore.exploreMovies : t.explore.exploreTv}
+                        {item.media_type === 'movie' ? t.nav.movies : t.nav.tvShows}
                       </span>
                     </div>
                   </div>

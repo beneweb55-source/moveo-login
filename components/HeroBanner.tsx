@@ -8,10 +8,7 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { useSelector } from "react-redux";
 import { useLanguage } from "@/context/LanguageContext";
 
-import { useDeviceOS } from "@/hooks/useDeviceOS";
-
 const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { endpoint?: string, params?: any, headline?: string, themeColor?: string, customMovie?: any }) => {
-  const os = useDeviceOS();
   const [background, setBackground] = useState("");
   const [movie, setMovie] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
@@ -125,7 +122,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-[70vh] sm:h-[80vh] lg:h-[85vh] min-h-[500px] sm:min-h-[600px] lg:min-h-[700px] overflow-hidden bg-[#0A0A0A]">
+    <div ref={containerRef} className="relative w-full h-[70vh] md:h-[85vh] min-h-[550px] md:min-h-[700px] overflow-hidden bg-[#0A0A0A]">
       {/* Parallax Background */}
       {background && (
         <motion.div
@@ -134,21 +131,18 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
         >
           <div 
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ 
-              backgroundImage: `url(${background})`,
-              backgroundPosition: 'center 20%' 
-            }}
+            style={{ backgroundImage: `url(${background})` }}
           />
         </motion.div>
       )}
 
       {/* Complex Gradients for Vignette */}
-      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/60 to-transparent z-10" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A] via-[#0A0A0A]/40 to-transparent z-10" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-[#0A0A0A] z-10" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/40 to-transparent z-10" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A] via-[#0A0A0A]/60 to-transparent z-10" />
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-[#0A0A0A] z-10" />
 
       {/* Content */}
-      <div className="relative z-20 w-full h-full max-w-[1600px] mx-auto px-6 sm:px-12 pb-12 sm:pb-24 lg:pb-32 flex flex-col justify-end items-start">
+      <div className="relative z-20 w-full h-full max-w-[1600px] mx-auto px-4 md:px-12 pb-12 md:pb-32 flex flex-col justify-end items-start">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
@@ -157,14 +151,14 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
         >
            {/* Mood Headline / Greeting */}
            {isUserLoading ? (
-             <div className="mb-2 sm:mb-4 h-6 sm:h-10"></div>
+             <div className="mb-4 h-8 md:h-10"></div>
            ) : user ? (
-            <div className="mb-2 sm:mb-4 overflow-hidden">
+            <div className="mb-3 md:mb-4 overflow-hidden">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-sm sm:text-lg lg:text-xl font-extralight tracking-[0.1em] sm:tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
+                className="text-sm md:text-xl font-extralight tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
               >
                 <span>{greetingText}</span>
                 <span className="font-light flex items-center gap-2" style={{ color: isEditingColor ? tempColor : finalGreetingColor }}>
@@ -174,9 +168,9 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.9, x: -10 }}
                       animate={{ opacity: 1, scale: 1, x: 0 }}
-                      className="flex items-center gap-1.5 ml-2 sm:ml-3 bg-white/10 backdrop-blur-xl rounded-full px-2 sm:px-3 py-1 sm:py-1.5 border border-white/20 shadow-xl"
+                      className="flex items-center gap-1.5 ml-3 bg-white/10 backdrop-blur-xl rounded-full px-3 py-1.5 border border-white/20 shadow-xl"
                     >
-                      <div className="relative w-5 h-5 sm:w-6 sm:h-6 rounded-full overflow-hidden border-2 border-white/50 shadow-inner cursor-pointer hover:scale-110 transition-transform">
+                      <div className="relative w-6 h-6 rounded-full overflow-hidden border-2 border-white/50 shadow-inner cursor-pointer hover:scale-110 transition-transform">
                         <input 
                           type="color" 
                           value={tempColor}
@@ -185,42 +179,42 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
                         />
                       </div>
                       
-                      <div className="w-[1px] h-3 sm:h-4 bg-white/20 mx-1" />
+                      <div className="w-[1px] h-4 bg-white/20 mx-1" />
                       
                       <button 
                         onClick={handleApplyColor}
-                        className="text-emerald-400 hover:text-emerald-300 hover:bg-white/10 rounded-full p-1 sm:p-1.5 transition-all cursor-pointer"
+                        className="text-emerald-400 hover:text-emerald-300 hover:bg-white/10 rounded-full p-1.5 transition-all cursor-pointer"
                         title="Apply"
                       >
-                        <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <Check className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={handleCancelColor}
-                        className="text-rose-400 hover:text-rose-300 hover:bg-white/10 rounded-full p-1 sm:p-1.5 transition-all cursor-pointer"
+                        className="text-rose-400 hover:text-rose-300 hover:bg-white/10 rounded-full p-1.5 transition-all cursor-pointer"
                         title="Cancel"
                       >
-                        <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <X className="w-4 h-4" />
                       </button>
                     </motion.div>
                   ) : (
                     <button 
                       onClick={handleEditClick}
-                      className="text-white/30 hover:text-white transition-colors focus:outline-none ml-1 cursor-pointer p-1"
+                      className="text-white/30 hover:text-white transition-colors focus:outline-none ml-1 cursor-pointer"
                       title="Change color"
                     >
-                      <Pencil className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <Pencil className="w-4 h-4" />
                     </button>
                   )}
                 </span>
               </motion.h2>
             </div>
           ) : headline && (
-            <div className="mb-2 sm:mb-4 overflow-hidden">
+            <div className="mb-3 md:mb-4 overflow-hidden">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-xl sm:text-2xl lg:text-3xl font-medium tracking-wide uppercase"
+                className="text-xl md:text-3xl font-medium tracking-wide uppercase"
                 style={{ color: accentColor }}
               >
                 {headline}
@@ -229,13 +223,13 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           )}
 
           {/* Metadata Badge Row */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4 text-xs sm:text-base font-medium">
-            <span className="px-2 py-0.5 sm:px-3 sm:py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-1.5 sm:gap-2">
-              <Film className="w-3 h-3 sm:w-4 sm:h-4" />
-              {movie?.media_type === "tv" ? t.explore.exploreTv : t.explore.exploreMovies}
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-xs md:text-base font-medium">
+            <span className="px-2 py-1 md:px-3 md:py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-2">
+              <Film className="w-3 h-3 md:w-4 md:h-4" />
+              {movie?.media_type === "tv" ? t.nav.tvShows : t.nav.movies}
             </span>
             <span className="flex items-center gap-1 text-[#FFD700]">
-              <Star className="w-3 h-3 sm:w-4 sm:h-4 fill-current" />
+              <Star className="w-3.5 h-3.5 md:w-4 md:h-4 fill-current" />
               {movie?.vote_average?.toFixed(1)}
             </span>
             <span className="text-zinc-300">
@@ -246,16 +240,16 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           </div>
 
           {/* Title */}
-          <h1 className="text-3xl sm:text-6xl lg:text-8xl font-black tracking-tighter text-white mb-4 sm:mb-6 drop-shadow-2xl leading-[0.95] sm:leading-[0.9] line-clamp-2 sm:line-clamp-none">
+          <h1 className="text-4xl md:text-7xl lg:text-8xl font-black tracking-tighter text-white mb-4 md:mb-6 drop-shadow-2xl leading-[1.1] md:leading-[0.9]">
             {movie?.title || movie?.name}
           </h1>
 
           {/* Genres */}
-          <div className="flex flex-wrap gap-x-2 gap-y-1 mb-4 sm:mb-6">
+          <div className="flex flex-wrap gap-x-2 gap-y-1 mb-4 md:mb-6">
             {movieGenres.map((genre: any, i: number) => {
               const genreName = typeof genre === 'object' ? genre.name : genre;
               return (
-                <span key={i} className="text-zinc-300 text-[10px] sm:text-base whitespace-nowrap">
+                <span key={i} className="text-zinc-300 text-[10px] md:text-base whitespace-nowrap">
                   {genreName}
                   {i < movieGenres.length - 1 && <span className="ml-2 text-zinc-500">•</span>}
                 </span>
@@ -264,39 +258,35 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           </div>
 
           {/* Synopsis */}
-          <p className="text-xs sm:text-lg lg:text-xl text-zinc-300 mb-6 sm:mb-10 line-clamp-2 sm:line-clamp-4 max-w-2xl leading-relaxed drop-shadow-md opacity-80">
+          <p className="text-sm md:text-xl text-zinc-300 mb-6 md:mb-10 line-clamp-3 md:line-clamp-4 max-w-2xl leading-relaxed drop-shadow-md opacity-80">
             {movie?.overview}
           </p>
 
           {/* Buttons */}
-          <div className="flex flex-row items-center gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4">
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className={`group w-auto flex items-center justify-center gap-2 sm:gap-3 bg-white text-black px-5 sm:px-8 py-3 sm:py-4 rounded-full font-bold text-sm sm:text-lg transition-all duration-300 shadow-lg active:scale-95 sm:hover:scale-105 ${os === 'ios' ? 'font-semibold' : ''}`}
+              className="group w-full sm:w-auto flex items-center justify-center gap-3 bg-white text-black px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 shadow-lg hover:scale-105"
               style={{ 
                 boxShadow: `0 0 20px -5px ${accentColor}80` // 80 is alpha
               }}
               onMouseEnter={(e) => {
-                if (os === 'desktop') {
-                  e.currentTarget.style.backgroundColor = accentColor;
-                  e.currentTarget.style.color = '#ffffff';
-                }
+                e.currentTarget.style.backgroundColor = accentColor;
+                e.currentTarget.style.color = '#ffffff';
               }}
               onMouseLeave={(e) => {
-                if (os === 'desktop') {
-                  e.currentTarget.style.backgroundColor = '#ffffff';
-                  e.currentTarget.style.color = '#000000';
-                }
+                e.currentTarget.style.backgroundColor = '#ffffff';
+                e.currentTarget.style.color = '#000000';
               }}
             >
-              <Play className="w-4 h-4 sm:w-6 sm:h-6 fill-current transition-transform group-hover:scale-110" />
+              <Play className="w-5 h-5 md:w-6 md:h-6 fill-current transition-transform group-hover:scale-110" />
               {t.home.watchNow}
             </button>
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className="w-auto flex items-center justify-center gap-2 sm:gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-white px-5 sm:px-8 py-3 sm:py-4 rounded-full font-bold text-sm sm:text-lg active:bg-white/30 sm:hover:bg-white/20 transition-all duration-300"
+              className="w-full sm:w-auto flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-white px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg hover:bg-white/20 transition-all duration-300"
             >
-              <Info className="w-4 h-4 sm:w-6 sm:h-6" />
+              <Info className="w-5 h-5 md:w-6 md:h-6" />
               {t.home.moreInfo}
             </button>
           </div>

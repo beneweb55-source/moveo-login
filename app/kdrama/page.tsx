@@ -141,13 +141,13 @@ const KDramaPage = () => {
                       onClick={() => setMediaType("tv")}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${mediaType === "tv" ? "bg-[#E50914] text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
                   >
-                      {t.explore.exploreTv}
+                      {t.nav.tvShows}
                   </button>
                   <button 
                       onClick={() => setMediaType("movie")}
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${mediaType === "movie" ? "bg-[#E50914] text-white shadow-md" : "text-zinc-400 hover:text-white"}`}
                   >
-                      {t.explore.exploreMovies}
+                      {t.nav.movies}
                   </button>
               </div>
 
