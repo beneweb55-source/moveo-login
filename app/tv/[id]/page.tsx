@@ -7,7 +7,8 @@ import ContentWrapper from "@/components/ContentWrapper";
 import VideoPlayer from "@/components/VideoPlayer";
 import ActionButtons from "@/components/ActionButtons";
 import CastList from "@/components/CastList";
-import { Star, ArrowLeft, Calendar, Layers, Play, Info, ChevronDown, Tv, RefreshCw, X } from "lucide-react";
+import BottomSheet from "@/components/BottomSheet";
+import { Star, ArrowLeft, Calendar, Layers, Play, Info, ChevronDown, Tv, RefreshCw, X, Film, Loader2, Plus, Check } from "lucide-react";
 import Image from "next/image";
 import { motion, useScroll, useTransform, AnimatePresence } from "motion/react";
 import Carousel from "@/components/Carousel";
@@ -218,94 +219,94 @@ export default function TvDetails() {
         </div>
 
         <ContentWrapper>
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-6 lg:gap-12 items-start mt-12 lg:mt-0">
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 lg:gap-16 items-start mt-16 lg:mt-0 px-4 sm:px-0">
                 {/* Poster - Hidden on mobile, visible on lg */}
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8 }}
-                    className="hidden lg:block relative aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 group lg:sticky lg:top-32"
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                    className="hidden lg:block relative aspect-[2/3] rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] border border-white/10 group"
                 >
                      {posterUrl ? (
                         <Image
                             src={posterUrl}
                             alt={data?.name}
                             fill
-                            className="object-cover transition-transform duration-700 group-hover:scale-105"
+                            className="object-cover transition-transform duration-1000 group-hover:scale-110"
                             referrerPolicy="no-referrer"
                         />
                     ) : (
                         <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                            <Tv className="w-16 h-16 text-white/20" />
+                            <Film className="w-20 h-20 text-white/20" />
                         </div>
                     )}
                 </motion.div>
 
                 {/* Info */}
-                <div className="flex flex-col gap-4 md:gap-6">
+                <div className="flex flex-col gap-6 md:gap-10 min-w-0">
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
+                        transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                     >
                         {/* Badges */}
-                        <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3 md:mb-4">
+                        <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-6 md:mb-8">
                             {data?.status && (
-                                <span className="px-2 py-0.5 md:px-3 md:py-1 text-[9px] md:text-xs font-bold uppercase tracking-wider bg-[#E50914] text-white rounded-full shadow-lg shadow-red-900/20">
+                                <span className="px-4 py-1.5 md:px-6 md:py-2 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] bg-[#E50914] text-white rounded-full shadow-2xl shadow-red-900/40">
                                     {data.status}
                                 </span>
                             )}
                             {data?.genres?.map((g: any) => (
-                                <span key={g.id} className="px-2 py-0.5 md:px-3 md:py-1 text-[9px] md:text-xs font-medium uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/10 rounded-full">
+                                <span key={g.id} className="px-4 py-1.5 md:px-6 md:py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full text-white/80">
                                     {g.name}
                                 </span>
                             ))}
                         </div>
 
-                        <h1 className="text-3xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] mb-2 md:mb-4">
+                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter leading-[1.1] mb-6 md:mb-10 drop-shadow-2xl break-words">
                             {data?.name}
                         </h1>
 
                         {data?.tagline && (
-                            <p className="text-sm md:text-xl text-white/60 italic font-serif mb-4 md:mb-6">
+                            <p className="text-lg md:text-xl lg:text-2xl text-white/50 italic font-serif mb-8 md:mb-12 leading-relaxed max-w-4xl">
                                 &ldquo;{data.tagline}&rdquo;
                             </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-3 md:gap-6 text-[10px] md:text-base font-medium text-white/80 mb-6 md:mb-8">
-                            <div className="flex items-center gap-1.5 md:gap-2 bg-black/30 px-2 py-0.5 md:px-3 md:py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
-                                <Star className="w-3 h-3 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
+                        <div className="flex flex-wrap items-center gap-4 md:gap-8 text-xs md:text-base lg:text-lg font-black text-white/60 mb-10 md:mb-16">
+                            <div className="flex items-center gap-2 md:gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 backdrop-blur-2xl">
+                                <Star className="w-4 h-4 md:w-5 md:h-5 text-yellow-500 fill-yellow-500" />
                                 <span className="text-white">{rating}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 md:gap-2">
-                                <Calendar className="w-3 h-3 md:w-4 md:h-4 text-[#E50914]" />
-                                <span>{year}</span>
+                            <div className="flex items-center gap-2 md:gap-3">
+                                <Calendar className="w-4 h-4 md:w-5 md:h-5 text-[#E50914]" />
+                                <span className="tracking-widest">{year}</span>
                             </div>
                             {data?.number_of_seasons && (
-                                <div className="flex items-center gap-1.5 md:gap-2">
-                                    <Layers className="w-3 h-3 md:w-4 md:h-4 text-[#E50914]" />
-                                    <span>{data.number_of_seasons} {t.details.season}{data.number_of_seasons > 1 ? 's' : ''}</span>
+                                <div className="flex items-center gap-2 md:gap-3">
+                                    <Layers className="w-4 h-4 md:w-5 md:h-5 text-[#E50914]" />
+                                    <span className="tracking-widest capitalize">{data.number_of_seasons} {t.details.season}{data.number_of_seasons > 1 ? 's' : ''}</span>
                                 </div>
                             )}
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4 mb-8">
+                        <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 md:gap-6 mb-12 md:mb-20">
                             <button
                                 onClick={scrollToPlayer}
-                                className="w-full sm:w-auto flex items-center justify-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group cursor-pointer"
+                                className="w-full sm:w-auto flex items-center justify-center gap-4 bg-white text-black hover:bg-zinc-200 px-8 py-3 md:py-4 rounded-full font-black transition-all duration-500 shadow-2xl hover:scale-105 active:scale-95 group cursor-pointer"
                             >
                                 <Play className="w-5 h-5 fill-current" />
-                                <span>{t.details.watch}</span>
+                                <span className="uppercase tracking-widest text-sm md:text-base">{t.details.watch}</span>
                             </button>
 
                             {trailer && (
                                 <button
                                     onClick={() => setShowTrailer(true)}
-                                    className="w-full sm:w-auto flex items-center justify-center gap-3 bg-transparent hover:bg-[#E50914] border border-white text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg hover:border-transparent hover:shadow-red-900/50 hover:scale-105 group"
+                                    className="w-full sm:w-auto flex items-center justify-center gap-4 bg-transparent hover:bg-white/10 border-2 border-white/20 text-white px-8 py-3 md:py-4 rounded-full font-black transition-all duration-500 shadow-2xl hover:border-white hover:scale-105 active:scale-95 group"
                                 >
                                     <Play className="w-5 h-5" />
-                                    <span>{t.details.watchTrailer}</span>
+                                    <span className="uppercase tracking-widest text-sm md:text-base">{t.details.watchTrailer}</span>
                                 </button>
                             )}
 
@@ -318,17 +319,20 @@ export default function TvDetails() {
                         </div>
 
                         {/* Synopsis */}
-                        <div className="max-w-3xl mb-8">
-                            <h3 className="text-base md:text-lg font-bold mb-2 flex items-center gap-2">
+                        <div className="max-w-4xl mb-12 md:mb-20">
+                            <h3 className="text-xl md:text-2xl font-black mb-4 md:mb-6 flex items-center gap-3 uppercase tracking-tighter">
+                                <span className="w-1 h-6 md:h-8 bg-[#E50914] rounded-full" />
                                 {t.details.synopsis}
                             </h3>
-                            <p className="text-sm md:text-lg text-white/70 leading-relaxed line-clamp-4 md:line-clamp-none">
+                            <p className="text-base md:text-lg lg:text-xl text-white/70 leading-relaxed font-medium">
                                 {data?.overview}
                             </p>
                         </div>
                         
                         {/* Cast */}
-                        <CastList cast={data?.credits?.cast || []} />
+                        <div className="mb-12 md:mb-20">
+                            <CastList cast={data?.credits?.cast || []} />
+                        </div>
                     </motion.div>
                 </div>
             </div>
@@ -370,26 +374,34 @@ export default function TvDetails() {
                                     <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${isSeasonDropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
-                                {isSeasonDropdownOpen && (
-                                    <div className="absolute left-0 top-full mt-2 w-full min-w-[160px] max-h-[300px] overflow-y-auto bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 scrollbar-hide">
-                                        {availableSeasons.map((season: any) => (
-                                            <div
-                                                key={season.id}
-                                                onClick={() => {
-                                                    setSelectedSeason(season.season_number);
-                                                    setIsSeasonDropdownOpen(false);
-                                                }}
-                                                className={`p-3 cursor-pointer transition-colors ${
-                                                    selectedSeason === season.season_number 
-                                                        ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
-                                                        : 'hover:bg-white/5 border-l-2 border-transparent'
-                                                }`}
-                                            >
-                                                <span className="text-sm font-medium">{t.details.season} {season.season_number}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Desktop Season Dropdown */}
+                                <AnimatePresence>
+                                    {isSeasonDropdownOpen && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 10 }}
+                                            className="hidden lg:block absolute left-0 top-full mt-2 w-full min-w-[160px] max-h-[60vh] overflow-y-auto bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20"
+                                        >
+                                            {availableSeasons.map((season: any) => (
+                                                <div
+                                                    key={season.id}
+                                                    onClick={() => {
+                                                        setSelectedSeason(season.season_number);
+                                                        setIsSeasonDropdownOpen(false);
+                                                    }}
+                                                    className={`p-3 cursor-pointer transition-colors ${
+                                                        selectedSeason === season.season_number 
+                                                            ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
+                                                            : 'hover:bg-white/5 border-l-2 border-transparent'
+                                                    }`}
+                                                >
+                                                    <span className="text-sm font-medium">{t.details.season} {season.season_number}</span>
+                                                </div>
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
 
                             {/* Episode Selector */}
@@ -405,69 +417,169 @@ export default function TvDetails() {
                                     <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${isEpisodeDropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
-                                {isEpisodeDropdownOpen && (
-                                    <div className="absolute left-0 top-full mt-2 w-[85vw] sm:w-[400px] max-w-[400px] max-h-[400px] overflow-y-auto bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 scrollbar-hide">
-                                        {episodesData.length > 0 ? (
-                                            episodesData.map((ep: any) => (
-                                                <div
-                                                    key={ep.id}
-                                                    onClick={() => {
-                                                        setSelectedEpisode(ep.episode_number);
-                                                        setIsEpisodeDropdownOpen(false);
-                                                    }}
-                                                    className={`flex gap-3 p-3 cursor-pointer transition-colors ${
-                                                        selectedEpisode === ep.episode_number 
-                                                            ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
-                                                            : 'hover:bg-white/5 border-l-2 border-transparent'
-                                                    }`}
-                                                >
-                                                    <div className="relative w-24 h-16 flex-shrink-0 rounded-md overflow-hidden bg-zinc-800">
-                                                        {ep.still_path ? (
-                                                            <Image
-                                                                src={`https://image.tmdb.org/t/p/w300${ep.still_path}`}
-                                                                alt={ep.name}
-                                                                fill
-                                                                className="object-cover"
-                                                                referrerPolicy="no-referrer"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                                                                <Play className="w-6 h-6" />
-                                                            </div>
-                                                        )}
+                                {/* Desktop Episode Dropdown */}
+                                <AnimatePresence>
+                                    {isEpisodeDropdownOpen && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 10 }}
+                                            className="hidden lg:block absolute left-0 top-full mt-2 w-[400px] max-h-[60vh] overflow-y-auto bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20"
+                                        >
+                                            {episodesData.length > 0 ? (
+                                                episodesData.map((ep: any) => (
+                                                    <div
+                                                        key={ep.id}
+                                                        onClick={() => {
+                                                            setSelectedEpisode(ep.episode_number);
+                                                            setIsEpisodeDropdownOpen(false);
+                                                        }}
+                                                        className={`flex gap-3 p-3 cursor-pointer transition-colors ${
+                                                            selectedEpisode === ep.episode_number 
+                                                                ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
+                                                                : 'hover:bg-white/5 border-l-2 border-transparent'
+                                                        }`}
+                                                    >
+                                                        <div className="relative w-24 h-16 flex-shrink-0 rounded-md overflow-hidden bg-zinc-800">
+                                                            {ep.still_path ? (
+                                                                <Image
+                                                                    src={`https://image.tmdb.org/t/p/w300${ep.still_path}`}
+                                                                    alt={ep.name}
+                                                                    fill
+                                                                    className="object-cover"
+                                                                    referrerPolicy="no-referrer"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                                                    <Play className="w-6 h-6" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="text-sm font-semibold text-white truncate">
+                                                                {ep.episode_number}. {ep.name}
+                                                            </h4>
+                                                            <p className="text-xs text-zinc-400 line-clamp-2 mt-1">
+                                                                {ep.overview || "Aucune description disponible."}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="text-sm font-semibold text-white truncate">
-                                                            {ep.episode_number}. {ep.name}
-                                                        </h4>
-                                                        <p className="text-xs text-zinc-400 line-clamp-2 mt-1">
-                                                            {ep.overview || "Aucune description disponible."}
-                                                        </p>
+                                                ))
+                                            ) : (
+                                                Array.from({ length: episodesCount }, (_, i) => i + 1).map((ep) => (
+                                                    <div
+                                                        key={ep}
+                                                        onClick={() => {
+                                                            setSelectedEpisode(ep);
+                                                            setIsEpisodeDropdownOpen(false);
+                                                        }}
+                                                        className={`p-3 cursor-pointer transition-colors ${
+                                                            selectedEpisode === ep 
+                                                                ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
+                                                                : 'hover:bg-white/5 border-l-2 border-transparent'
+                                                        }`}
+                                                    >
+                                                        <span className="text-sm font-medium">{t.details.episode} {ep}</span>
                                                     </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            Array.from({ length: episodesCount }, (_, i) => i + 1).map((ep) => (
-                                                <div
-                                                    key={ep}
-                                                    onClick={() => {
-                                                        setSelectedEpisode(ep);
-                                                        setIsEpisodeDropdownOpen(false);
-                                                    }}
-                                                    className={`p-3 cursor-pointer transition-colors ${
-                                                        selectedEpisode === ep 
-                                                            ? 'bg-[#E50914]/20 border-l-2 border-[#E50914]' 
-                                                            : 'hover:bg-white/5 border-l-2 border-transparent'
-                                                    }`}
-                                                >
-                                                    <span className="text-sm font-medium">{t.details.episode} {ep}</span>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                )}
+                                                ))
+                                            )}
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         </div>
+
+                        {/* Mobile Bottom Sheets */}
+                        <BottomSheet
+                            isOpen={isSeasonDropdownOpen}
+                            onClose={() => setIsSeasonDropdownOpen(false)}
+                            title={`${t.details.season}s`}
+                        >
+                            <div className="flex flex-col gap-2">
+                                {availableSeasons.map((season: any) => (
+                                    <button
+                                        key={season.id}
+                                        onClick={() => {
+                                            setSelectedSeason(season.season_number);
+                                            setIsSeasonDropdownOpen(false);
+                                        }}
+                                        className={`w-full p-4 rounded-xl text-left transition-all ${
+                                            selectedSeason === season.season_number 
+                                                ? 'bg-[#E50914]/20 border border-[#E50914]/50 text-white' 
+                                                : 'bg-white/5 border border-transparent text-white/60 hover:bg-white/10'
+                                        }`}
+                                    >
+                                        <span className="text-base font-bold">{t.details.season} {season.season_number}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </BottomSheet>
+
+                        <BottomSheet
+                            isOpen={isEpisodeDropdownOpen}
+                            onClose={() => setIsEpisodeDropdownOpen(false)}
+                            title={`${t.details.episode}s`}
+                        >
+                            <div className="flex flex-col gap-3">
+                                {episodesData.length > 0 ? (
+                                    episodesData.map((ep: any) => (
+                                        <button
+                                            key={ep.id}
+                                            onClick={() => {
+                                                setSelectedEpisode(ep.episode_number);
+                                                setIsEpisodeDropdownOpen(false);
+                                            }}
+                                            className={`flex gap-4 p-3 rounded-xl text-left transition-all ${
+                                                selectedEpisode === ep.episode_number 
+                                                    ? 'bg-[#E50914]/20 border border-[#E50914]/50' 
+                                                    : 'bg-white/5 border border-transparent hover:bg-white/10'
+                                            }`}
+                                        >
+                                            <div className="relative w-28 h-16 flex-shrink-0 rounded-lg overflow-hidden bg-zinc-800">
+                                                {ep.still_path ? (
+                                                    <Image
+                                                        src={`https://image.tmdb.org/t/p/w300${ep.still_path}`}
+                                                        alt={ep.name}
+                                                        fill
+                                                        className="object-cover"
+                                                        referrerPolicy="no-referrer"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                                        <Play className="w-6 h-6" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                <h4 className="text-sm font-bold text-white truncate">
+                                                    {ep.episode_number}. {ep.name}
+                                                </h4>
+                                                <p className="text-xs text-zinc-400 line-clamp-2 mt-1">
+                                                    {ep.overview || "Aucune description disponible."}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    ))
+                                ) : (
+                                    Array.from({ length: episodesCount }, (_, i) => i + 1).map((ep) => (
+                                        <button
+                                            key={ep}
+                                            onClick={() => {
+                                                setSelectedEpisode(ep);
+                                                setIsEpisodeDropdownOpen(false);
+                                            }}
+                                            className={`w-full p-4 rounded-xl text-left transition-all ${
+                                                selectedEpisode === ep 
+                                                    ? 'bg-[#E50914]/20 border border-[#E50914]/50 text-white' 
+                                                    : 'bg-white/5 border border-transparent text-white/60 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            <span className="text-base font-bold">{t.details.episode} {ep}</span>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
+                        </BottomSheet>
                     </div>
                 </div>
 
@@ -535,7 +647,7 @@ export default function TvDetails() {
                 src={`https://www.youtube.com/embed/${trailer.key}?autoplay=1`}
                 title="Trailer"
                 className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture"
                 allowFullScreen
               />
             </motion.div>

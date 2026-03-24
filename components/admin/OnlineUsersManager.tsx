@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Activity, User, Globe, Clock } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 
@@ -71,7 +72,15 @@ export default function OnlineUsersManager() {
             {onlineData?.registeredUsers?.map((user: any) => (
               <div key={user.session_id} className="bg-[#1A1A1A] border border-white/5 rounded-lg p-4 flex items-start gap-4">
                 {user.avatar_url ? (
-                  <img src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                  <div className="relative w-10 h-10 shrink-0">
+                    <Image 
+                      src={user.avatar_url} 
+                      alt={user.name} 
+                      fill
+                      className="rounded-full object-cover" 
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
                     <User className="w-5 h-5 text-zinc-400" />

@@ -169,9 +169,9 @@ export default function Home() {
         customMovie={customHero}
       />
       
-      <main className="flex-1 relative z-20 w-full pb-20 space-y-12 md:space-y-24">
+      <main className="flex-1 relative z-20 w-full pb-40 space-y-24 md:space-y-40">
         {/* Trending Section - Bento Grid */}
-        <section className="-mt-20 md:-mt-32 relative z-30">
+        <section className="-mt-8 md:-mt-24 relative z-30">
           <FeaturedGrid 
             title={t.home.trending} 
             data={trending} 
@@ -180,7 +180,7 @@ export default function Home() {
         </section>
         
         {/* Other Sections - Carousels */}
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+        <div className="max-w-[1800px] mx-auto px-4 sm:px-8 lg:px-12 space-y-24 md:space-y-40">
           <HistorySection />
 
           {pinnedSections.length > 0 ? (

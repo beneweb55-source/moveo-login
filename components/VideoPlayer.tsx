@@ -310,7 +310,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     <div className="w-full max-w-6xl mx-auto mt-8 mb-16 px-4 md:px-0">
       
       {/* --- MOVEO PLAYER WRAPPER (DARK LUXURY) --- */}
-      <div className="relative w-full aspect-video bg-[#030303] rounded-2xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 ring-1 ring-white/5 mb-6 group">
+      <div className="relative w-full aspect-video bg-[#030303] rounded-2xl overflow-clip shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 ring-1 ring-white/5 mb-6 group">
         
         {/* Background Poster Blur (Subtle Luxury Effect) */}
         {posterPath && (
@@ -392,7 +392,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 src={videoUrl}
                 className="w-full h-full relative z-20"
                 allowFullScreen
-                allow="autoplay; fullscreen"
+                allow="autoplay; fullscreen *; picture-in-picture *"
                 title="Video Player"
                 onLoad={() => setIframeLoaded(true)}
               />
