@@ -382,8 +382,6 @@ export default function MovieDetails() {
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture"
                 allowFullScreen
-                webkitAllowFullScreen
-                mozAllowFullScreen
               />
             </motion.div>
           </motion.div>
