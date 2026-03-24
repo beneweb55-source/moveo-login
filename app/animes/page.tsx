@@ -70,8 +70,8 @@ const Animes = () => {
 
         // Sort & Mix
         if (res?.results) {
-            const sorted = sortItems(res.results, updatedUserGenres);
-            res.results = mixCatalog(sorted);
+            const sorted = sortItems(res.results, updatedUserGenres, { sortBy: finalSortBy });
+            res.results = finalSortBy === "popularity.desc" ? mixCatalog(sorted) : sorted;
         }
 
         setData(res);
@@ -112,8 +112,8 @@ const Animes = () => {
           setUserGenres(updatedUserGenres);
 
           // Sort & Mix new results
-          const sortedNewResults = sortItems(res.results, updatedUserGenres);
-          const mixedNewResults = mixCatalog(sortedNewResults);
+          const sortedNewResults = sortItems(res.results, updatedUserGenres, { sortBy: finalSortBy });
+          const mixedNewResults = finalSortBy === "popularity.desc" ? mixCatalog(sortedNewResults) : sortedNewResults;
 
           setData({
             ...data,

@@ -64,8 +64,8 @@ const KDramaPage = () => {
 
         // Sort & Mix
         if (res?.results) {
-            const sorted = sortItems(res.results, updatedUserGenres);
-            res.results = mixCatalog(sorted);
+            const sorted = sortItems(res.results, updatedUserGenres, { sortBy: sortKey });
+            res.results = sortBy === "popularity.desc" ? mixCatalog(sorted) : sorted;
         }
 
         setData(res);
@@ -107,8 +107,8 @@ const KDramaPage = () => {
         setUserGenres(updatedUserGenres);
 
         // Sort & Mix new results
-        const sortedNewResults = sortItems(res.results, updatedUserGenres);
-        const mixedNewResults = mixCatalog(sortedNewResults);
+        const sortedNewResults = sortItems(res.results, updatedUserGenres, { sortBy: sortKey });
+        const mixedNewResults = sortBy === "popularity.desc" ? mixCatalog(sortedNewResults) : sortedNewResults;
 
         setData({
           ...data,

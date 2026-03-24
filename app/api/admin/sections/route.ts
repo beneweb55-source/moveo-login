@@ -29,8 +29,14 @@ export async function GET() {
         { title: 'Top 10 en France', endpoint: '/movie/popular?region=FR', priority: 2 },
         { title: 'Films Populaires', endpoint: '/movie/popular', priority: 3 },
         { title: 'Séries Populaires', endpoint: '/tv/popular', priority: 4 },
-        { title: 'Mieux Notés', endpoint: '/movie/top_rated', priority: 5 },
-        { title: 'Nouveautés', endpoint: '/movie/now_playing', priority: 6 }
+        { title: 'Animes', endpoint: '/discover/tv?with_genres=16&with_original_language=ja', priority: 5 },
+        { title: 'K-Dramas', endpoint: '/discover/tv?with_original_language=ko', priority: 6 },
+        { title: 'Action', endpoint: '/discover/movie?with_genres=28', priority: 7 },
+        { title: 'Comédie', endpoint: '/discover/movie?with_genres=35', priority: 8 },
+        { title: 'Horreur', endpoint: '/discover/movie?with_genres=27', priority: 9 },
+        { title: 'Science-Fiction', endpoint: '/discover/movie?with_genres=878', priority: 10 },
+        { title: 'Mieux Notés', endpoint: '/movie/top_rated', priority: 11 },
+        { title: 'Nouveautés', endpoint: '/movie/now_playing', priority: 12 }
       ];
       
       for (const section of defaultSections) {

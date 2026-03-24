@@ -103,39 +103,41 @@ const CastList = ({ cast }: CastListProps) => {
               onClick={() => {
                 if (!isDragging) router.push('/person/' + actor.id);
               }}
-              className="flex-shrink-0 w-[110px] md:w-[140px] flex flex-col snap-start group"
+              className="flex-shrink-0 w-[120px] md:w-[150px] flex flex-col snap-start group cursor-pointer"
             >
-              <div className="w-full aspect-[2/3] rounded-xl overflow-hidden relative bg-zinc-900 shadow-lg mb-3 border border-white/5 group-hover:border-white/20 transition-colors pointer-events-none">
+              <div className="w-full aspect-[2/3] rounded-2xl overflow-hidden relative bg-zinc-900 shadow-xl border border-white/5 group-hover:border-white/20 transition-all duration-500">
                 <Image
-                  src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
+                  src={`https://image.tmdb.org/t/p/w300${actor.profile_path}`}
                   alt={actor.name}
                   fill
                   draggable={false}
                   className="object-cover transition-transform duration-700 group-hover:scale-110"
                   referrerPolicy="no-referrer"
                 />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 transform translate-y-1 group-hover:translate-y-0 transition-transform duration-500 pointer-events-none">
+                  <p className="text-sm md:text-base font-bold text-white line-clamp-1 leading-tight select-none drop-shadow-md">{actor.name}</p>
+                  <p className="text-[10px] md:text-xs text-[#E50914] font-medium mt-1 line-clamp-1 select-none drop-shadow-md">{actor.character}</p>
+                </div>
               </div>
-              <p className="text-sm md:text-base font-bold text-white line-clamp-2 leading-tight select-none">{actor.name}</p>
-              <p className="text-xs md:text-sm text-white/50 mt-1 line-clamp-2 select-none">{actor.character}</p>
             </motion.div>
           ))}
           
           {validCast.length > initialCount && !showAll && (
             <motion.div
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, y: -5 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => {
                 if (!isDragging) setShowAll(true);
               }}
-              className="flex-shrink-0 w-[110px] md:w-[140px] flex flex-col snap-start group"
+              className="flex-shrink-0 w-[120px] md:w-[150px] flex flex-col snap-start group cursor-pointer"
             >
-              <div className="w-full aspect-[2/3] rounded-xl border border-white/10 group-hover:border-white/30 transition-all duration-500 relative bg-white/5 backdrop-blur-sm flex flex-col items-center justify-center shadow-lg mb-3 text-white pointer-events-none">
-                <ChevronDown className="w-8 h-8 md:w-10 md:h-10 mb-2 transition-transform duration-500 group-hover:translate-y-1" />
-                <span className="text-xs md:text-sm font-bold uppercase tracking-widest select-none">{language === 'fr' ? 'Plus' : 'More'}</span>
+              <div className="w-full aspect-[2/3] rounded-2xl border border-white/10 group-hover:border-white/30 transition-all duration-500 relative bg-white/5 hover:bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center shadow-xl text-white">
+                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-3 group-hover:bg-[#E50914] group-hover:scale-110 transition-all duration-500 shadow-lg">
+                  <ChevronRight className="w-6 h-6" />
+                </div>
+                <span className="text-xs md:text-sm font-bold uppercase tracking-widest select-none">{language === 'fr' ? 'Voir tout' : 'Show all'}</span>
               </div>
-              <p className="text-sm md:text-base font-bold text-white/60 select-none text-center w-full">
-                {language === 'fr' ? 'Voir tout' : 'Show all'}
-              </p>
             </motion.div>
           )}
         </div>

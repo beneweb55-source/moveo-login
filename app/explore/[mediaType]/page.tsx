@@ -86,8 +86,8 @@ const Explore = () => {
         setUserGenres(updatedUserGenres);
 
         if (res?.results) {
-            const sorted = sortItems(res.results, updatedUserGenres);
-            res.results = mixCatalog(sorted);
+            const sorted = sortItems(res.results, updatedUserGenres, { sortBy: finalSortBy });
+            res.results = finalSortBy === "popularity.desc" ? mixCatalog(sorted) : sorted;
         }
 
         setData(res);
@@ -128,8 +128,8 @@ const Explore = () => {
           const updatedUserGenres = new Set([...userGenres, ...newGenres]);
           setUserGenres(updatedUserGenres);
 
-          const sortedNewResults = sortItems(res.results, updatedUserGenres);
-          const mixedNewResults = mixCatalog(sortedNewResults);
+          const sortedNewResults = sortItems(res.results, updatedUserGenres, { sortBy: finalSortBy });
+          const mixedNewResults = finalSortBy === "popularity.desc" ? mixCatalog(sortedNewResults) : sortedNewResults;
 
           setData({
             ...data,

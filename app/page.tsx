@@ -65,9 +65,9 @@ export default function Home() {
             return { id: section.id, data: resData?.results || [] };
           }));
           
-          const newData: Record<number, any[]> = {};
+          const newData: Record<string | number, any[]> = {};
           results.forEach(r => newData[r.id] = r.data);
-          setSectionData(newData);
+          setSectionData(prev => ({ ...prev, ...newData }));
         }
       } catch (e) {
         console.error('Failed to fetch pinned sections', e);
@@ -106,31 +106,32 @@ export default function Home() {
         
         // Use Discover endpoint for trending to support genre filtering
         // This replaces the static /trending/all/day
-        const trendingEndpoint = "/discover/movie";
+        const trendingEndpoint = "/trending/all/day";
         const trendingParams = {
           language: langParam,
-          sort_by: "popularity.desc",
-          with_genres: profile.genreIds.join("|"), // Use OR logic to get more results
-          "vote_count.gte": 0 // Get everything, we filter later
         };
 
-        const [trendingRes, topFranceRes, popularRes, topRatedTvRes] = await Promise.all([
+        const [trendingRes, topFranceRes, popularRes, topRatedTvRes, animesRes, kdramasRes] = await Promise.all([
           fetchDataFromApi(trendingEndpoint, trendingParams),
           fetchDataFromApi("/movie/popular", { region: "FR", language: langParam }),
           fetchDataFromApi("/movie/popular", { language: langParam }),
           fetchDataFromApi("/tv/top_rated", { language: langParam }),
+          fetchDataFromApi("/discover/tv", { with_genres: "16", with_original_language: "ja", language: langParam }),
+          fetchDataFromApi("/discover/tv", { with_original_language: "ko", language: langParam }),
         ]);
 
         let rawTrending = trendingRes?.results || [];
         let rawTopFrance = topFranceRes?.results || [];
         let rawPopularMovies = popularRes?.results || [];
         let rawTopRatedTv = topRatedTvRes?.results || [];
+        let rawAnimes = animesRes?.results || [];
+        let rawKdramas = kdramasRes?.results || [];
 
         // Intelligent Sorting Logic
         let userGenres = new Set<number>();
         try {
           const watchedIds = await getUserWatchedIds();
-          const allItems = [...rawTrending, ...rawTopFrance, ...rawPopularMovies, ...rawTopRatedTv];
+          const allItems = [...rawTrending, ...rawTopFrance, ...rawPopularMovies, ...rawTopRatedTv, ...rawAnimes, ...rawKdramas];
           userGenres = extractUserGenresFromItems(allItems, watchedIds);
         } catch (e) {
           // Ignore error, proceed without user prefs
@@ -140,6 +141,13 @@ export default function Home() {
         setTopFrance(sortItems(rawTopFrance, userGenres)); // Top 10 usually doesn't need mixing
         setPopularMovies(mixCatalog(sortItems(rawPopularMovies, userGenres)));
         setTopRatedTv(mixCatalog(sortItems(rawTopRatedTv, userGenres)));
+        
+        // Add extra data for fallback sections
+        setSectionData(prev => ({
+          ...prev,
+          'animes': mixCatalog(sortItems(rawAnimes, userGenres)),
+          'kdramas': mixCatalog(sortItems(rawKdramas, userGenres))
+        }));
         
         // Debugging
         console.log('Home page - triggering AI recommendation with:', [...rawTrending, ...rawTopFrance, ...rawPopularMovies, ...rawTopRatedTv].slice(0, 10));
@@ -200,6 +208,18 @@ export default function Home() {
                 data={topFrance.slice(0, 10)} 
                 loading={loading} 
                 endpoint="movie" 
+              />
+              <Carousel 
+                title="Animes" 
+                data={sectionData['animes'] || []} 
+                loading={loading} 
+                endpoint="tv" 
+              />
+              <Carousel 
+                title="K-Dramas" 
+                data={sectionData['kdramas'] || []} 
+                loading={loading} 
+                endpoint="tv" 
               />
               <Carousel 
                 title={t.home.popularMovies} 

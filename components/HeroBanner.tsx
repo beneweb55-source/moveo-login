@@ -62,7 +62,16 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
     const fetchParams = { language: langParam };
 
     fetchDataFromApi(fetchEndpoint, fetchParams).then((res) => {
-      const results = res?.results || [];
+      let results = res?.results || [];
+      
+      // Filter out future releases
+      const now = new Date();
+      results = results.filter((item: any) => {
+        const dateStr = item.release_date || item.first_air_date;
+        if (!dateStr) return false;
+        return new Date(dateStr) <= now;
+      });
+
       if (results.length > 0) {
         // Pick from top 15
         const pool = results.slice(0, 15);

@@ -7,29 +7,49 @@
  * 3. Personalization (User Genre Weighting)
  */
 
-const MIN_VOTE_COUNT = 150;
-const MIN_VOTE_AVERAGE = 5.5;
-const MIN_RELEASE_YEAR = 1985;
-const EXCLUDED_GENRES = [99, 10770]; // Documentary, TV Movie (often lower production value)
+const MIN_VOTE_COUNT = 50; // Lowered from 150
+const MIN_VOTE_AVERAGE = 4.0; // Lowered from 5.5
+const MIN_RELEASE_YEAR = 1950; // Lowered from 1985
+const EXCLUDED_GENRES = [99]; // Removed TV Movie (10770) from excluded genres
 
-export const filterItems = (items: any[], options?: { minVoteCount?: number, minVoteAverage?: number, excludeGenres?: boolean }) => {
+export const filterItems = (items: any[], options?: { minVoteCount?: number, minVoteAverage?: number, excludeGenres?: boolean, minReleaseYear?: number }) => {
   if (!items) return [];
   
   const minVoteCount = options?.minVoteCount ?? MIN_VOTE_COUNT;
   const minVoteAverage = options?.minVoteAverage ?? MIN_VOTE_AVERAGE;
   const shouldExcludeGenres = options?.excludeGenres ?? true;
+  const minReleaseYear = options?.minReleaseYear ?? MIN_RELEASE_YEAR;
 
   return items.filter(item => {
     // 1. Basic Quality Checks
     if (!item.poster_path) return false;
-    if (item.vote_count < minVoteCount) return false;
+    
+    // For very new movies (released in the last 30 days), we are more lenient with vote count
+    const dateStr = item.release_date || item.first_air_date;
+    let isNewRelease = false;
+    if (dateStr) {
+      const releaseDate = new Date(dateStr);
+      const now = new Date();
+      const diffDays = (now.getTime() - releaseDate.getTime()) / (1000 * 3600 * 24);
+      if (diffDays >= 0 && diffDays <= 30) isNewRelease = true;
+    }
+
+    if (!isNewRelease && item.vote_count < minVoteCount) return false;
     if (item.vote_average < minVoteAverage) return false;
 
     // 2. Date Check
-    const dateStr = item.release_date || item.first_air_date;
     if (dateStr) {
-      const year = new Date(dateStr).getFullYear();
-      if (year < MIN_RELEASE_YEAR) return false;
+      const releaseDate = new Date(dateStr);
+      const now = new Date();
+      
+      // Handle invalid dates
+      if (isNaN(releaseDate.getTime())) return false;
+
+      // Exclude future releases (strict check)
+      if (releaseDate.getTime() > now.getTime()) return false;
+
+      const year = releaseDate.getFullYear();
+      if (year < minReleaseYear) return false;
     } else {
       // If no date at all, it's likely incomplete data
       return false;
@@ -79,18 +99,49 @@ export const calculateScore = (item: any, userGenres: Set<number>) => {
   return finalScore;
 };
 
-export const sortItems = (items: any[], userGenres: Set<number>, options?: { minVoteCount?: number, minVoteAverage?: number, excludeGenres?: boolean }) => {
+export const sortItems = (items: any[], userGenres: Set<number>, options?: { minVoteCount?: number, minVoteAverage?: number, excludeGenres?: boolean, sortBy?: string }) => {
   if (!items || items.length === 0) return [];
   
+  const sortBy = options?.sortBy || "popularity.desc";
+
+  // If we are sorting by something else than popularity, we should be less strict with filters
+  // especially for release date where new items have 0 votes.
+  const filterOptions = { ...options };
+  if (sortBy.includes("release_date") || sortBy.includes("first_air_date")) {
+    filterOptions.minVoteCount = options?.minVoteCount ?? 0;
+    filterOptions.minVoteAverage = options?.minVoteAverage ?? 0;
+    filterOptions.minReleaseYear = 0;
+  }
+
   // First, apply the "Brutal Cleaning" filter
-  const cleanedItems = filterItems(items, options);
+  const cleanedItems = filterItems(items, filterOptions);
   
-  // Then, sort by our intelligent score
-  return [...cleanedItems].sort((a, b) => {
-    const scoreA = calculateScore(a, userGenres);
-    const scoreB = calculateScore(b, userGenres);
-    return scoreB - scoreA;
+  const sortedItems = [...cleanedItems].sort((a, b) => {
+    if (sortBy === "popularity.desc") {
+      const scoreA = calculateScore(a, userGenres);
+      const scoreB = calculateScore(b, userGenres);
+      return scoreB - scoreA;
+    }
+    
+    if (sortBy.includes("vote_average")) {
+      return (b.vote_average || 0) - (a.vote_average || 0);
+    }
+    
+    if (sortBy.includes("release_date") || sortBy.includes("first_air_date")) {
+      const dateA = new Date(a.release_date || a.first_air_date || 0).getTime();
+      const dateB = new Date(b.release_date || b.first_air_date || 0).getTime();
+      
+      // Handle invalid dates in sort
+      const timeA = isNaN(dateA) ? 0 : dateA;
+      const timeB = isNaN(dateB) ? 0 : dateB;
+      
+      return timeB - timeA;
+    }
+    
+    return 0;
   });
+
+  return sortedItems;
 };
 
 /**

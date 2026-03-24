@@ -179,17 +179,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
         
         if (isMounted && !moveoWorks) {
-          // Moveo indisponible ou en erreur 404 → tenter Frembed d'abord
-          const frembedServer = ALTERNATIVE_SERVERS.find(s => s.name === "Frembed");
-          if (frembedServer) {
-            const frembedUrl = frembedServer.url(type, id, season, episode);
-            const frembedHealthy = await checkServerHealth(frembedUrl);
-            if (frembedHealthy && isMounted) {
-              setActiveServerName("Frembed");
-            } else if (isMounted) {
-              // Frembed en erreur → fallback SuperEmbed
-              setActiveServerName("SuperEmbed");
+          // Moveo indisponible ou en erreur 404 → tenter les serveurs alternatifs un par un
+          let foundHealthy = false;
+          for (const server of ALTERNATIVE_SERVERS) {
+            if (!isMounted) break;
+            const serverUrl = server.url(type, id, season, episode);
+            const isHealthy = await checkServerHealth(serverUrl);
+            if (isHealthy && isMounted) {
+              setActiveServerName(server.name);
+              foundHealthy = true;
+              break;
             }
+          }
+          
+          if (!foundHealthy && isMounted) {
+            // Aucun serveur n'est "healthy", on met SuperEmbed par défaut (souvent le plus résilient)
+            setActiveServerName("SuperEmbed");
           }
         }
       } catch (error) {
