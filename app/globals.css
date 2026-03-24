@@ -1,90 +1,44 @@
 @import "tailwindcss";
 
-:root {
-  --app-height: 100%;
-  --safe-area-inset-top: env(safe-area-inset-top, 0px);
-  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
 }
 
-html, body {
-  height: 100%;
-  width: 100%;
-  overflow-x: hidden;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-  overscroll-behavior-y: none;
-  background-color: #000;
-}
-
-body {
-  min-width: 0;
-  font-family: var(--font-sans);
-}
-
-/* Allow selection in inputs and textareas */
-input, textarea {
-  -webkit-user-select: auto;
-  user-select: auto;
-}
-
-/* Safe Area Helpers */
-.pt-safe {
-  padding-top: var(--safe-area-inset-top);
-}
-.pb-safe {
-  padding-bottom: var(--safe-area-inset-bottom);
-}
-.mb-safe {
-  margin-bottom: var(--safe-area-inset-bottom);
-}
-
-/* Native-like scroll behavior */
-.overflow-y-auto {
-  -webkit-overflow-scrolling: touch;
-}
-
-/* Ensure all buttons have a pointer cursor on desktop and no highlight on mobile */
+/* Ensure all buttons have a pointer cursor */
 button, 
 [role="button"],
 input[type="button"],
 input[type="submit"],
 input[type="reset"] {
   cursor: pointer;
-  touch-action: manipulation;
 }
 
-button:disabled {
+button:disabled,
+[role="button"][aria-disabled="true"],
+input[type="button"]:disabled,
+input[type="submit"]:disabled,
+input[type="reset"]:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
+  opacity: 0.7;
 }
 
-/* Custom Scrollbar Styling (MOVEO Theme) - Hidden on mobile/tablet for cleaner look */
-@media (min-width: 1024px) {
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #0f0f0f;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 10px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #e50914;
-  }
+/* Custom Scrollbar Styling (MOVEO Theme) */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-@media (max-width: 1023px) {
-  ::-webkit-scrollbar {
-    display: none;
-  }
-  * {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+::-webkit-scrollbar-track {
+  background: #0f0f0f;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(#444, #222);
+  border-radius: 20px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #e50914;
 }
 
 @layer utilities {
@@ -95,22 +49,4 @@ button:disabled {
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
-  
-  /* Thumb Zone Optimization */
-  .touch-target {
-    min-width: 44px;
-    min-height: 44px;
-  }
-}
-
-/* iOS Specific Styles */
-.ios-blur {
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-}
-
-/* Android Specific Styles */
-.android-surface {
-  background-color: #121212;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
 }

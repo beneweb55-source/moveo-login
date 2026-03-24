@@ -2,14 +2,11 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { ExternalLink, Server, Globe, Loader2, AlertCircle, CheckCircle2, Database, Lock, Play, SkipBack, SkipForward, Zap, Settings2, ChevronRight } from "lucide-react";
+import { ExternalLink, Server, Globe, Loader2, AlertCircle, CheckCircle2, Database, Lock, Play, SkipBack, SkipForward, Zap } from "lucide-react";
 import Image from "next/image";
 
 import { saveWatchHistory, getWatchHistory } from "@/utils/historyManager";
 import { useLanguage } from "@/context/LanguageContext";
-
-import { useDeviceOS } from "@/hooks/useDeviceOS";
-import BottomSheet from "./BottomSheet";
 
 interface VideoPlayerProps {
   id: string;
@@ -139,7 +136,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   hasNext, hasPrev, onNext, onPrev
 }) => {
   const { t } = useLanguage();
-  const os = useDeviceOS();
   
   const [activeLang, setActiveLang] = useState<Language>("VF");
   // Stocke les URLs premium trouvées par langue
@@ -152,7 +148,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
   const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [isSourceSheetOpen, setIsSourceSheetOpen] = useState(false);
 
   const lastSaveTime = useRef(0);
 
@@ -295,33 +290,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => window.removeEventListener("message", handleMessage);
   }, [id, type, title, posterPath, season, episode, activeServerName]);
 
-  useEffect(() => {
-    const handleFullscreenChange = async () => {
-      if (document.fullscreenElement) {
-        try {
-          const orientation = screen.orientation as any;
-          if (orientation && orientation.lock) {
-            await orientation.lock('landscape');
-          }
-        } catch (err) {
-          console.log("Orientation lock failed", err);
-        }
-      } else {
-        try {
-          const orientation = screen.orientation as any;
-          if (orientation && orientation.unlock) {
-            orientation.unlock();
-          }
-        } catch (err) {
-          console.log("Orientation unlock failed", err);
-        }
-      }
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
   // Determine current video URL
   let videoUrl = "";
   let isPremiumAvailable = false;
@@ -339,7 +307,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
 
   return (
-    <div className="w-full max-w-6xl mx-auto mt-8 mb-16 px-0">
+    <div className="w-full max-w-6xl mx-auto mt-8 mb-16 px-4 md:px-0">
       
       {/* --- MOVEO PLAYER WRAPPER (DARK LUXURY) --- */}
       <div className="relative w-full aspect-video bg-[#030303] rounded-2xl overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 ring-1 ring-white/5 mb-6 group">
@@ -424,7 +392,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 src={videoUrl}
                 className="w-full h-full relative z-20"
                 allowFullScreen
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; fullscreen; gyroscope; picture-in-picture"
+                allow="autoplay; fullscreen"
                 title="Video Player"
                 onLoad={() => setIframeLoaded(true)}
               />
@@ -435,102 +403,63 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* --- NAVIGATION DES ÉPISODES (Séries Uniquement) --- */}
       {type === "tv" && (
-        <div className="flex items-center justify-between w-full mb-6 bg-[#141414] p-2 md:p-3 rounded-2xl border border-white/10 shadow-lg">
+        <div className="flex items-center justify-between w-full mb-8 bg-[#0a0a0a] px-3 py-2.5 rounded-xl border border-white/5 shadow-inner">
           <motion.button
-            whileHover={hasPrev ? { scale: 1.02, backgroundColor: "rgba(255,255,255,0.1)" } : {}}
-            whileTap={hasPrev ? { scale: 0.95 } : {}}
+            whileHover={hasPrev ? { scale: 1.02, backgroundColor: "rgba(255,255,255,0.05)" } : {}}
+            whileTap={hasPrev ? { scale: 0.98 } : {}}
             onClick={hasPrev ? onPrev : undefined}
             disabled={!hasPrev}
-            className={`flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
-              hasPrev ? "bg-white/5 text-white cursor-pointer hover:bg-white/10" : "bg-transparent text-white/20 cursor-not-allowed"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+              hasPrev ? "text-white cursor-pointer" : "text-white/20 cursor-not-allowed"
             }`}
           >
             <SkipBack className="w-4 h-4" />
-            <span className="hidden sm:inline">{t.details.prevEpisode || "Précédent"}</span>
+            <span className="hidden sm:inline">{t.details.prevEpisode || "Épisode Précédent"}</span>
           </motion.button>
           
-          <div className="flex flex-col items-center justify-center px-2 md:px-4">
-            <span className="text-[10px] md:text-xs text-white/40 uppercase tracking-widest font-semibold mb-0.5">{t.details.season || "Saison"} {season}</span>
-            <span className="text-sm md:text-base text-white font-bold">{t.details.episode || "Épisode"} {episode}</span>
+          <div className="text-xs sm:text-sm font-semibold text-white/40 tracking-widest uppercase">
+            {t.details.season || "Saison"} {season} <span className="mx-2 text-white/20">•</span> {t.details.episode || "Épisode"} {episode}
           </div>
 
           <motion.button
-            whileHover={hasNext ? { scale: 1.02, backgroundColor: "rgba(255,255,255,0.1)" } : {}}
-            whileTap={hasNext ? { scale: 0.95 } : {}}
+            whileHover={hasNext ? { scale: 1.02, backgroundColor: "rgba(255,255,255,0.05)" } : {}}
+            whileTap={hasNext ? { scale: 0.98 } : {}}
             onClick={hasNext ? onNext : undefined}
             disabled={!hasNext}
-            className={`flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-xl text-xs md:text-sm font-bold transition-all duration-300 ${
-              hasNext ? "bg-[#E50914]/10 text-[#E50914] cursor-pointer hover:bg-[#E50914]/20" : "bg-transparent text-white/20 cursor-not-allowed"
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+              hasNext ? "text-white cursor-pointer" : "text-white/20 cursor-not-allowed"
             }`}
           >
-            <span className="hidden sm:inline">{t.details.nextEpisode || "Suivant"}</span>
+            <span className="hidden sm:inline">{t.details.nextEpisode || "Épisode Suivant"}</span>
             <SkipForward className="w-4 h-4" />
           </motion.button>
         </div>
       )}
 
       {/* --- CONTRÔLES (DARK LUXURY) --- */}
-      {/* Mobile Controls Trigger */}
-      <div className="lg:hidden w-full mb-4">
-        <button
-          onClick={() => setIsSourceSheetOpen(true)}
-          className="w-full flex items-center justify-between p-4 bg-[#141414] rounded-2xl border border-white/10 shadow-lg group active:scale-[0.98] transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
-              <Settings2 className="w-5 h-5 text-[#E50914]" />
-            </div>
-            <div className="text-left">
-              <p className="text-[10px] text-white/40 uppercase tracking-widest font-bold">Source & Audio</p>
-              <p className="text-sm font-bold text-white flex items-center gap-2">
-                {activeServerName} • {activeLang}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-5 h-5 text-white/20 group-hover:text-white/50 transition-colors" />
-        </button>
-      </div>
-
-      {/* Desktop Controls */}
-      <div className={`hidden lg:flex flex-row gap-8 items-start p-0 ${
-        os === 'ios' ? 'bg-white/5 backdrop-blur-xl rounded-[32px] border border-white/10' : 
-        os === 'android' ? 'bg-[#1a1a1a] rounded-2xl shadow-xl border border-white/5' : 
-        ''
-      }`}>
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
         
         {/* Colonne Gauche : Langue & Premium */}
-        <div className="w-1/3 flex flex-col gap-8">
+        <div className="w-full lg:w-1/3 flex flex-col gap-8">
           
           {/* Sélecteur de Langue (Segmented Control) */}
           <div className="flex flex-col gap-3">
             <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">Audio</h3>
-            <div className={`flex p-1 w-fit ${
-              os === 'ios' ? 'bg-black/20 rounded-full border border-white/10' :
-              os === 'android' ? 'bg-black/40 rounded-lg border border-white/5 shadow-inner' :
-              'bg-[#0a0a0a] rounded-xl border border-white/10 shadow-inner'
-            }`}>
+            <div className="flex p-1 bg-[#0a0a0a] rounded-xl border border-white/10 w-fit shadow-inner">
               {(["VF", "VOSTFR"] as Language[]).map((lang) => {
                 const isActive = activeLang === lang;
                 return (
                   <button
                     key={lang}
                     onClick={() => handleLangChange(lang)}
-                    className={`relative px-8 py-2.5 text-xs font-bold transition-all duration-300 z-10 ${
-                      os === 'ios' ? 'rounded-full' :
-                      os === 'android' ? 'rounded-md' :
-                      'rounded-lg'
-                    } ${
+                    className={`relative px-8 py-2.5 rounded-lg text-xs font-bold transition-all duration-300 z-10 ${
                       isActive ? "text-white" : "text-white/40 hover:text-white/70"
                     }`}
                   >
                     {isActive && (
                       <motion.div
                         layoutId="activeLangBg"
-                        className={`absolute inset-0 bg-white/10 border border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)] ${
-                          os === 'ios' ? 'rounded-full' :
-                          os === 'android' ? 'rounded-md' :
-                          'rounded-lg'
-                        }`}
+                        className="absolute inset-0 bg-white/10 rounded-lg border border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
                         initial={false}
                         transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       />
@@ -552,12 +481,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">Source Principale</h3>
             <button
               onClick={() => handleServerChange("MOVEO PREMIUM")}
-              className={`relative w-full p-4 text-left overflow-hidden transition-all duration-500 border ${
-                os === 'ios' ? 'rounded-[24px]' : os === 'android' ? 'rounded-xl' : 'rounded-xl'
-              } ${
+              className={`relative w-full p-4 rounded-xl text-left overflow-hidden transition-all duration-500 border ${
                 activeServerName === "MOVEO PREMIUM" 
                   ? "bg-white/5 border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.03)]" 
-                  : "bg-black/20 border-white/5 hover:bg-white/5"
+                  : "bg-[#0a0a0a] border-white/5 hover:bg-white/5"
               }`}
             >
               <div className="relative z-10 flex items-center justify-between">
@@ -586,7 +513,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
 
         {/* Colonne Droite : Serveurs Alternatifs */}
-        <div className="w-2/3 flex flex-col gap-3">
+        <div className="w-full lg:w-2/3 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">Sources Alternatives</h3>
             {videoUrl && (
@@ -602,9 +529,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             )}
           </div>
           
-          <div className={`border border-white/5 p-2 flex flex-wrap gap-2 ${
-            os === 'ios' ? 'bg-black/20 rounded-[24px]' : os === 'android' ? 'bg-black/40 rounded-xl' : 'bg-[#0a0a0a] rounded-xl'
-          }`}>
+          <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
             {ALTERNATIVE_SERVERS.map((server) => {
               const isActive = activeServerName === server.name;
               const Icon = server.icon;
@@ -612,9 +537,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 <button
                   key={server.name}
                   onClick={() => handleServerChange(server.name)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium transition-all duration-300 ${
-                    os === 'ios' ? 'rounded-full' : 'rounded-lg'
-                  } ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
                     isActive 
                       ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10" 
                       : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
@@ -630,115 +553,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             Les sources alternatives proviennent de serveurs tiers publics.
           </p>
         </div>
+
       </div>
-
-      {/* Mobile Bottom Sheet for Sources */}
-      <BottomSheet
-        isOpen={isSourceSheetOpen}
-        onClose={() => setIsSourceSheetOpen(false)}
-        title="Source & Audio"
-      >
-        <div className="flex flex-col gap-8">
-          {/* Audio Selection */}
-          <div className="flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest">Langue Audio</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {(["VF", "VOSTFR"] as Language[]).map((lang) => {
-                const isActive = activeLang === lang;
-                return (
-                  <button
-                    key={lang}
-                    onClick={() => handleLangChange(lang)}
-                    className={`flex items-center justify-center gap-3 p-4 rounded-2xl border transition-all ${
-                      isActive 
-                        ? "bg-[#E50914] border-[#E50914] text-white shadow-lg shadow-red-900/20" 
-                        : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
-                    }`}
-                  >
-                    <Globe className="w-4 h-4" />
-                    <span className="font-bold">{lang}</span>
-                    {premiumUrls[lang] && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Premium Source */}
-          <div className="flex flex-col gap-4">
-            <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest">Source Principale</h3>
-            <button
-              onClick={() => {
-                handleServerChange("MOVEO PREMIUM");
-                setIsSourceSheetOpen(false);
-              }}
-              className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
-                activeServerName === "MOVEO PREMIUM"
-                  ? "bg-white/10 border-white/20 shadow-lg"
-                  : "bg-white/5 border-white/10"
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center">
-                  <Image src="/favicon.png" alt="Moveo" width={24} height={24} unoptimized={true} />
-                </div>
-                <div className="text-left">
-                  <h4 className="font-bold text-white">MOVEO PREMIUM</h4>
-                  <p className="text-xs text-white/40">Réseau Privé Haute Qualité</p>
-                </div>
-              </div>
-              {activeServerName === "MOVEO PREMIUM" && <CheckCircle2 className="w-5 h-5 text-[#E50914]" />}
-            </button>
-          </div>
-
-          {/* Alternative Sources */}
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white/40 uppercase tracking-widest">Sources Alternatives</h3>
-              {videoUrl && (
-                <a
-                  href={videoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs font-bold text-[#E50914] flex items-center gap-1"
-                >
-                  Ouvrir externe <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {ALTERNATIVE_SERVERS.map((server) => {
-                const isActive = activeServerName === server.name;
-                const Icon = server.icon;
-                return (
-                  <button
-                    key={server.name}
-                    onClick={() => {
-                      handleServerChange(server.name);
-                      setIsSourceSheetOpen(false);
-                    }}
-                    className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${
-                      isActive 
-                        ? "bg-white/10 border-white/20 shadow-lg" 
-                        : "bg-white/5 border-white/10 text-white/60"
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${isActive ? "text-[#E50914]" : ""}`} />
-                    <span className="font-bold text-sm">{server.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <p className="text-[10px] text-white/20 text-center uppercase tracking-widest leading-relaxed">
-            Les sources alternatives proviennent de serveurs tiers publics.
-            Certaines peuvent contenir des publicités.
-          </p>
-        </div>
-      </BottomSheet>
     </div>
   );
 };

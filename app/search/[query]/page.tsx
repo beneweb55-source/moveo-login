@@ -123,9 +123,9 @@ const SearchResult = () => {
                       <div 
                         key={person.id}
                         onClick={() => router.push('/person/' + person.id)}
-                        className="flex-shrink-0 w-36 cursor-pointer group flex flex-col items-center gap-2"
+                        className="flex-shrink-0 w-28 md:w-36 cursor-pointer group flex flex-col items-center gap-2"
                       >
-                        <div className="w-24 h-24 rounded-full overflow-hidden relative bg-zinc-700 group-hover:ring-2 group-hover:ring-[#E50914] transition-all duration-300 group-hover:scale-105 shadow-lg">
+                        <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden relative bg-zinc-700 group-hover:ring-2 group-hover:ring-[#E50914] transition-all duration-300 group-hover:scale-105 shadow-lg">
                           {person.profile_path ? (
                             <Image
                               src={`https://image.tmdb.org/t/p/w185${person.profile_path}`}
@@ -151,11 +151,11 @@ const SearchResult = () => {
               )}
 
               <InfiniteScroll
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8"
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 md:gap-8"
                 dataLength={data?.results?.length || 0}
                 next={fetchNextPageData}
                 hasMore={pageNum <= data?.total_pages}
-                loader={<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8 mt-6 col-span-full w-full"><Spinner /></div>}
+                loader={<Spinner />}
               >
                 {media.map((item: any, index: number) => (
                   <motion.div

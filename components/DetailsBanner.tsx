@@ -133,7 +133,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
   const year = releaseDate ? new Date(releaseDate).getFullYear() : "";
 
   return (
-    <div className="relative w-full min-h-[85vh] bg-[#0A0A0A] flex items-center pt-24 sm:pt-28 lg:pt-20 pb-12">
+    <div className="relative w-full min-h-[85vh] bg-[#0A0A0A] flex items-center pt-20 pb-12">
       {/* Backdrop Image */}
       <div className="absolute inset-0 overflow-hidden">
         <Image
@@ -149,9 +149,9 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
       </div>
 
       <ContentWrapper>
-        <div className="relative z-10 flex flex-col lg:flex-row gap-8 lg:gap-16 items-center lg:items-start">
+        <div className="relative z-10 flex flex-col md:flex-row gap-10 lg:gap-16 items-center md:items-start">
           {/* Poster */}
-          <div className="w-full max-w-[280px] sm:max-w-[350px] flex-shrink-0">
+          <div className="w-[250px] sm:w-[300px] md:w-[350px] flex-shrink-0">
             <div className="relative w-full aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(0,0,0,0.8)] border border-white/10">
               <Image
                 src={posterUrl}
@@ -165,51 +165,51 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
           </div>
 
           {/* Details */}
-          <div className="flex-1 text-white flex flex-col items-center lg:items-start text-center lg:text-left">
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tighter mb-2 drop-shadow-lg">
+          <div className="flex-1 text-white flex flex-col pt-4 md:pt-10">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tighter mb-2 drop-shadow-lg">
               {data?.name || data?.title} <span className="text-white/50 font-light">({year})</span>
             </h1>
             
             {data?.tagline && (
-              <div className="text-lg sm:text-xl text-white/60 italic mb-6 font-light">
+              <div className="text-lg md:text-xl text-white/60 italic mb-6 font-light">
                 &quot;{data.tagline}&quot;
               </div>
             )}
 
             {/* Meta Info */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 sm:gap-6 mb-8 text-sm sm:text-base">
+            <div className="flex flex-wrap items-center gap-6 mb-8 text-sm md:text-base">
               <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/5">
-                <Star className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-500 fill-current" />
+                <Star className="w-5 h-5 text-yellow-500 fill-current" />
                 <span className="font-bold">{data?.vote_average?.toFixed(1)}</span>
                 <span className="text-white/50">/ 10</span>
               </div>
               
               {data?.runtime > 0 && (
                 <div className="flex items-center gap-2 text-white/80">
-                  <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Clock className="w-5 h-5" />
                   <span>{toHoursAndMinutes(data.runtime)}</span>
                 </div>
               )}
               
               {releaseDate && (
                 <div className="flex items-center gap-2 text-white/80">
-                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Calendar className="w-5 h-5" />
                   <span>{format(new Date(releaseDate), "MMM d, yyyy")}</span>
                 </div>
               )}
             </div>
 
             {/* Play Trailer Button and Lists */}
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-10">
+            <div className="flex flex-wrap items-center gap-4 mb-10">
               {video && (
                 <button
                   onClick={() => {
                     setShow(true);
                     setVideoId(video.key);
                   }}
-                  className="flex items-center gap-3 sm:gap-4 bg-[#E50914] hover:bg-red-700 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-full font-bold text-base sm:text-lg transition-all duration-300 shadow-[0_0_20px_rgba(229,9,20,0.4)] hover:shadow-[0_0_30px_rgba(229,9,20,0.6)] hover:scale-105"
+                  className="flex items-center gap-4 bg-[#E50914] hover:bg-red-700 text-white px-8 py-4 rounded-full font-bold text-lg transition-all duration-300 shadow-[0_0_20px_rgba(229,9,20,0.4)] hover:shadow-[0_0_30px_rgba(229,9,20,0.6)] hover:scale-105"
                 >
-                  <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+                  <Play className="w-6 h-6 fill-current" />
                   {t.details.watchTrailer}
                 </button>
               )}
@@ -220,16 +220,16 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
                     onClick={() => toggleList('watchlist')}
                     disabled={listLoading === 'watchlist'}
                     title={t.actionButtons.addToList}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                       lists.includes('watchlist')
                         ? 'bg-white/10 border-white/20 text-white hover:bg-white/20' 
                         : 'bg-transparent border-white/50 text-white hover:border-white hover:bg-white/5'
                     }`}
                   >
                     {listLoading === 'watchlist' ? (
-                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      <Bookmark className={`w-4 h-4 sm:w-5 sm:h-5 ${lists.includes('watchlist') ? 'fill-current' : ''}`} />
+                      <Bookmark className={`w-5 h-5 ${lists.includes('watchlist') ? 'fill-current' : ''}`} />
                     )}
                   </button>
 
@@ -237,16 +237,16 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
                     onClick={() => toggleList('favorites')}
                     disabled={listLoading === 'favorites'}
                     title={t.actionButtons.addToFavorites}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                       lists.includes('favorites')
                         ? 'bg-pink-500/20 border-pink-500/50 text-pink-500 hover:bg-pink-500/30' 
                         : 'bg-transparent border-white/50 text-white hover:border-white hover:bg-white/5'
                     }`}
                   >
                     {listLoading === 'favorites' ? (
-                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${lists.includes('favorites') ? 'fill-current' : ''}`} />
+                      <Heart className={`w-5 h-5 ${lists.includes('favorites') ? 'fill-current' : ''}`} />
                     )}
                   </button>
 
@@ -254,16 +254,16 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
                     onClick={() => toggleList('watched')}
                     disabled={listLoading === 'watched'}
                     title={t.actionButtons.alreadyWatched}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
+                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2 ${
                       lists.includes('watched')
                         ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/30' 
                         : 'bg-transparent border-white/50 text-white hover:border-white hover:bg-white/5'
                     }`}
                   >
                     {listLoading === 'watched' ? (
-                      <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                     ) : (
-                      <Eye className={`w-4 h-4 sm:w-5 sm:h-5 ${lists.includes('watched') ? 'fill-current' : ''}`} />
+                      <Eye className={`w-5 h-5 ${lists.includes('watched') ? 'fill-current' : ''}`} />
                     )}
                   </button>
                 </div>
@@ -272,14 +272,14 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
 
             {/* Overview */}
             <div className="mb-8 max-w-3xl">
-              <h3 className="text-xl sm:text-2xl font-bold mb-3">{t.details.overview}</h3>
-              <p className="text-base sm:text-lg text-white/70 leading-relaxed font-light">
+              <h3 className="text-2xl font-bold mb-3">{t.details.overview}</h3>
+              <p className="text-lg text-white/70 leading-relaxed font-light">
                 {data?.overview}
               </p>
             </div>
 
             {/* Crew Info */}
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 border-t border-white/10 pt-6 w-full max-w-3xl">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 border-t border-white/10 pt-6 max-w-3xl">
               {data?.status && (
                 <div>
                   <span className="text-white/50 block mb-1 text-sm">{t.details.status}</span>
@@ -297,7 +297,7 @@ const DetailsBanner = ({ video, crew }: { video: any; crew: any }) => {
               )}
 
               {writer?.length > 0 && (
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <span className="text-white/50 block mb-1 text-sm">{t.details.writer}</span>
                   <span className="font-medium">
                     {writer.map((d: any) => d.name).join(", ")}

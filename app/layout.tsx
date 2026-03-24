@@ -25,7 +25,7 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
           <StoreProvider>
             <PingTracker />
             <Header />
-            <main className="min-h-screen pt-0 lg:pt-20 pb-24 lg:pb-0">{children}</main>
+            <main className="min-h-screen pt-20 pb-24 lg:pb-0">{children}</main>
             <Footer />
           </StoreProvider>
         </LanguageProvider>

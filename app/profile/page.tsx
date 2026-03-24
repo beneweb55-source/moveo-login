@@ -235,7 +235,7 @@ function ProfileContent() {
       );
     }
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {items.map(item => (
           <div 
             key={item.id} 
@@ -249,8 +249,8 @@ function ProfileContent() {
               className="object-cover transition-transform duration-300 group-hover:scale-110" 
               referrerPolicy="no-referrer"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-2 sm:p-3">
-              <span className="text-white text-[10px] sm:text-sm font-medium truncate">{item.title}</span>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+              <span className="text-white text-sm font-medium truncate">{item.title}</span>
             </div>
           </div>
         ))}
@@ -318,15 +318,15 @@ function ProfileContent() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Rangée 1 : avatar + nom + badges + bio */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-end -mt-12 sm:-mt-24 relative z-20 text-center sm:text-left">
+        <div className="flex flex-col md:flex-row gap-6 items-start md:items-end -mt-24 relative z-20">
           {/* Avatar */}
-          <div className="relative w-24 h-24 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-black bg-zinc-800 shadow-2xl group flex-shrink-0">
+          <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-black bg-zinc-800 shadow-2xl group flex-shrink-0">
             {formData.avatar_url || user.avatar_url ? (
               <Image src={formData.avatar_url || user.avatar_url} alt={user.name} fill className="object-cover" referrerPolicy="no-referrer" />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-3xl sm:text-5xl font-bold bg-gradient-to-tr from-[#E50914] to-purple-600">
+              <div className="w-full h-full flex items-center justify-center text-5xl font-bold bg-gradient-to-tr from-[#E50914] to-purple-600">
                 {user.name?.charAt(0).toUpperCase()}
               </div>
             )}
@@ -336,79 +336,79 @@ function ProfileContent() {
               onClick={() => avatarInputRef.current?.click()}
               className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
             >
-              <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              <Camera className="w-8 h-8 text-white" />
             </div>
           </div>
           
           {/* Basic Info */}
-          <div className="pb-2 sm:pb-6 flex-1 w-full">
-            <div className="flex flex-col gap-2 sm:gap-3">
-              <div className="flex flex-col sm:flex-row flex-wrap items-center sm:items-end gap-2 sm:gap-4">
-                <h1 className="text-2xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md">
+          <div className="pb-2 md:pb-6 flex-1 w-full">
+            <div className="flex flex-col gap-2 md:gap-3">
+              <div className="flex flex-wrap items-end gap-4">
+                <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight drop-shadow-md">
                   {user.name}
                 </h1>
                 
-                <div className="flex items-center gap-2 pb-1 sm:pb-2">
+                <div className="flex items-center gap-2 pb-1 md:pb-2">
                   {/* Role Badge */}
                   <div 
-                    className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded border text-[8px] sm:text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 sm:gap-1.5"
+                    className="px-2.5 py-1 rounded border text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"
                     style={{ borderColor: roleColor, color: roleColor, backgroundColor: 'transparent' }}
                   >
-                    {user.role_name === 'admin' || user.role_name === 'Fondateur' ? <Shield size={8} className="sm:w-3 sm:h-3" /> : <User size={8} className="sm:w-3 sm:h-3" />}
+                    {user.role_name === 'admin' || user.role_name === 'Fondateur' ? <Shield size={12} /> : <User size={12} />}
                     {user.role_name || 'Membre'}
                   </div>
 
                   {/* Rank Badge */}
                   <div 
-                    className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded text-[8px] sm:text-[10px] font-bold uppercase flex items-center gap-1 sm:gap-1.5 transition-all duration-300"
+                    className="px-2.5 py-1 rounded text-[10px] font-bold uppercase flex items-center gap-1.5 transition-all duration-300"
                     style={{
                       backgroundColor: `${rank.color}1A`,
                       color: rank.color,
                       boxShadow: `0 0 8px ${rank.color}66`
                     }}
                   >
-                    <RankIcon size={8} className="sm:w-3 sm:h-3" />
+                    <RankIcon size={12} />
                     <span>{rank.name}</span>
                   </div>
                 </div>
               </div>
               
               {user.bio && (
-                <p className="text-zinc-400 text-xs sm:text-lg max-w-2xl leading-relaxed drop-shadow-sm px-4 sm:px-0">
+                <p className="text-zinc-300 text-base md:text-lg max-w-2xl leading-relaxed drop-shadow-sm">
                   {user.bio}
                 </p>
               )}
               
-              <p className="text-zinc-500 text-[9px] sm:text-sm font-medium mt-1">
+              <p className="text-zinc-500 text-sm font-medium mt-1">
                 Membre depuis le {new Date(user.created_at).toLocaleDateString()}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Rangée 2 : stats en carrousel sur mobile */}
-        <div className="flex overflow-x-auto sm:grid sm:grid-cols-4 gap-3 py-6 border-b border-white/10 no-scrollbar snap-x snap-mandatory">
-          <div className="min-w-[140px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 mb-2" />
-            <span className="text-xl sm:text-2xl font-bold">{stats?.watchlist || 0}</span>
-            <span className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider mt-1">À voir</span>
+        {/* Rangée 2 : stats en pleine largeur */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 py-6 border-b border-white/10">
+          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <Bookmark className="w-6 h-6 text-blue-400 mb-2" />
+            <span className="text-2xl font-bold">{stats?.watchlist || 0}</span>
+            <span className="text-xs text-zinc-500 uppercase tracking-wider mt-1">À voir</span>
           </div>
-          <div className="min-w-[140px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500 mb-2" />
-            <span className="text-xl sm:text-2xl font-bold">{stats?.favorites || 0}</span>
-            <span className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider mt-1">Favoris</span>
+          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <Heart className="w-6 h-6 text-pink-500 mb-2" />
+            <span className="text-2xl font-bold">{stats?.favorites || 0}</span>
+            <span className="text-xs text-zinc-500 uppercase tracking-wider mt-1">Favoris</span>
           </div>
-          <div className="min-w-[140px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 mb-2" />
-            <span className="text-xl sm:text-2xl font-bold">{stats?.watched || 0}</span>
-            <span className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider mt-1">Vus</span>
+          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <Eye className="w-6 h-6 text-emerald-500 mb-2" />
+            <span className="text-2xl font-bold">{stats?.watched || 0}</span>
+            <span className="text-xs text-zinc-500 uppercase tracking-wider mt-1">Vus</span>
           </div>
-          <div className="min-w-[140px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <div className="w-5 h-5 sm:w-6 sm:h-6 mb-2 flex items-center justify-center">
+          <div className="bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <div className="w-6 h-6 mb-2 flex items-center justify-center">
               <Clock className="w-full h-full text-zinc-400" />
             </div>
-            <span className="text-xl sm:text-2xl font-bold">{Math.floor((stats?.watchTime || 0) / 60)}h</span>
-            <span className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider mt-1">Visionnage</span>
+            <span className="text-2xl font-bold">{Math.floor((stats?.watchTime || 0) / 60)}h</span>
+            <span className="text-xs text-zinc-500 uppercase tracking-wider mt-1">Temps de visionnage</span>
           </div>
         </div>
 
@@ -467,58 +467,58 @@ function ProfileContent() {
             {activeTab === 'watched' && renderList(lists.watched)}
             
             {activeTab === 'settings' && (
-              <div className="max-w-2xl bg-zinc-900/50 border border-white/5 rounded-2xl p-4 sm:p-8 mb-10">
-                <h2 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6">Modifier le profil</h2>
-                <form onSubmit={handleUpdateProfile} className="space-y-4 sm:space-y-6">
+              <div className="max-w-2xl bg-zinc-900/50 border border-white/5 rounded-2xl p-6 md:p-8">
+                <h2 className="text-xl font-bold mb-6">Modifier le profil</h2>
+                <form onSubmit={handleUpdateProfile} className="space-y-6">
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-zinc-400 mb-1.5 sm:mb-2">Pseudo</label>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Pseudo</label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base text-white focus:outline-none focus:border-[#E50914] transition-colors"
+                      className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors"
                       required
                     />
                   </div>
                   
                   <div>
-                    <label className="block text-xs sm:text-sm font-medium text-zinc-400 mb-1.5 sm:mb-2">Bio</label>
+                    <label className="block text-sm font-medium text-zinc-400 mb-2">Bio</label>
                     <textarea
                       value={formData.bio}
                       onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                      className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base text-white focus:outline-none focus:border-[#E50914] transition-colors h-24 resize-none"
+                      className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors h-24 resize-none"
                       placeholder="Parlez-nous de vous..."
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-zinc-400 mb-1.5 sm:mb-2">Twitter</label>
+                      <label className="block text-sm font-medium text-zinc-400 mb-2">Twitter</label>
                       <input
                         type="url"
                         value={formData.twitter_url}
                         onChange={(e) => setFormData({...formData, twitter_url: e.target.value})}
-                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors text-xs sm:text-sm"
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors text-sm"
                         placeholder="https://twitter.com/..."
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-zinc-400 mb-1.5 sm:mb-2">Instagram</label>
+                      <label className="block text-sm font-medium text-zinc-400 mb-2">Instagram</label>
                       <input
                         type="url"
                         value={formData.instagram_url}
                         onChange={(e) => setFormData({...formData, instagram_url: e.target.value})}
-                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors text-xs sm:text-sm"
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors text-sm"
                         placeholder="https://instagram.com/..."
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-zinc-400 mb-1.5 sm:mb-2">Site web</label>
+                      <label className="block text-sm font-medium text-zinc-400 mb-2">Site web</label>
                       <input
                         type="url"
                         value={formData.website_url}
                         onChange={(e) => setFormData({...formData, website_url: e.target.value})}
-                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors text-xs sm:text-sm"
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors text-sm"
                         placeholder="https://..."
                       />
                     </div>
@@ -528,37 +528,37 @@ function ProfileContent() {
                     <button
                       type="submit"
                       disabled={saving}
-                      className="w-full sm:w-auto bg-[#E50914] hover:bg-[#E50914]/90 text-white px-6 py-3 sm:px-8 sm:py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                      className="bg-[#E50914] hover:bg-[#E50914]/90 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                     >
                       {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Edit2 className="w-5 h-5" />}
-                      Enregistrer
+                      Enregistrer les modifications
                     </button>
                   </div>
                 </form>
 
-                <div className="mt-10 sm:mt-12 pt-6 sm:pt-8 border-t border-white/10">
-                  <h3 className="text-base sm:text-lg font-bold mb-4 sm:mb-6 flex items-center gap-2">
-                    <Key className="w-4 h-4 sm:w-5 sm:h-5" />
+                <div className="mt-12 pt-8 border-t border-white/10">
+                  <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+                    <Key className="w-5 h-5" />
                     Changer le mot de passe
                   </h3>
-                  <form onSubmit={handleUpdatePassword} className="space-y-4 sm:space-y-6">
+                  <form onSubmit={handleUpdatePassword} className="space-y-6">
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-zinc-400 mb-1.5 sm:mb-2">Mot de passe actuel</label>
+                      <label className="block text-sm font-medium text-zinc-400 mb-2">Mot de passe actuel</label>
                       <input
                         type="password"
                         value={passwordData.currentPassword}
                         onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})}
-                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base text-white focus:outline-none focus:border-[#E50914] transition-colors"
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors"
                         required
                       />
                     </div>
                     <div>
-                      <label className="block text-xs sm:text-sm font-medium text-zinc-400 mb-1.5 sm:mb-2">Nouveau mot de passe</label>
+                      <label className="block text-sm font-medium text-zinc-400 mb-2">Nouveau mot de passe</label>
                       <input
                         type="password"
                         value={passwordData.newPassword}
                         onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})}
-                        className="w-full bg-black/50 border border-white/10 rounded-lg px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base text-white focus:outline-none focus:border-[#E50914] transition-colors"
+                        className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#E50914] transition-colors"
                         required
                         minLength={6}
                       />
@@ -567,17 +567,17 @@ function ProfileContent() {
                       <button
                         type="submit"
                         disabled={savingPassword}
-                        className="w-full sm:w-auto bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 sm:px-8 sm:py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+                        className="bg-zinc-800 hover:bg-zinc-700 text-white px-8 py-3 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                       >
-                        {savingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Mettre à jour'}
+                        {savingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Mettre à jour le mot de passe'}
                       </button>
                     </div>
                   </form>
                 </div>
 
-                <div className="mt-10 sm:mt-12 pt-6 sm:pt-8 border-t border-white/10">
-                  <h3 className="text-base sm:text-lg font-bold mb-4 sm:mb-6 text-red-500">Zone de danger</h3>
-                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <div className="mt-12 pt-8 border-t border-white/10">
+                  <h3 className="text-lg font-bold mb-6 text-red-500">Zone de danger</h3>
+                  <div className="flex flex-col sm:flex-row gap-4">
                     <button
                       onClick={handleLogout}
                       className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer"
@@ -596,14 +596,14 @@ function ProfileContent() {
                   </div>
                   {showDeleteConfirm && (
                     <div className="mt-3 p-4 bg-red-500/10 border border-red-500/20 rounded-xl">
-                      <p className="text-xs sm:text-sm text-zinc-300 mb-3">
+                      <p className="text-sm text-zinc-300 mb-3">
                         Êtes-vous sûr ? Cette action est irréversible et supprimera toutes vos données.
                       </p>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <button onClick={handleDeleteAccount} className="w-full sm:w-auto px-4 py-2 bg-red-600 rounded-lg text-sm font-bold cursor-pointer">
-                          Confirmer
+                      <div className="flex gap-2">
+                        <button onClick={handleDeleteAccount} className="px-4 py-2 bg-red-600 rounded-lg text-sm font-bold cursor-pointer">
+                          Confirmer la suppression
                         </button>
-                        <button onClick={() => setShowDeleteConfirm(false)} className="w-full sm:w-auto px-4 py-2 bg-white/10 rounded-lg text-sm">
+                        <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 bg-white/10 rounded-lg text-sm">
                           Annuler
                         </button>
                       </div>

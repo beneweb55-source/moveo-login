@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Clock, Search, User, Plus, Minus, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { getRankFromWatchTime } from '@/utils/ranks';
@@ -122,15 +121,7 @@ export default function WatchTimeManager() {
                     <tr key={user.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
                       <td className="p-4 flex items-center gap-3">
                         {user.avatar_url ? (
-                          <div className="relative w-10 h-10 shrink-0">
-                            <Image 
-                              src={user.avatar_url} 
-                              alt={user.name} 
-                              fill
-                              className="rounded-full object-cover" 
-                              referrerPolicy="no-referrer"
-                            />
-                          </div>
+                          <img src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
                             <User className="w-5 h-5 text-zinc-400" />

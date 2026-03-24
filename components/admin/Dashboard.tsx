@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import { Users, Clock, Film, UserPlus, Activity, Eye } from 'lucide-react';
 import { RANKS } from '@/utils/ranks';
 import { useLanguage } from '@/context/LanguageContext';
@@ -78,15 +77,11 @@ export default function Dashboard() {
                     {index + 1}
                   </div>
                   {movie.poster_path ? (
-                    <div className="relative w-12 h-18 shrink-0">
-                      <Image 
-                        src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`} 
-                        alt={movie.title} 
-                        fill
-                        className="object-cover rounded shadow-lg" 
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
+                    <img 
+                      src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`} 
+                      alt={movie.title} 
+                      className="w-12 h-18 object-cover rounded shadow-lg" 
+                    />
                   ) : (
                     <div className="w-12 h-18 bg-zinc-800 rounded flex items-center justify-center text-[10px] text-zinc-500 text-center p-1">
                       No Img

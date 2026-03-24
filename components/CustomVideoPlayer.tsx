@@ -244,7 +244,7 @@ export default function CustomVideoPlayer({
 
       {/* Controls Overlay */}
       <div 
-        className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-opacity duration-300 flex flex-col justify-end p-6 z-20 ${
+        className={`absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent transition-opacity duration-300 flex flex-col justify-end p-4 md:p-6 z-20 ${
           showControls ? "opacity-100" : "opacity-0 cursor-none"
         }`}
       >
@@ -274,14 +274,14 @@ export default function CustomVideoPlayer({
 
         {/* Buttons Row */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 md:gap-6">
             <button onClick={togglePlay} className="hover:text-[#E50914] transition-colors cursor-pointer">
-              {isPlaying ? <Pause className="w-8 h-8 fill-current" /> : <Play className="w-8 h-8 fill-current" />}
+              {isPlaying ? <Pause className="w-6 h-6 md:w-8 md:h-8 fill-current" /> : <Play className="w-6 h-6 md:w-8 md:h-8 fill-current" />}
             </button>
 
             <div className="flex items-center gap-2 group/volume">
               <button onClick={toggleMute} className="hover:text-[#E50914] transition-colors cursor-pointer">
-                {isMuted || volume === 0 ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+                {isMuted || volume === 0 ? <VolumeX className="w-5 h-5 md:w-6 md:h-6" /> : <Volume2 className="w-5 h-5 md:w-6 md:h-6" />}
               </button>
               <div className="w-0 overflow-hidden group-hover/volume:w-24 transition-all duration-300">
                 <input
@@ -296,7 +296,7 @@ export default function CustomVideoPlayer({
               </div>
             </div>
 
-            <div className="text-sm font-medium text-white/80">
+            <div className="text-xs md:text-sm font-medium text-white/80">
               {formatTime(progress)} / {formatTime(duration)}
             </div>
           </div>
@@ -309,7 +309,7 @@ export default function CustomVideoPlayer({
                   onClick={() => setShowSettings(!showSettings)}
                   className="hover:text-[#E50914] transition-colors p-1"
                 >
-                  <Settings className={`w-6 h-6 ${showSettings ? "text-[#E50914] rotate-90" : ""} transition-all`} />
+                  <Settings className={`w-5 h-5 md:w-6 md:h-6 ${showSettings ? "text-[#E50914] rotate-90" : ""} transition-all`} />
                 </button>
                 
                 {showSettings && (
@@ -336,7 +336,7 @@ export default function CustomVideoPlayer({
             )}
 
             <button onClick={toggleFullscreen} className="hover:text-[#E50914] transition-colors cursor-pointer">
-              <Maximize className="w-6 h-6" />
+              <Maximize className="w-5 h-5 md:w-6 md:h-6" />
             </button>
           </div>
         </div>

@@ -45,7 +45,6 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
   const [activeIdx, setActiveIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const touchStartX = useRef<number | null>(null);
 
   const slides = data?.slice(0, 8) || [];
 
@@ -56,22 +55,6 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
   const prevSlide = useCallback(() => {
     setActiveIdx((prev) => (prev - 1 + slides.length) % slides.length);
   }, [slides.length]);
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchStartX.current - touchEndX;
-
-    if (Math.abs(diff) > 50) {
-      if (diff > 0) nextSlide();
-      else prevSlide();
-    }
-    touchStartX.current = null;
-  };
 
   useEffect(() => {
     if (!paused && slides.length > 0) {
@@ -92,14 +75,14 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
 
   if (loading) {
     return (
-      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 py-8 sm:py-12">
-        <h2 className="text-xl sm:text-3xl font-bold mb-4 sm:mb-8 text-white">{title}</h2>
-        <div className="w-full aspect-video sm:aspect-[21/7] min-h-[300px] sm:min-h-[500px] mb-4">
+      <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <h2 className="text-2xl md:text-3xl font-bold mb-8 text-white">{title}</h2>
+        <div className="w-full aspect-[4/5] sm:aspect-[16/9] md:aspect-[21/7] min-h-[450px] md:min-h-[500px] mb-4">
           {skeletonItem()}
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-4 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-4">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="flex-shrink-0 w-24 sm:w-[calc(12.5%-10px)] aspect-video">
+            <div key={i} className="flex-shrink-0 w-[calc(12.5%-10px)] min-w-[80px] aspect-video">
               {skeletonItem()}
             </div>
           ))}
@@ -113,13 +96,13 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
   const mainItem = slides[activeIdx];
 
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 py-10 sm:py-20 lg:py-24">
-      <div className="flex items-center justify-between mb-8 sm:mb-16">
-        <h2 className="text-3xl sm:text-5xl lg:text-7xl font-black text-white tracking-tighter uppercase leading-none">
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-16">
+      <div className="flex items-center justify-between mb-6 md:mb-12">
+        <h2 className="text-2xl md:text-5xl font-black text-white tracking-tighter uppercase">
           {title}
         </h2>
-        <div className="h-px flex-grow bg-white/10 ml-6 sm:ml-12" />
-        <div className="ml-6 text-zinc-500 font-mono text-sm sm:text-xl">
+        <div className="h-px flex-grow bg-white/10 ml-4 md:ml-8" />
+        <div className="ml-4 text-zinc-500 font-mono text-sm md:text-lg">
           {activeIdx + 1} / {slides.length}
         </div>
       </div>
@@ -128,108 +111,80 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
         className="relative group w-full"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
       >
         {/* Main Card */}
         <div 
-          className="relative cursor-pointer rounded-[2rem] sm:rounded-[3rem] lg:rounded-[4rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9)] bg-zinc-900 aspect-[3/4] sm:aspect-[16/10] lg:aspect-[21/8] w-full max-w-full border border-white/5"
+          className="relative cursor-pointer rounded-3xl md:rounded-[2.5rem] overflow-hidden shadow-2xl shadow-black/80 bg-zinc-900 aspect-[4/5] sm:aspect-[16/9] md:aspect-[21/7] min-h-[450px] md:min-h-[500px]"
           onClick={() => router.push(`/${mainItem.media_type || "movie"}/${mainItem.id}`)}
         >
           <AnimatePresence mode="wait">
             <motion.div
               key={activeIdx}
-              initial={{ opacity: 0, scale: 1.1 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
               className="absolute inset-0"
             >
               <SafeImage
-                src={mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : (mainItem.backdrop_path ? `https://image.tmdb.org/t/p/original${mainItem.backdrop_path}` : `https://picsum.photos/seed/${mainItem.id}/1920/1080`)}
+                src={mainItem.backdrop_path ? `https://image.tmdb.org/t/p/original${mainItem.backdrop_path}` : (mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : `https://picsum.photos/seed/${mainItem.id}/1920/1080`)}
                 alt={mainItem.title || mainItem.name}
                 fallbackId={mainItem.id}
-                className="object-cover transition-transform duration-[10000ms] scale-100 sm:group-hover:scale-110"
+                className="object-cover transition-transform duration-[6000ms] scale-100 group-hover:scale-105"
                 sizes="100vw"
               />
-              {/* Enhanced Gradient for better readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent z-10" />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/20 to-transparent z-10 sm:block hidden" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent z-10" />
               
-              <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-12 lg:p-16 z-20 flex flex-col items-center text-center sm:items-start sm:text-left">
-                <motion.div 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="inline-flex items-center gap-3 bg-[#E50914] text-[10px] sm:text-xs font-black px-4 py-1.5 sm:px-5 sm:py-2 rounded-full mb-4 sm:mb-6 shadow-2xl tracking-[0.2em] uppercase"
-                >
-                  {mainItem.media_type === 'tv' ? <Tv className="w-3 h-3 sm:w-4 sm:h-4" /> : <Film className="w-3 h-3 sm:w-4 sm:h-4" />}
+              <div className="absolute bottom-0 left-0 p-6 md:p-16 z-20 w-full md:w-2/3">
+                <span className="inline-flex items-center gap-2 bg-[#E50914] text-white text-[10px] md:text-sm font-black px-4 py-1.5 md:px-5 md:py-2 rounded-full mb-3 md:mb-6 shadow-xl tracking-widest uppercase">
+                  {mainItem.media_type === 'tv' ? <Tv className="w-4 h-4 md:w-5 md:h-5" /> : <Film className="w-4 h-4 md:w-5 md:h-5" />}
                   #{activeIdx + 1} {t.home.trending}
-                </motion.div>
+                </span>
                 
-                <motion.h3 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-3xl sm:text-5xl lg:text-6xl font-black text-white mb-4 sm:mb-6 tracking-tighter leading-[0.9] drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] line-clamp-2 max-w-2xl lg:max-w-4xl"
-                >
+                <h3 className="text-3xl md:text-7xl lg:text-8xl font-black text-white mb-3 md:mb-6 tracking-tighter leading-[1] md:leading-[0.9] drop-shadow-2xl line-clamp-2">
                   {mainItem.title || mainItem.name}
-                </motion.h3>
+                </h3>
                 
-                <motion.p 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.4 }}
-                  className="text-zinc-300 text-sm sm:text-base lg:text-lg line-clamp-2 max-w-xl lg:max-w-2xl mb-6 sm:mb-10 font-medium leading-relaxed opacity-80 sm:block hidden"
-                >
+                <p className="text-zinc-300 text-sm md:text-xl line-clamp-2 md:line-clamp-3 max-w-2xl mb-6 md:mb-8 font-medium leading-relaxed opacity-90">
                   {mainItem.overview}
-                </motion.p>
+                </p>
                 
-                <motion.div 
-                  initial={{ y: 20, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.5 }}
-                  className="flex flex-col items-center sm:items-start gap-4 sm:gap-6 w-full sm:w-auto"
-                >
-                  <button className="flex items-center justify-center gap-3 bg-white text-black w-[90%] sm:w-auto px-6 sm:px-10 py-3 sm:py-3.5 rounded-full hover:bg-zinc-200 transition-all cursor-pointer active:scale-95 shadow-2xl font-black text-sm sm:text-base">
-                    <Play className="w-5 h-5 sm:w-5 sm:h-5 fill-current" />
+                <div className="flex flex-wrap items-center gap-3 md:gap-4 text-[10px] md:text-base text-white/80 font-bold">
+                  <button className="flex items-center gap-2 bg-white text-black px-6 py-2 md:px-8 md:py-3 rounded-full hover:bg-zinc-200 transition-colors cursor-pointer">
+                    <Play className="w-4 h-4 md:w-5 md:h-5 fill-current" />
                     {t.home.watchNow}
                   </button>
-                  
-                  {/* Grouped Metadata on a single line below the button */}
-                  <div className="flex items-center gap-4 text-xs sm:text-sm font-black text-white/60">
-                    <div className="flex items-center gap-2">
-                      <Star className="w-4 h-4 sm:w-4 sm:h-4 text-yellow-400 fill-current" />
-                      <span>{mainItem.vote_average?.toFixed(1)}</span>
-                    </div>
-                    <div className="w-1 h-1 rounded-full bg-white/20" />
-                    <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 sm:w-4 sm:h-4 text-zinc-400" />
-                      <span>{new Date(mainItem.release_date || mainItem.first_air_date).getFullYear()}</span>
-                    </div>
+                  <div className="flex items-center gap-2 md:gap-3 bg-white/10 backdrop-blur-md px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-white/10">
+                    <Star className="w-4 h-4 md:w-5 md:h-5 text-yellow-400 fill-current" />
+                    <span className="text-white">{mainItem.vote_average?.toFixed(1)}</span>
                   </div>
-                </motion.div>
+                  <div className="flex items-center gap-2 md:gap-3 bg-white/10 backdrop-blur-md px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-white/10">
+                    <Calendar className="w-4 h-4 md:w-5 md:h-5 text-zinc-400" />
+                    <span>{new Date(mainItem.release_date || mainItem.first_air_date).getFullYear()}</span>
+                  </div>
+                </div>
               </div>
             </motion.div>
           </AnimatePresence>
 
-          {/* Decorative element - Hide on mobile */}
-          <div className="absolute top-10 right-10 z-20 hidden sm:block">
-            <div className="w-32 h-32 rounded-full border-2 border-white/10 flex items-center justify-center backdrop-blur-sm group-hover:border-[#E50914]/50 transition-colors duration-500">
-              <Play className="w-12 h-12 text-white group-hover:text-[#E50914] transition-colors duration-500 fill-current" />
+          {/* Decorative element */}
+          <div className="absolute top-6 right-6 md:top-10 md:right-10 z-20 hidden sm:block">
+            <div className="w-20 h-20 md:w-32 md:h-32 rounded-full border-2 border-white/10 flex items-center justify-center backdrop-blur-sm group-hover:border-[#E50914]/50 transition-colors duration-500">
+              <Play className="w-8 h-8 md:w-12 md:h-12 text-white group-hover:text-[#E50914] transition-colors duration-500 fill-current" />
             </div>
           </div>
 
-          {/* Navigation Arrows - Hide on mobile, use swipe instead */}
+          {/* Navigation Arrows */}
           <button 
             onClick={(e) => { e.stopPropagation(); prevSlide(); }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/50 text-white opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-[#E50914] hidden sm:block"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#E50914]"
           >
             <ChevronLeft className="w-8 h-8" />
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/50 text-white opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-[#E50914] hidden sm:block"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-[#E50914]"
           >
             <ChevronRight className="w-8 h-8" />
           </button>
@@ -251,12 +206,12 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
         </div>
 
         {/* Thumbnails */}
-        <div className="flex gap-2 mt-4 overflow-x-auto pb-4 scrollbar-hide snap-x">
+        <div className="flex gap-2 mt-4 overflow-x-auto pb-4 scrollbar-hide">
           {slides.map((item, idx) => (
             <div 
               key={item.id}
               onClick={() => setActiveIdx(idx)}
-              className={`relative flex-shrink-0 w-20 sm:w-[calc(12.5%-10px)] aspect-video rounded-lg overflow-hidden cursor-pointer transition-all duration-300 snap-start ${activeIdx === idx ? 'ring-2 ring-[#E50914] scale-105 opacity-100 z-10' : 'opacity-50 hover:opacity-80'}`}
+              className={`relative flex-shrink-0 w-[calc(12.5%-10px)] min-w-[80px] aspect-video rounded-lg overflow-hidden cursor-pointer transition-all duration-300 ${activeIdx === idx ? 'ring-2 ring-[#E50914] scale-105 opacity-100 z-10' : 'opacity-50 hover:opacity-80'}`}
             >
               <SafeImage
                 src={item.backdrop_path ? `https://image.tmdb.org/t/p/w500${item.backdrop_path}` : (item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : `https://picsum.photos/seed/${item.id}/500/300`)}

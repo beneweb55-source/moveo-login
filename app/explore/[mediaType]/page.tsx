@@ -144,50 +144,50 @@ const Explore = () => {
   };
 
   return (
-    <div className="min-h-screen pt-[120px] pb-20 bg-[#0A0A0A]">
+    <div className="min-h-screen pt-[100px] pb-10 bg-[#0A0A0A]">
       <ContentWrapper>
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-12 md:mb-20 gap-8">
-          <h1 className="text-4xl md:text-6xl font-black text-white capitalize tracking-tighter">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+          <h1 className="text-3xl md:text-4xl font-bold text-white capitalize tracking-tight">
             {mediaType === "tv" ? t.explore.exploreTv : t.explore.exploreMovies}
           </h1>
           
-          <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-            <div className="relative group flex-1 sm:flex-none">
+          <div className="flex flex-wrap gap-4 w-full md:w-auto">
+            <div className="relative group">
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="w-full appearance-none bg-white/5 backdrop-blur-2xl text-white px-6 py-4 pr-12 rounded-2xl border border-white/10 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-white/10 transition-all duration-500 text-sm font-black uppercase tracking-widest sm:min-w-[200px] shadow-2xl"
+                className="appearance-none bg-zinc-900 text-white px-6 py-3 pr-12 rounded-xl border border-zinc-800 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-800 transition-all duration-300 text-sm font-medium min-w-[160px] shadow-lg"
               >
                 {sortOptions.map((option) => (
-                  <option key={option.value} value={option.value} className="bg-zinc-900">
+                  <option key={option.value} value={option.value}>
                     {t.explore.sortOptions[option.label as keyof typeof t.explore.sortOptions]}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
             </div>
 
-            <div className="relative group flex-1 sm:flex-none">
+            <div className="relative group">
               <select
                 value={selectedGenre}
                 onChange={(e) => setSelectedGenre(e.target.value)}
-                className="w-full appearance-none bg-white/5 backdrop-blur-2xl text-white px-6 py-4 pr-12 rounded-2xl border border-white/10 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-white/10 transition-all duration-500 text-sm font-black uppercase tracking-widest sm:min-w-[200px] lg:max-w-[300px] shadow-2xl"
+                className="appearance-none bg-zinc-900 text-white px-6 py-3 pr-12 rounded-xl border border-zinc-800 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-800 transition-all duration-300 text-sm font-medium min-w-[160px] max-w-[240px] shadow-lg"
               >
-                <option value="" className="bg-zinc-900">{t.explore.allGenres}</option>
+                <option value="">{t.explore.allGenres}</option>
                 {genres.map((genre) => (
-                  <option key={genre.id} value={genre.id} className="bg-zinc-900">
+                  <option key={genre.id} value={genre.id}>
                     {genre.name}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
             </div>
           </div>
         </div>
 
         {loading && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
-            {[...Array(12)].map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8">
+            {[...Array(10)].map((_, i) => (
               <SkeletonCard key={i} />
             ))}
           </div>
@@ -197,13 +197,13 @@ const Explore = () => {
           <>
             {data?.results?.length > 0 ? (
               <InfiniteScroll
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10"
+                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8"
                 dataLength={data?.results?.length || 0}
                 next={fetchNextPageData}
                 hasMore={pageNum <= data?.total_pages}
                 loader={
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10 mt-10 col-span-full w-full">
-                    {[...Array(6)].map((_, i) => (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-8 mt-6 col-span-full w-full">
+                    {[...Array(5)].map((_, i) => (
                       <SkeletonCard key={i} />
                     ))}
                   </div>
@@ -215,9 +215,9 @@ const Explore = () => {
                   return (
                     <motion.div
                       key={`${item.id}-${index}`}
-                      initial={{ opacity: 0, y: 30 }}
+                      initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: (index % 12) * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                      transition={{ duration: 0.4, delay: index % 10 * 0.05 }}
                     >
                       <MovieCard
                         data={item}
@@ -228,11 +228,11 @@ const Explore = () => {
                 })}
               </InfiniteScroll>
             ) : (
-              <div className="flex flex-col items-center justify-center py-40 text-center">
-                <span className="text-4xl md:text-6xl text-white/20 font-black mb-6 tracking-tighter uppercase">
+              <div className="flex flex-col items-center justify-center py-32 text-center">
+                <span className="text-3xl text-white/40 font-bold mb-4">
                   {t.explore.noResults}
                 </span>
-                <p className="text-white/30 text-xl md:text-2xl font-medium">{t.explore.tryAdjustingFilters}</p>
+                <p className="text-white/30 text-lg">{t.explore.tryAdjustingFilters}</p>
               </div>
             )}
           </>
