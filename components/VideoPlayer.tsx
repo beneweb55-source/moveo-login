@@ -299,17 +299,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handleFullscreenChange = async () => {
       if (document.fullscreenElement) {
         try {
-          // @ts-ignore - screen.orientation.lock is not fully typed in all environments
-          if (screen.orientation && screen.orientation.lock) {
-            await screen.orientation.lock('landscape');
+          const orientation = screen.orientation as any;
+          if (orientation && orientation.lock) {
+            await orientation.lock('landscape');
           }
         } catch (err) {
           console.log("Orientation lock failed", err);
         }
       } else {
         try {
-          if (screen.orientation && screen.orientation.unlock) {
-            screen.orientation.unlock();
+          const orientation = screen.orientation as any;
+          if (orientation && orientation.unlock) {
+            orientation.unlock();
           }
         } catch (err) {
           console.log("Orientation unlock failed", err);
