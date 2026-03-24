@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     );
 
     // Send reset email
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const appUrl = process.env.APP_URL || 'https://moveo.blog';
     const resetLink = `${appUrl}/reset-password?token=${resetToken}`;
 
     try {

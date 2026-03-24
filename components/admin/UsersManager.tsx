@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { Search, MoreVertical, ShieldAlert, Clock, Calendar, Mail, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getRankFromWatchTime } from '@/utils/ranks';
@@ -145,7 +146,15 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                   >
                     <td className="p-4 flex items-center gap-3">
                       {user.avatar_url ? (
-                        <img src={user.avatar_url} alt={user.name} className="w-10 h-10 rounded-full object-cover" />
+                        <div className="relative w-10 h-10 shrink-0">
+                          <Image 
+                            src={user.avatar_url} 
+                            alt={user.name} 
+                            fill
+                            className="rounded-full object-cover" 
+                            referrerPolicy="no-referrer"
+                          />
+                        </div>
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
                           <User className="w-5 h-5 text-zinc-400" />
@@ -243,7 +252,15 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
             <div className="p-6 flex-1 overflow-y-auto space-y-6">
               <div className="flex flex-col items-center text-center">
                 {selectedUser.avatar_url ? (
-                  <img src={selectedUser.avatar_url} alt={selectedUser.name} className="w-24 h-24 rounded-full object-cover mb-4 border-4 border-white/10" />
+                  <div className="relative w-24 h-24 mb-4 border-4 border-white/10 rounded-full overflow-hidden">
+                    <Image 
+                      src={selectedUser.avatar_url} 
+                      alt={selectedUser.name} 
+                      fill
+                      className="object-cover" 
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
                 ) : (
                   <div className="w-24 h-24 rounded-full bg-zinc-800 flex items-center justify-center mb-4 border-4 border-white/10">
                     <User className="w-10 h-10 text-zinc-400" />

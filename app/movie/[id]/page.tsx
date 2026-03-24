@@ -167,92 +167,92 @@ export default function MovieDetails() {
         </div>
 
         <ContentWrapper>
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-6 lg:gap-12 items-start mt-12 lg:mt-0">
+            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-8 lg:gap-16 items-start mt-16 lg:mt-0 px-4 sm:px-0">
                 {/* Poster - Hidden on mobile, visible on lg */}
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.8 }}
-                    className="hidden lg:block relative aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 group lg:sticky lg:top-32"
+                    initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+                    className="hidden lg:block relative aspect-[2/3] rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] border border-white/10 group lg:sticky lg:top-32"
                 >
                      {posterUrl ? (
                         <Image
                             src={posterUrl}
                             alt={data?.title}
                             fill
-                            className="object-cover transition-transform duration-700 group-hover:scale-105"
+                            className="object-cover transition-transform duration-1000 group-hover:scale-110"
                             referrerPolicy="no-referrer"
                         />
                     ) : (
                         <div className="w-full h-full bg-zinc-900 flex items-center justify-center">
-                            <Film className="w-16 h-16 text-white/20" />
+                            <Film className="w-20 h-20 text-white/20" />
                         </div>
                     )}
                 </motion.div>
 
                 {/* Info */}
-                <div className="flex flex-col gap-4 md:gap-6">
+                <div className="flex flex-col gap-6 md:gap-10">
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.8, delay: 0.2 }}
+                        transition={{ duration: 1, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
                     >
                         {/* Badges */}
-                        <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3 md:mb-4">
+                        <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-6 md:mb-8">
                             {data?.status && (
-                                <span className="px-2 py-0.5 md:px-3 md:py-1 text-[9px] md:text-xs font-bold uppercase tracking-wider bg-[#E50914] text-white rounded-full shadow-lg shadow-red-900/20">
+                                <span className="px-4 py-1.5 md:px-6 md:py-2 text-[10px] md:text-xs font-black uppercase tracking-[0.2em] bg-[#E50914] text-white rounded-full shadow-2xl shadow-red-900/40">
                                     {data.status}
                                 </span>
                             )}
                             {data?.genres?.map((g: any) => (
-                                <span key={g.id} className="px-2 py-0.5 md:px-3 md:py-1 text-[9px] md:text-xs font-medium uppercase tracking-wider bg-white/10 backdrop-blur-md border border-white/10 rounded-full">
+                                <span key={g.id} className="px-4 py-1.5 md:px-6 md:py-2 text-[10px] md:text-xs font-bold uppercase tracking-widest bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full text-white/80">
                                     {g.name}
                                 </span>
                             ))}
                         </div>
 
-                        <h1 className="text-3xl md:text-6xl lg:text-7xl font-black tracking-tight leading-[1.1] mb-2 md:mb-4">
+                        <h1 className="text-4xl md:text-7xl lg:text-9xl font-black tracking-tighter leading-[0.9] mb-6 md:mb-10 drop-shadow-2xl">
                             {data?.title}
                         </h1>
 
                         {data?.tagline && (
-                            <p className="text-sm md:text-xl text-white/60 italic font-serif mb-4 md:mb-6">
+                            <p className="text-lg md:text-3xl text-white/50 italic font-serif mb-8 md:mb-12 leading-relaxed max-w-4xl">
                                 &ldquo;{data.tagline}&rdquo;
                             </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-3 md:gap-6 text-[10px] md:text-base font-medium text-white/80 mb-6 md:mb-8">
-                            <div className="flex items-center gap-1.5 md:gap-2 bg-black/30 px-2 py-0.5 md:px-3 md:py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
-                                <Star className="w-3 h-3 md:w-4 md:h-4 text-yellow-500 fill-yellow-500" />
+                        <div className="flex flex-wrap items-center gap-4 md:gap-10 text-xs md:text-xl font-black text-white/60 mb-10 md:mb-16">
+                            <div className="flex items-center gap-2 md:gap-3 bg-white/5 px-4 py-2 md:px-6 md:py-3 rounded-2xl border border-white/10 backdrop-blur-2xl">
+                                <Star className="w-4 h-4 md:w-6 md:h-6 text-yellow-500 fill-yellow-500" />
                                 <span className="text-white">{rating}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 md:gap-2">
-                                <Calendar className="w-3 h-3 md:w-4 md:h-4 text-[#E50914]" />
-                                <span>{year}</span>
+                            <div className="flex items-center gap-2 md:gap-4">
+                                <Calendar className="w-4 h-4 md:w-6 md:h-6 text-[#E50914]" />
+                                <span className="tracking-widest">{year}</span>
                             </div>
-                            <div className="flex items-center gap-1.5 md:gap-2">
-                                <Clock className="w-3 h-3 md:w-4 md:h-4 text-[#E50914]" />
-                                <span>{runtime}</span>
+                            <div className="flex items-center gap-2 md:gap-4">
+                                <Clock className="w-4 h-4 md:w-6 md:h-6 text-[#E50914]" />
+                                <span className="tracking-widest">{runtime}</span>
                             </div>
                         </div>
 
                         {/* Actions */}
-                        <div className="flex flex-col sm:flex-row flex-wrap items-center gap-3 md:gap-4 mb-8">
+                        <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 md:gap-6 mb-12 md:mb-20">
                             <button
                                 onClick={scrollToPlayer}
-                                className="w-full sm:w-auto flex items-center justify-center gap-3 bg-[#E50914] hover:bg-red-700 text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg shadow-red-900/30 hover:shadow-red-900/50 hover:scale-105 group cursor-pointer"
+                                className="w-full sm:w-auto flex items-center justify-center gap-4 bg-white text-black hover:bg-zinc-200 px-10 py-4 md:py-5 rounded-full font-black transition-all duration-500 shadow-2xl hover:scale-105 active:scale-95 group cursor-pointer"
                             >
-                                <Play className="w-5 h-5 fill-current" />
-                                <span>{t.details.watch}</span>
+                                <Play className="w-6 h-6 fill-current" />
+                                <span className="uppercase tracking-widest text-sm md:text-base">{t.details.watch}</span>
                             </button>
 
                             {trailer && (
                                 <button
                                     onClick={() => setShowTrailer(true)}
-                                    className="w-full sm:w-auto flex items-center justify-center gap-3 bg-transparent hover:bg-[#E50914] border border-white text-white px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg hover:border-transparent hover:shadow-red-900/50 hover:scale-105 group"
+                                    className="w-full sm:w-auto flex items-center justify-center gap-4 bg-transparent hover:bg-white/10 border-2 border-white/20 text-white px-10 py-4 md:py-5 rounded-full font-black transition-all duration-500 shadow-2xl hover:border-white hover:scale-105 active:scale-95 group"
                                 >
-                                    <Play className="w-5 h-5" />
-                                    <span>{t.details.watchTrailer}</span>
+                                    <Play className="w-6 h-6" />
+                                    <span className="uppercase tracking-widest text-sm md:text-base">{t.details.watchTrailer}</span>
                                 </button>
                             )}
 
@@ -260,11 +260,11 @@ export default function MovieDetails() {
                                 <button
                                     onClick={handleRequest}
                                     disabled={requestState === 'loading' || requestState === 'requested' || requestState === 'already'}
-                                    className={`w-full sm:w-auto flex items-center justify-center gap-3 px-8 py-3 md:py-4 rounded-full font-bold transition-all duration-300 shadow-lg whitespace-nowrap ${ requestState === 'requested' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 cursor-default' : requestState === 'already' ? 'bg-zinc-800/80 text-zinc-400 border border-zinc-700 cursor-default' : requestState === 'error' ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500/30' : 'bg-transparent hover:bg-white/10 border border-white/50 text-white hover:border-white hover:scale-105 group' }`}
+                                    className={`w-full sm:w-auto flex items-center justify-center gap-4 px-10 py-4 md:py-5 rounded-full font-black transition-all duration-500 shadow-2xl whitespace-nowrap uppercase tracking-widest text-sm md:text-base ${ requestState === 'requested' ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50 cursor-default' : requestState === 'already' ? 'bg-zinc-800/80 text-zinc-400 border-2 border-zinc-700 cursor-default' : requestState === 'error' ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 hover:bg-red-500/30' : 'bg-transparent hover:bg-white/10 border-2 border-white/20 text-white hover:border-white hover:scale-105 active:scale-95 group' }`}
                                 >
-                                    {requestState === 'loading' && <Loader2 className="w-5 h-5 animate-spin" />}
-                                    {requestState === 'requested' && <Check className="w-5 h-5" />}
-                                    {requestState === 'idle' && <Plus className="w-5 h-5" />}
+                                    {requestState === 'loading' && <Loader2 className="w-6 h-6 animate-spin" />}
+                                    {requestState === 'requested' && <Check className="w-6 h-6" />}
+                                    {requestState === 'idle' && <Plus className="w-6 h-6" />}
                                     <span>
                                       {requestState === 'requested' ? t.details.requestSent
                                        : requestState === 'already' ? t.details.requestAlready
@@ -283,17 +283,20 @@ export default function MovieDetails() {
                         </div>
 
                         {/* Synopsis */}
-                        <div className="max-w-3xl mb-8">
-                            <h3 className="text-base md:text-lg font-bold mb-2 flex items-center gap-2">
+                        <div className="max-w-4xl mb-12 md:mb-20">
+                            <h3 className="text-xl md:text-3xl font-black mb-4 md:mb-6 flex items-center gap-3 uppercase tracking-tighter">
+                                <span className="w-1 h-6 md:h-8 bg-[#E50914] rounded-full" />
                                 {t.details.synopsis}
                             </h3>
-                            <p className="text-sm md:text-lg text-white/70 leading-relaxed line-clamp-4 md:line-clamp-none">
+                            <p className="text-base md:text-2xl text-white/70 leading-relaxed font-medium">
                                 {data?.overview}
                             </p>
                         </div>
                         
                         {/* Cast */}
-                        <CastList cast={data?.credits?.cast || []} />
+                        <div className="mb-12 md:mb-20">
+                            <CastList cast={data?.credits?.cast || []} />
+                        </div>
                     </motion.div>
                 </div>
             </div>

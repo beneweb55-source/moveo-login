@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   } else if (!origin || origin === 'undefined') {
     const protocol = req.headers.get('x-forwarded-proto') || 'https';
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-    origin = host ? `${protocol}://${host}` : 'http://localhost:3000';
+    origin = host ? `${protocol}://${host}` : 'https://moveo.blog';
   }
   
   const redirectUri = `${origin}/api/auth/google/callback`;

@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   } else if (!origin || origin === 'undefined') {
     const protocol = req.headers.get('x-forwarded-proto') || 'https';
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-    origin = host ? `${protocol}://${host}` : 'http://localhost:3000';
+    origin = host ? `${protocol}://${host}` : 'https://moveo.blog';
   }
   
   const clientId = process.env.GOOGLE_CLIENT_ID || '630042598048-to0breshebpts9pmbke6kqnt8pth3n0l.apps.googleusercontent.com';

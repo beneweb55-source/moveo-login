@@ -12,18 +12,14 @@ function VerifyEmailContent() {
   const [message, setMessage] = useState('');
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>(!token ? 'error' : 'loading');
+  const [message, setMessage] = useState(!token ? 'Invalid or missing verification token.' : '');
   const { t } = useLanguage();
 
   const calledRef = useRef(false);
 
   useEffect(() => {
-    if (!token) {
-      setStatus('error');
-      setMessage('Invalid or missing verification token.');
-      return;
-    }
-
-    if (calledRef.current) return;
+    if (!token || calledRef.current) return;
     calledRef.current = true;
 
     const verifyEmail = async () => {
@@ -44,7 +40,7 @@ function VerifyEmailContent() {
     };
 
     verifyEmail();
-  }, [token]);
+  }, [token, setMessage, setStatus]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4 py-12 sm:px-6 lg:px-8">

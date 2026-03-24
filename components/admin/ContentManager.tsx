@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { LayoutTemplate, Save, Image as ImageIcon, Search, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
 import { AnimatePresence, motion } from 'motion/react';
@@ -263,7 +264,15 @@ export default function ContentManager() {
                         className="flex items-center gap-3 p-3 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0"
                       >
                         {item.poster_path ? (
-                          <img src={`https://image.tmdb.org/t/p/w92${item.poster_path}`} alt={item.title || item.name} className="w-10 h-14 object-cover rounded" />
+                          <div className="relative w-10 h-14 shrink-0">
+                            <Image 
+                              src={`https://image.tmdb.org/t/p/w92${item.poster_path}`} 
+                              alt={item.title || item.name} 
+                              fill
+                              className="object-cover rounded" 
+                              referrerPolicy="no-referrer"
+                            />
+                          </div>
                         ) : (
                           <div className="w-10 h-14 bg-zinc-800 rounded flex items-center justify-center">
                             <ImageIcon className="w-4 h-4 text-zinc-500" />
@@ -283,11 +292,23 @@ export default function ContentManager() {
             {selectedHero && (
               <div className="relative rounded-xl overflow-hidden h-40 mt-4">
                 {/* Image backdrop en fond floutée */}
-                <img src={`https://image.tmdb.org/t/p/w780${selectedHero.backdrop_path || selectedHero.poster_path}`}
-                     className="absolute inset-0 w-full h-full object-cover blur-sm brightness-40" />
+                <Image 
+                  src={`https://image.tmdb.org/t/p/w780${selectedHero.backdrop_path || selectedHero.poster_path}`}
+                  alt="Hero Backdrop"
+                  fill
+                  className="object-cover blur-sm brightness-40" 
+                  referrerPolicy="no-referrer"
+                />
                 <div className="relative z-10 flex items-center gap-4 p-4 h-full">
-                  <img src={`https://image.tmdb.org/t/p/w154${selectedHero.poster_path}`}
-                       className="h-28 rounded-lg shadow-xl" />
+                  <div className="relative h-28 w-20 shrink-0">
+                    <Image 
+                      src={`https://image.tmdb.org/t/p/w154${selectedHero.poster_path}`}
+                      alt={selectedHero.title || selectedHero.name}
+                      fill
+                      className="rounded-lg shadow-xl object-cover" 
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
                   <div>
                     <h5 className="text-xl font-bold text-white">{selectedHero.title || selectedHero.name}</h5>
                     <p className="text-sm text-zinc-300 line-clamp-2 mt-1">{selectedHero.overview}</p>

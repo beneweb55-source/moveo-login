@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     const user = result.rows[0];
 
     // Send verification email
-    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    const appUrl = process.env.APP_URL || 'https://moveo.blog';
     const verifyLink = `${appUrl}/verify-email?token=${verificationToken}`;
 
     try {

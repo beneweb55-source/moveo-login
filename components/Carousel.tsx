@@ -30,7 +30,7 @@ const Carousel = ({ data, loading, endpoint, title, renderItem }: CarouselProps)
 
   const skItem = () => {
     return (
-      <div className="w-[160px] md:w-[calc(25%-15px)] lg:w-[calc(20%-16px)] flex-shrink-0 animate-pulse">
+      <div className="w-[calc(50%-12px)] sm:w-[calc(33.33%-16px)] lg:w-[calc(20%-16px)] flex-shrink-0 animate-pulse">
         <div className="w-full aspect-[2/3] rounded-xl bg-white/10 mb-3" />
         <div className="flex flex-col gap-2">
           <div className="h-4 bg-white/10 rounded-md w-3/4" />
@@ -41,37 +41,37 @@ const Carousel = ({ data, loading, endpoint, title, renderItem }: CarouselProps)
   };
 
   return (
-    <div className="relative mb-12">
+    <div className="relative mb-10 sm:mb-16">
       {title && (
-        <h2 className="text-xl md:text-3xl font-bold mb-6 md:mb-8 text-white flex items-center gap-2 uppercase tracking-tight">
-          <span className="w-1 h-6 md:h-8 bg-[#E50914] rounded-full mr-2"></span>
+        <h2 className="text-2xl sm:text-4xl font-black mb-8 sm:mb-10 text-white flex items-center gap-3 uppercase tracking-tighter px-4 sm:px-0">
+          <span className="w-1.5 h-8 sm:h-10 bg-[#E50914] rounded-full"></span>
           {title}
         </h2>
       )}
       <div className="relative group">
         <ChevronLeft
-          className="absolute -left-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-black/80 text-white rounded-full p-2 cursor-pointer z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 hidden md:block hover:bg-[#E50914] hover:scale-110 shadow-xl"
+          className="absolute -left-2 sm:-left-6 top-[40%] -translate-y-1/2 w-12 h-12 bg-black/80 text-white rounded-full p-3 cursor-pointer z-20 opacity-0 sm:group-hover:opacity-100 transition-all duration-300 hidden sm:block hover:bg-[#E50914] hover:scale-110 shadow-2xl border border-white/10"
           onClick={() => navigation("left")}
         />
         <ChevronRight
-          className="absolute -right-5 top-[40%] -translate-y-1/2 w-12 h-12 bg-black/80 text-white rounded-full p-2 cursor-pointer z-20 opacity-0 group-hover:opacity-100 transition-all duration-300 hidden md:block hover:bg-[#E50914] hover:scale-110 shadow-xl"
+          className="absolute -right-2 sm:-right-6 top-[40%] -translate-y-1/2 w-12 h-12 bg-black/80 text-white rounded-full p-3 cursor-pointer z-20 opacity-0 sm:group-hover:opacity-100 transition-all duration-300 hidden sm:block hover:bg-[#E50914] hover:scale-110 shadow-2xl border border-white/10"
           onClick={() => navigation("right")}
         />
 
         {!loading ? (
           <div
-            className="flex gap-4 md:gap-6 overflow-y-hidden overflow-x-auto scrollbar-hide scroll-smooth pb-4 px-1"
+            className="flex gap-5 sm:gap-8 overflow-y-hidden overflow-x-auto scrollbar-hide scroll-smooth pb-8 px-4 sm:px-0"
             ref={carouselContainer}
             style={{ scrollSnapType: "x mandatory" }}
           >
             {data?.map((item) => (
-              <div key={item.id} className="w-[160px] md:w-[calc(25%-18px)] lg:w-[calc(20%-19px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
+              <div key={item.id} className="w-[calc(60%-16px)] sm:w-[calc(33.33%-20px)] lg:w-[calc(20%-24px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
                 {renderItem ? renderItem(item) : <MovieCard data={item} mediaType={endpoint} />}
               </div>
             ))}
           </div>
         ) : (
-          <div className="flex gap-4 md:gap-6 overflow-hidden px-1">
+          <div className="flex gap-5 sm:gap-8 overflow-hidden px-4 sm:px-0">
             {skItem()}
             {skItem()}
             {skItem()}
