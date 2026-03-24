@@ -221,8 +221,8 @@ const Header = () => {
             <Logo className="h-6 md:h-8" />
           </Link>
 
-          {/* Desktop/Tablet Navigation */}
-          <ul className="hidden md:flex items-center gap-4 lg:gap-6 font-medium text-xs lg:text-sm text-white/80">
+          {/* Desktop Navigation */}
+          <ul className="hidden lg:flex items-center gap-6 font-medium text-sm text-white/80">
             <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/")}>{t.nav.home}</li>
             <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/explore/movie")}>{t.nav.movies}</li>
             <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/explore/tv")}>{t.nav.tvShows}</li>
@@ -230,8 +230,8 @@ const Header = () => {
             <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/kdrama")}>{t.nav.kdramas}</li>
           </ul>
 
-          {/* Search Bar - Desktop/Tablet Only */}
-          <div className="hidden md:flex flex-1 max-w-md lg:max-w-xl relative" ref={searchRef}>
+          {/* Search Bar - Desktop Only */}
+          <div className="hidden lg:flex flex-1 max-w-xl relative" ref={searchRef}>
             <form onSubmit={handleSearchSubmit} className="relative group w-full">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 text-white/50 group-focus-within:text-white transition-colors" />
@@ -249,10 +249,10 @@ const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2 md:gap-4">
-            {/* Mobile Search Icon */}
+            {/* Mobile/Tablet Search Icon */}
             <button 
               onClick={() => setMobileSearchOpen(true)}
-              className="md:hidden p-2 text-white/80 hover:text-white touch-target"
+              className="lg:hidden p-2 text-white/80 hover:text-white touch-target"
             >
               <Search className="w-6 h-6" />
             </button>
