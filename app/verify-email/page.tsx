@@ -8,8 +8,6 @@ import Link from 'next/link';
 import { useLanguage } from '@/context/LanguageContext';
 
 function VerifyEmailContent() {
-  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
-  const [message, setMessage] = useState('');
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>(!token ? 'error' : 'loading');
