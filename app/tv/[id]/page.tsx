@@ -183,7 +183,7 @@ export default function TvDetails() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] selection:text-white pb-20">
+    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] selection:text-white pb-20 overflow-x-hidden">
       <WatchTimer mediaType="tv" mediaId={id as string} />
       {/* Navigation */}
       <motion.nav

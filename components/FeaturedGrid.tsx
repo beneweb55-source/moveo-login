@@ -133,7 +133,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
       >
         {/* Main Card */}
         <div 
-          className="relative cursor-pointer rounded-[2rem] sm:rounded-[3rem] lg:rounded-[4rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9)] bg-zinc-900 aspect-[3/4] sm:aspect-[16/10] lg:aspect-[21/8] w-full max-w-full border border-white/5"
+          className="relative cursor-pointer rounded-[2rem] sm:rounded-[3rem] lg:rounded-[4rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9)] bg-zinc-900 aspect-[4/5] sm:aspect-[16/10] lg:aspect-[21/8] w-full max-w-full border border-white/5"
           onClick={() => router.push(`/${mainItem.media_type || "movie"}/${mainItem.id}`)}
         >
           <AnimatePresence mode="wait">

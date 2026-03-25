@@ -160,7 +160,7 @@ const Explore = () => {
   };
 
   return (
-    <div className="min-h-screen pt-[120px] pb-20 bg-[#0A0A0A]">
+    <div className="min-h-screen pt-[120px] pb-20 bg-[#0A0A0A] overflow-x-hidden">
       <ContentWrapper>
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-12 md:mb-20 gap-8">
           <h1 className="text-4xl md:text-6xl font-black text-white capitalize tracking-tighter">

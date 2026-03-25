@@ -60,31 +60,19 @@ button:disabled {
   opacity: 0.5;
 }
 
-/* Custom Scrollbar Styling (MOVEO Theme) - Hidden on mobile/tablet for cleaner look */
-@media (min-width: 1024px) {
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    background: #0f0f0f;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #333;
-    border-radius: 10px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #e50914;
-  }
+/* Custom Scrollbar Styling (MOVEO Theme) */
+::-webkit-scrollbar {
+  width: 6px;
 }
-
-@media (max-width: 1023px) {
-  ::-webkit-scrollbar {
-    display: none;
-  }
-  * {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+::-webkit-scrollbar-track {
+  background: #0f0f0f;
+}
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #e50914;
 }
 
 @layer utilities {

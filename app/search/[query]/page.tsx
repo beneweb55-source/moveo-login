@@ -104,7 +104,7 @@ const SearchResult = () => {
   const media = data?.results?.filter((item: any) => item.media_type !== "person") || [];
 
   return (
-    <div className="min-h-[700px] pt-[100px] pb-20">
+    <div className="min-h-[700px] pt-[100px] pb-20 overflow-x-hidden">
       {loading && <Spinner initial={true} />}
       {!loading && (
         <ContentWrapper>

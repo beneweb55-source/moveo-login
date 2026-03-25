@@ -164,7 +164,7 @@ export default function Home() {
   }, [language, profile]);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
+    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col overflow-x-hidden">
       <HeroBanner 
         endpoint="/discover/movie"
         params={{ 

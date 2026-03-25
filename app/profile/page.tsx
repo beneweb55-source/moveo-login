@@ -224,10 +224,10 @@ function ProfileContent() {
       const cfg = emptyConfig[activeTab as keyof typeof emptyConfig];
       const Icon = cfg?.icon || Bookmark;
       return (
-        <div className="flex flex-col items-center justify-center py-24 text-center">
-          <Icon className="w-14 h-14 text-zinc-800 mb-4" />
-          <p className="text-zinc-400 font-semibold text-lg mb-1">{cfg?.msg || 'Liste vide'}</p>
-          <p className="text-zinc-600 text-sm mb-6">{cfg?.sub || 'Ajoutez du contenu'}</p>
+        <div className="flex flex-col items-center justify-center py-12 sm:py-24 text-center px-4">
+          <Icon className="w-12 h-12 sm:w-14 sm:h-14 text-zinc-800 mb-3 sm:mb-4" />
+          <p className="text-zinc-400 font-semibold text-base sm:text-lg mb-1">{cfg?.msg || 'Liste vide'}</p>
+          <p className="text-zinc-600 text-xs sm:text-sm mb-5 sm:mb-6">{cfg?.sub || 'Ajoutez du contenu'}</p>
           <button onClick={() => router.push('/')} className="px-5 py-2.5 bg-[#E50914] rounded-lg font-bold text-sm hover:bg-red-700 transition-colors">
             Explorer
           </button>
@@ -309,8 +309,8 @@ function ProfileContent() {
           />
           
           {/* Edit overlay for banner */}
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
-            <div className="absolute bottom-3 right-4 flex items-center gap-1.5 bg-black/60 hover:bg-black/80 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20 transition-colors shadow-lg">
+          <div className="absolute inset-0 bg-black/20 sm:bg-black/50 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300 z-20 pointer-events-none sm:pointer-events-auto">
+            <div className="absolute bottom-3 right-4 flex items-center gap-1.5 bg-black/60 hover:bg-black/80 px-3 py-1.5 rounded-full backdrop-blur-md border border-white/20 transition-colors shadow-lg pointer-events-auto">
               <Camera className="w-4 h-4 text-white" />
               <span className="text-xs text-white font-medium">Modifier</span>
             </div>
@@ -334,9 +334,17 @@ function ProfileContent() {
             {/* Edit overlay for avatar */}
             <div 
               onClick={() => avatarInputRef.current?.click()}
-              className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+              className="absolute inset-0 bg-black/50 opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer hidden sm:flex"
             >
               <Camera className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+            </div>
+            
+            {/* Mobile persistent edit icon */}
+            <div 
+              onClick={(e) => { e.stopPropagation(); avatarInputRef.current?.click(); }}
+              className="absolute bottom-0 right-0 bg-[#E50914] p-2 rounded-full border-2 border-black sm:hidden cursor-pointer shadow-lg z-30"
+            >
+              <Camera className="w-4 h-4 text-white" />
             </div>
           </div>
           
@@ -344,7 +352,7 @@ function ProfileContent() {
           <div className="pb-2 sm:pb-6 flex-1 w-full">
             <div className="flex flex-col gap-2 sm:gap-3">
               <div className="flex flex-col sm:flex-row flex-wrap items-center sm:items-end gap-2 sm:gap-4">
-                <h1 className="text-2xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md">
+                <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight drop-shadow-md">
                   {user.name}
                 </h1>
                 
@@ -387,23 +395,23 @@ function ProfileContent() {
         </div>
 
         {/* Rangée 2 : stats en carrousel sur mobile */}
-        <div className="flex overflow-x-auto sm:grid sm:grid-cols-4 gap-3 py-6 border-b border-white/10 no-scrollbar snap-x snap-mandatory">
-          <div className="min-w-[140px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+        <div className="flex overflow-x-auto sm:grid sm:grid-cols-4 gap-3 py-6 border-b border-white/10 no-scrollbar snap-x snap-mandatory -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="min-w-[120px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
             <Bookmark className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 mb-2" />
             <span className="text-xl sm:text-2xl font-bold">{stats?.watchlist || 0}</span>
             <span className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider mt-1">À voir</span>
           </div>
-          <div className="min-w-[140px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+          <div className="min-w-[120px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
             <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-pink-500 mb-2" />
             <span className="text-xl sm:text-2xl font-bold">{stats?.favorites || 0}</span>
             <span className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider mt-1">Favoris</span>
           </div>
-          <div className="min-w-[140px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+          <div className="min-w-[120px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
             <Eye className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500 mb-2" />
             <span className="text-xl sm:text-2xl font-bold">{stats?.watched || 0}</span>
             <span className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-wider mt-1">Vus</span>
           </div>
-          <div className="min-w-[140px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
+          <div className="min-w-[120px] sm:min-w-0 flex-1 snap-center bg-zinc-900/80 border border-white/5 rounded-xl p-4 flex flex-col items-center justify-center text-center">
             <div className="w-5 h-5 sm:w-6 sm:h-6 mb-2 flex items-center justify-center">
               <Clock className="w-full h-full text-zinc-400" />
             </div>
@@ -413,11 +421,11 @@ function ProfileContent() {
         </div>
 
         {/* Tabs */}
-        <div className="mt-12">
-          <div className="flex overflow-x-auto border-b border-white/10 no-scrollbar">
+        <div className="mt-8 sm:mt-12">
+          <div className="flex overflow-x-auto border-b border-white/10 no-scrollbar -mx-4 px-4 sm:mx-0 sm:px-0">
             <button
               onClick={() => setActiveTab('watchlist')}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`px-4 py-3 sm:px-6 sm:py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === 'watchlist' ? 'border-[#E50914] text-white' : 'border-transparent text-zinc-400 hover:text-white'
               }`}
             >
@@ -428,7 +436,7 @@ function ProfileContent() {
             </button>
             <button
               onClick={() => setActiveTab('favorites')}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`px-4 py-3 sm:px-6 sm:py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === 'favorites' ? 'border-[#E50914] text-white' : 'border-transparent text-zinc-400 hover:text-white'
               }`}
             >
@@ -439,7 +447,7 @@ function ProfileContent() {
             </button>
             <button
               onClick={() => setActiveTab('watched')}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`px-4 py-3 sm:px-6 sm:py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === 'watched' ? 'border-[#E50914] text-white' : 'border-transparent text-zinc-400 hover:text-white'
               }`}
             >
@@ -450,7 +458,7 @@ function ProfileContent() {
             </button>
             <button
               onClick={() => setActiveTab('settings')}
-              className={`px-6 py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+              className={`px-4 py-3 sm:px-6 sm:py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === 'settings' ? 'border-[#E50914] text-white' : 'border-transparent text-zinc-400 hover:text-white'
               }`}
             >

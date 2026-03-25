@@ -60,18 +60,20 @@ const Carousel = ({ data, loading, endpoint, title, renderItem }: CarouselProps)
 
         {!loading ? (
           <div
-            className="flex gap-5 sm:gap-8 overflow-y-hidden overflow-x-auto scrollbar-hide scroll-smooth pb-8 px-4 sm:px-0"
+            className="flex gap-4 sm:gap-8 overflow-y-visible overflow-x-auto scrollbar-hide scroll-smooth py-4 px-4 sm:px-0"
             ref={carouselContainer}
             style={{ scrollSnapType: "x mandatory" }}
           >
             {data?.map((item) => (
-              <div key={item.id} className="w-[calc(60%-16px)] sm:w-[calc(33.33%-20px)] lg:w-[calc(20%-24px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
+              <div key={item.id} className="w-[calc(40%-16px)] sm:w-[calc(33.33%-20px)] lg:w-[calc(20%-24px)] flex-shrink-0" style={{ scrollSnapAlign: "start" }}>
                 {renderItem ? renderItem(item) : <MovieCard data={item} mediaType={endpoint} />}
               </div>
             ))}
+            {/* Spacer for right padding on mobile scroll */}
+            <div className="w-1 sm:hidden flex-shrink-0" />
           </div>
         ) : (
-          <div className="flex gap-5 sm:gap-8 overflow-hidden px-4 sm:px-0">
+          <div className="flex gap-4 sm:gap-8 overflow-hidden px-4 sm:px-0">
             {skItem()}
             {skItem()}
             {skItem()}

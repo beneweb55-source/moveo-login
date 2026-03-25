@@ -94,8 +94,23 @@ export default function MyList() {
                     referrerPolicy="no-referrer"
                   />
                   
-                  {/* Overlay */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-4">
+                  {/* Persistent Mobile Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 sm:hidden flex flex-col justify-between p-2">
+                    <div className="flex justify-end">
+                      <button
+                        onClick={(e) => removeFromList(e, item.media_type, item.media_id, item.list_type)}
+                        className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center text-white backdrop-blur-sm"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div>
+                      <h3 className="text-white font-bold text-xs line-clamp-2">{item.title}</h3>
+                    </div>
+                  </div>
+
+                  {/* Desktop Hover Overlay */}
+                  <div className="absolute inset-0 bg-black/60 opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300 hidden sm:flex flex-col justify-between p-4">
                     <div className="flex justify-end">
                       <button
                         onClick={(e) => removeFromList(e, item.media_type, item.media_id, item.list_type)}

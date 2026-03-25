@@ -51,7 +51,7 @@ const MovieCard = ({ data, mediaType }: MovieCardProps) => {
   return (
     <Link
       href={`/${type}/${data.id}`}
-      className="relative flex flex-col gap-4 cursor-pointer group/card w-full flex-shrink-0 active:scale-95 transition-transform duration-200"
+      className="relative flex flex-col gap-4 cursor-pointer group/card w-full flex-shrink-0 transition-transform duration-200"
     >
       {/* Poster Container */}
       <div className="relative w-full aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl bg-[#1a1a1a] transition-all duration-500 ease-in-out group-hover/card:shadow-[0_0_30px_rgba(229,9,20,0.3)] group-hover/card:scale-105 border border-white/5">
