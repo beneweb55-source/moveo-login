@@ -199,13 +199,13 @@ export default function PersonDetails() {
 
       <div className="relative w-full pt-32 pb-12">
         <ContentWrapper>
-            <div className="relative z-10 grid grid-cols-[350px_1fr] gap-12 items-start mt-0">
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-[300px_1fr] lg:grid-cols-[350px_1fr] gap-8 md:gap-12 items-start mt-0">
                 {/* Profile Image */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.8 }}
-                    className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 group"
+                    className="relative aspect-[2/3] w-[250px] md:w-full mx-auto md:mx-0 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 group"
                 >
                     <Image
                         src={profileUrl}
@@ -217,17 +217,17 @@ export default function PersonDetails() {
                 </motion.div>
 
                 {/* Info */}
-                <div className="flex flex-col gap-6 pt-10">
+                <div className="flex flex-col gap-6 pt-4 md:pt-10 text-center md:text-left">
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, delay: 0.2 }}
                     >
-                        <h1 className="text-6xl font-black tracking-tight leading-[1.1] mb-4">
+                        <h1 className="text-4xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] mb-4">
                             {data?.name}
                         </h1>
 
-                        <div className="flex flex-wrap items-center gap-6 text-base font-medium text-white/80 mb-8">
+                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-6 text-sm md:text-base font-medium text-white/80 mb-8">
                             {data?.known_for_department && (
                                 <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full border border-white/10 backdrop-blur-sm">
                                     <User className="w-4 h-4 text-[#E50914]" />
@@ -343,7 +343,7 @@ export default function PersonDetails() {
             <Spinner initial={true} />
           ) : credits?.results?.length > 0 ? (
             <InfiniteScroll
-              className="grid grid-cols-5 gap-6 overflow-hidden"
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 overflow-hidden"
               dataLength={credits.results.length}
               next={fetchNextCreditsPage}
               hasMore={creditsPage <= credits.total_pages}

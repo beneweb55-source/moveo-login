@@ -3,9 +3,8 @@
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
-import { motion } from 'motion/react';
 
 interface CastListProps {
   cast: any[];
@@ -13,11 +12,9 @@ interface CastListProps {
 
 const CastList = ({ cast }: CastListProps) => {
   const router = useRouter();
-  const { t, language } = useLanguage();
-  const [showAll, setShowAll] = useState(false);
+  const { t } = useLanguage();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-  // Drag to scroll state
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -26,13 +23,10 @@ const CastList = ({ cast }: CastListProps) => {
 
   if (validCast.length === 0) return null;
 
-  const initialCount = 14;
-  const displayedCast = showAll ? validCast : validCast.slice(0, initialCount);
-
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
       const { current } = scrollContainerRef;
-      const scrollAmount = direction === 'left' ? -current.offsetWidth / 2 : current.offsetWidth / 2;
+      const scrollAmount = direction === 'left' ? -current.offsetWidth * 0.75 : current.offsetWidth * 0.75;
       current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
     }
   };
@@ -56,94 +50,75 @@ const CastList = ({ cast }: CastListProps) => {
     if (!isDragging || !scrollContainerRef.current) return;
     e.preventDefault();
     const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // Scroll-fast
+    const walk = (x - startX) * 1.5;
     scrollContainerRef.current.scrollLeft = scrollLeft - walk;
   };
 
   return (
-    <div className="mt-12 md:mt-20 relative">
-      <div className="flex items-center justify-between mb-6 md:mb-8">
-        <div className="flex items-center gap-4">
-          <div className="w-1.5 h-8 md:h-10 bg-[#E50914] rounded-full shadow-[0_0_15px_rgba(229,9,20,0.5)]"></div>
-          <h2 className="text-2xl md:text-3xl font-black text-white tracking-tighter uppercase">{t.home.cast}</h2>
-        </div>
+    <div className="mt-16 md:mt-24 relative">
+      <div className="flex items-end justify-between mb-8 md:mb-10">
+        <h2 className="text-2xl md:text-3xl font-semibold text-white tracking-tight">
+          {t.home.cast || "Cast & Crew"}
+        </h2>
         
         {/* Navigation Buttons for Desktop */}
         <div className="hidden md:flex items-center gap-2">
           <button 
             onClick={() => scroll('left')}
-            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 hover:border-white/30 transition-all"
+            className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all"
+            aria-label="Scroll left"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
           <button 
             onClick={() => scroll('right')}
-            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-white hover:bg-white/20 hover:border-white/30 transition-all"
+            className="w-10 h-10 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-zinc-800 hover:border-zinc-700 transition-all"
+            aria-label="Scroll right"
           >
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>
       
-      <div className="relative group/cast -mx-4 sm:mx-0">
+      <div className="relative -mx-4 sm:mx-0">
         <div 
           ref={scrollContainerRef}
-          className={`flex overflow-x-auto gap-4 md:gap-6 pb-8 px-4 sm:px-0 scrollbar-hide snap-x snap-mandatory ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`flex overflow-x-auto gap-4 md:gap-8 pb-6 px-4 sm:px-0 scrollbar-hide ${isDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
           onMouseDown={handleMouseDown}
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
           style={{ scrollBehavior: isDragging ? 'auto' : 'smooth' }}
         >
-          {displayedCast.map((actor) => (
-            <motion.div
+          {validCast.map((actor) => (
+            <div
               key={actor.id}
-              whileHover={{ scale: 1.05, y: -5 }}
-              whileTap={{ scale: 0.95 }}
               onClick={() => {
                 if (!isDragging) router.push('/person/' + actor.id);
               }}
-              className="flex-shrink-0 w-[120px] md:w-[150px] flex flex-col snap-start group cursor-pointer"
+              className="flex-shrink-0 w-[100px] md:w-[140px] flex flex-col items-center group cursor-pointer"
             >
-              <div className="w-full aspect-[2/3] rounded-2xl overflow-hidden relative bg-zinc-900 shadow-xl border border-white/5 group-hover:border-white/20 transition-all duration-500">
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden relative bg-zinc-900 border border-zinc-800 group-hover:border-zinc-500 transition-colors duration-300 shadow-lg">
                 <Image
                   src={`https://image.tmdb.org/t/p/w300${actor.profile_path}`}
                   alt={actor.name}
                   fill
                   draggable={false}
-                  className="object-cover transition-transform duration-700 group-hover:scale-110"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-90 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                <div className="absolute bottom-0 left-0 right-0 p-3 md:p-4 transform translate-y-1 group-hover:translate-y-0 transition-transform duration-500 pointer-events-none">
-                  <p className="text-sm md:text-base font-bold text-white line-clamp-1 leading-tight select-none drop-shadow-md">{actor.name}</p>
-                  <p className="text-[10px] md:text-xs text-[#E50914] font-medium mt-1 line-clamp-1 select-none drop-shadow-md">{actor.character}</p>
-                </div>
               </div>
-            </motion.div>
+              <div className="mt-4 text-center w-full px-1">
+                <p className="text-sm md:text-base font-medium text-zinc-100 line-clamp-1 group-hover:text-white transition-colors">
+                  {actor.name}
+                </p>
+                <p className="text-xs md:text-sm text-zinc-500 line-clamp-2 mt-1 leading-snug">
+                  {actor.character}
+                </p>
+              </div>
+            </div>
           ))}
-          
-          {validCast.length > initialCount && !showAll && (
-            <motion.div
-              whileHover={{ scale: 1.05, y: -5 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                if (!isDragging) setShowAll(true);
-              }}
-              className="flex-shrink-0 w-[120px] md:w-[150px] flex flex-col snap-start group cursor-pointer"
-            >
-              <div className="w-full aspect-[2/3] rounded-2xl border border-white/10 group-hover:border-white/30 transition-all duration-500 relative bg-white/5 hover:bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center shadow-xl text-white">
-                <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mb-3 group-hover:bg-[#E50914] group-hover:scale-110 transition-all duration-500 shadow-lg">
-                  <ChevronRight className="w-6 h-6" />
-                </div>
-                <span className="text-xs md:text-sm font-bold uppercase tracking-widest select-none">{language === 'fr' ? 'Voir tout' : 'Show all'}</span>
-              </div>
-            </motion.div>
-          )}
         </div>
-        
-        {/* Right fade mask for desktop to indicate scroll */}
-        <div className="hidden sm:block absolute top-0 right-0 bottom-0 w-24 bg-gradient-to-l from-[#0A0A0A] to-transparent pointer-events-none z-10" />
       </div>
     </div>
   );
