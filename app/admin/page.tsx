@@ -10,7 +10,10 @@ import ContentManager from '@/components/admin/ContentManager';
 import ModerationManager from '@/components/admin/ModerationManager';
 import WatchTimeManager from '@/components/admin/WatchTimeManager';
 import OnlineUsersManager from '@/components/admin/OnlineUsersManager';
+import SystemManager from '@/components/admin/SystemManager';
 import { useLanguage } from '@/context/LanguageContext';
+import { motion, AnimatePresence } from 'motion/react';
+import { Zap, ChevronUp, Database, ShieldCheck, RefreshCw } from 'lucide-react';
 
 export default function AdminPage() {
   const { t } = useLanguage();
@@ -18,6 +21,7 @@ export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -60,6 +64,7 @@ export default function AdminPage() {
     { id: 'moderation', label: t.admin.moderation, icon: Flag, permissions: ['view_reports'] },
     { id: 'watchtime', label: t.admin.watchTime, icon: Clock, permissions: ['manage_watch_time'] },
     { id: 'online', label: t.admin.online, icon: Activity, permissions: ['access_admin_panel'] },
+    { id: 'system', label: "Système Spécial", icon: Zap, permissions: ['access_admin_panel'] },
   ];
 
   const renderSection = () => {
@@ -71,6 +76,7 @@ export default function AdminPage() {
       case 'moderation': return <ModerationManager />;
       case 'watchtime': return <WatchTimeManager />;
       case 'online': return <OnlineUsersManager />;
+      case 'system': return <SystemManager />;
       default: return <Dashboard />;
     }
   };
@@ -109,6 +115,7 @@ export default function AdminPage() {
               
               const Icon = section.icon;
               const isActive = activeSection === section.id;
+              const isSpecial = section.id === 'system';
               
               return (
                 <li key={section.id}>
@@ -117,10 +124,15 @@ export default function AdminPage() {
                       setActiveSection(section.id);
                       setIsSidebarOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-red-600 text-white' : 'text-zinc-400 hover:bg-white/5 hover:text-white'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-300 ${
+                      isActive 
+                      ? (isSpecial ? 'bg-gradient-to-r from-red-600 to-rose-700 text-white shadow-lg shadow-red-900/20' : 'bg-red-600 text-white') 
+                      : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                    } ${isSpecial && !isActive ? 'border border-red-600/20' : ''}`}
                   >
-                    <Icon className="w-5 h-5" />
+                    <Icon className={`w-5 h-5 ${isSpecial && !isActive ? 'text-red-500' : ''}`} />
                     <span className="font-medium">{section.label}</span>
+                    {isSpecial && <span className="ml-auto text-[8px] font-black bg-red-600 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter">NEW</span>}
                   </button>
                 </li>
               );
@@ -140,7 +152,7 @@ export default function AdminPage() {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Mobile Header */}
         <header className="lg:hidden h-16 bg-[#111] border-b border-white/10 flex items-center justify-between px-4 shrink-0">
           <button 
@@ -157,7 +169,66 @@ export default function AdminPage() {
         <div className="flex-1 overflow-y-auto bg-[#0A0A0A] p-4 md:p-8">
           {renderSection()}
         </div>
+
+        {/* Quick Actions Floating Menu */}
+        <div className="fixed bottom-6 right-6 z-[60]">
+          <AnimatePresence>
+            {isQuickActionsOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                className="absolute bottom-16 right-0 w-56 bg-[#111] border border-white/10 rounded-2xl p-2 shadow-2xl overflow-hidden"
+              >
+                <div className="px-3 py-2 mb-1 border-b border-white/5">
+                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Actions Spéciales</p>
+                </div>
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-400 hover:bg-white/5 hover:text-white transition-all group">
+                  <Database className="w-4 h-4 group-hover:text-red-500" />
+                  <span className="font-bold">Backup Rapide</span>
+                </button>
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-400 hover:bg-white/5 hover:text-white transition-all group">
+                  <ShieldCheck className="w-4 h-4 group-hover:text-emerald-500" />
+                  <span className="font-bold">Audit Sécurité</span>
+                </button>
+                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-400 hover:bg-white/5 hover:text-white transition-all group">
+                  <RefreshCw className="w-4 h-4 group-hover:text-blue-500" />
+                  <span className="font-bold">Recharger API</span>
+                </button>
+                <div className="mt-1 pt-1 border-t border-white/5">
+                  <button 
+                    onClick={() => {
+                      setActiveSection('system');
+                      setIsQuickActionsOpen(false);
+                    }}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-500/10 transition-all font-black uppercase tracking-tighter"
+                  >
+                    <Zap className="w-4 h-4 fill-current" />
+                    Panel Système
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <button 
+            onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)}
+            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl shadow-red-900/40 border-2 ${
+              isQuickActionsOpen 
+              ? 'bg-white border-white text-red-600 rotate-180' 
+              : 'bg-red-600 border-red-500 text-white hover:scale-110'
+            }`}
+          >
+            {isQuickActionsOpen ? <X className="w-6 h-6" /> : <Zap className="w-6 h-6 fill-current" />}
+            {!isQuickActionsOpen && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-red-600 text-[10px] font-black rounded-full flex items-center justify-center border-2 border-red-600 animate-bounce">
+                !
+              </span>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
+
