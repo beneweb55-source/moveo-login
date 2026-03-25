@@ -227,10 +227,10 @@ export default function ContentManager() {
         <p className="text-zinc-400">{t.admin.contentDescription}</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         {/* Hero Banner Section */}
-        <div className="bg-[#111] border border-white/10 rounded-xl p-6">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+        <div className="bg-[#111] border border-white/10 rounded-xl p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2">
             <LayoutTemplate className="w-5 h-5 text-red-500" />
             {t.admin.heroBanner}
           </h3>
@@ -248,7 +248,7 @@ export default function ContentManager() {
                     setHeroSearch(e.target.value);
                     searchMovies(e.target.value);
                   }}
-                  className="w-full pl-10 pr-4 py-3 bg-[#1A1A1A] border border-white/10 rounded-lg text-white focus:outline-none focus:border-red-500"
+                  className="w-full pl-10 pr-4 py-3 bg-[#1A1A1A] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-red-500"
                 />
                 
                 {heroResults.length > 0 && (
@@ -274,13 +274,13 @@ export default function ContentManager() {
                             />
                           </div>
                         ) : (
-                          <div className="w-10 h-14 bg-zinc-800 rounded flex items-center justify-center">
+                          <div className="w-10 h-14 bg-zinc-800 rounded flex items-center justify-center shrink-0">
                             <ImageIcon className="w-4 h-4 text-zinc-500" />
                           </div>
                         )}
-                        <div>
-                          <p className="font-medium text-white">{item.title || item.name}</p>
-                          <p className="text-xs text-zinc-400 capitalize">{item.media_type} • {item.release_date?.substring(0, 4) || item.first_air_date?.substring(0, 4)}</p>
+                        <div className="min-w-0">
+                          <p className="font-medium text-white text-sm truncate">{item.title || item.name}</p>
+                          <p className="text-[10px] text-zinc-500 capitalize">{item.media_type} • {item.release_date?.substring(0, 4) || item.first_air_date?.substring(0, 4)}</p>
                         </div>
                       </div>
                     ))}
@@ -290,7 +290,7 @@ export default function ContentManager() {
             </div>
 
             {selectedHero && (
-              <div className="relative rounded-xl overflow-hidden h-40 mt-4">
+              <div className="relative rounded-xl overflow-hidden min-h-[160px] mt-4">
                 {/* Image backdrop en fond floutée */}
                 <Image 
                   src={`https://image.tmdb.org/t/p/w780${selectedHero.backdrop_path || selectedHero.poster_path}`}
@@ -299,25 +299,25 @@ export default function ContentManager() {
                   className="object-cover blur-sm brightness-40" 
                   referrerPolicy="no-referrer"
                 />
-                <div className="relative z-10 flex items-center gap-4 p-4 h-full">
-                  <div className="relative h-28 w-20 shrink-0">
+                <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 h-full">
+                  <div className="relative h-28 w-20 shrink-0 shadow-2xl">
                     <Image 
                       src={`https://image.tmdb.org/t/p/w154${selectedHero.poster_path}`}
                       alt={selectedHero.title || selectedHero.name}
                       fill
-                      className="rounded-lg shadow-xl object-cover" 
+                      className="rounded-lg object-cover" 
                       referrerPolicy="no-referrer"
                     />
                   </div>
-                  <div>
-                    <h5 className="text-xl font-bold text-white">{selectedHero.title || selectedHero.name}</h5>
-                    <p className="text-sm text-zinc-300 line-clamp-2 mt-1">{selectedHero.overview}</p>
-                    <div className="flex gap-2 mt-3">
+                  <div className="flex-1 text-center sm:text-left">
+                    <h5 className="text-lg sm:text-xl font-bold text-white line-clamp-1">{selectedHero.title || selectedHero.name}</h5>
+                    <p className="text-xs text-zinc-300 line-clamp-2 mt-1">{selectedHero.overview}</p>
+                    <div className="flex flex-wrap justify-center sm:justify-start gap-2 mt-3">
                       <button onClick={() => handleSaveSetting('hero_movie', selectedHero)}
                               disabled={saving}
-                              className="flex items-center gap-2 px-4 py-2 bg-[#E50914] rounded-lg
-                                         text-sm font-bold hover:bg-red-700 transition-colors disabled:opacity-50">
-                        <Save className="w-4 h-4" />
+                              className="flex items-center gap-2 px-3 py-1.5 bg-[#E50914] rounded-lg
+                                         text-xs font-bold hover:bg-red-700 transition-colors disabled:opacity-50 text-white">
+                        <Save className="w-3.5 h-3.5" />
                         {saving ? t.admin.saving : t.admin.setAsHero}
                       </button>
                       <button onClick={() => {
@@ -326,9 +326,9 @@ export default function ContentManager() {
                                 showToast(t.admin.heroRemoved, 'success');
                               }}
                               disabled={saving}
-                              className="flex items-center gap-2 px-4 py-2 bg-zinc-800 rounded-lg
-                                         text-sm font-bold hover:bg-zinc-700 transition-colors disabled:opacity-50 text-white">
-                        <Trash2 className="w-4 h-4" />
+                              className="flex items-center gap-2 px-3 py-1.5 bg-zinc-800 rounded-lg
+                                         text-xs font-bold hover:bg-zinc-700 transition-colors disabled:opacity-50 text-white">
+                        <Trash2 className="w-3.5 h-3.5" />
                         {t.admin.removeHero}
                       </button>
                     </div>
@@ -349,8 +349,8 @@ export default function ContentManager() {
         </div>
 
         {/* Pinned Sections */}
-        <div className="bg-[#111] border border-white/10 rounded-xl p-6">
-          <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+        <div className="bg-[#111] border border-white/10 rounded-xl p-4 sm:p-6">
+          <h3 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2">
             <LayoutTemplate className="w-5 h-5 text-blue-500" />
             {t.admin.pinnedSections}
           </h3>
@@ -359,34 +359,36 @@ export default function ContentManager() {
             {/* D'abord : liste des sections existantes */}
             {pinnedSections.length > 0 && (
               <div className="space-y-2 mb-6">
-                <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">{t.admin.activeSections}</p>
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">{t.admin.activeSections}</p>
                 {pinnedSections.map((section, i) => (
                   <div key={section.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/8 group">
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold text-zinc-600 w-5">#{i+1}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-white">{section.title}</p>
-                        <p className="text-[10px] text-zinc-500 font-mono">{section.endpoint}</p>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs font-bold text-zinc-600 w-5 shrink-0">#{i+1}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{section.title}</p>
+                        <p className="text-[10px] text-zinc-500 font-mono truncate">{section.endpoint}</p>
                       </div>
                     </div>
                     {/* Bouton delete avec confirmation inline */}
-                    {deletingId === section.id ? (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleDeleteSection(section.id)}
-                                className="text-xs px-2 py-1 bg-red-600 rounded text-white font-bold">
-                          {t.admin.confirm}
+                    <div className="shrink-0 ml-2">
+                      {deletingId === section.id ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleDeleteSection(section.id)}
+                                  className="text-[10px] px-2 py-1 bg-red-600 rounded text-white font-bold">
+                            {t.admin.confirm}
+                          </button>
+                          <button onClick={() => setDeletingId(null)}
+                                  className="text-[10px] px-2 py-1 bg-zinc-700 rounded text-white">
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setDeletingId(section.id)}
+                                className="text-zinc-600 hover:text-red-500 transition-colors sm:opacity-0 sm:group-hover:opacity-100 p-1.5 hover:bg-red-500/10 rounded-lg">
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setDeletingId(null)}
-                                className="text-xs px-2 py-1 bg-zinc-700 rounded text-white">
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => setDeletingId(section.id)}
-                              className="text-zinc-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/10 rounded-lg">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -394,11 +396,11 @@ export default function ContentManager() {
 
             {/* Séparateur */}
             <div className="border-t border-white/10 pt-4 mb-4">
-              <p className="text-xs text-zinc-500 uppercase tracking-wider">{t.admin.addSection}</p>
+              <p className="text-[10px] text-zinc-500 uppercase tracking-wider">{t.admin.addSection}</p>
             </div>
 
             <div>
-              <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-wider">{t.admin.sectionTitle}</label>
+              <label className="block text-[10px] text-zinc-500 mb-1 uppercase tracking-wider">{t.admin.sectionTitle}</label>
               <input 
                 type="text" 
                 placeholder={t.admin.sectionTitlePlaceholder} 
@@ -408,9 +410,9 @@ export default function ContentManager() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-wider">{t.admin.type}</label>
+                <label className="block text-[10px] text-zinc-500 mb-1 uppercase tracking-wider">{t.admin.type}</label>
                 <select 
                   value={sectionType}
                   onChange={(e) => {
@@ -426,7 +428,7 @@ export default function ContentManager() {
               </div>
 
               <div>
-                <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-wider">{t.admin.category}</label>
+                <label className="block text-[10px] text-zinc-500 mb-1 uppercase tracking-wider">{t.admin.category}</label>
                 <select 
                   value={sectionCategory}
                   onChange={(e) => {
@@ -445,7 +447,7 @@ export default function ContentManager() {
 
             {sectionCategory === 'genre' && (
               <div>
-                <label className="block text-xs text-zinc-500 mb-1 uppercase tracking-wider">{t.admin.genre}</label>
+                <label className="block text-[10px] text-zinc-500 mb-1 uppercase tracking-wider">{t.admin.genre}</label>
                 <select 
                   value={sectionGenre}
                   onChange={(e) => setSectionGenre(e.target.value)}
@@ -461,15 +463,15 @@ export default function ContentManager() {
 
             {generatedEndpoint && (
               <div className="flex items-center gap-2 p-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                <div className="w-2 h-2 rounded-full bg-blue-400" />
-                <span className="text-xs text-blue-400 font-mono">{generatedEndpoint}</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+                <span className="text-[10px] text-blue-400 font-mono truncate">{generatedEndpoint}</span>
               </div>
             )}
 
             <button 
               onClick={handleAddSection}
               disabled={!newSection.title || !generatedEndpoint || (sectionCategory === 'genre' && !sectionGenre)}
-              className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-2.5 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t.admin.addSection}
             </button>

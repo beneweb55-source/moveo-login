@@ -70,48 +70,48 @@ export default function WatchTimeManager() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-3xl font-bold text-white mb-2">{t.admin.watchTime}</h2>
-        <p className="text-zinc-400">{t.admin.watchTimeDescription}</p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1">{t.admin.watchTime}</h2>
+        <p className="text-zinc-400 text-sm">{t.admin.watchTimeDescription}</p>
       </div>
 
-      <div className="bg-[#111] border border-white/10 rounded-xl p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+      <div className="bg-[#111] border border-white/10 rounded-xl p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
             <Clock className="w-5 h-5 text-purple-500" />
             {t.admin.userListSorted}
           </h3>
-          <div className="relative">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input 
               type="text" 
               placeholder={t.admin.search} 
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-9 pr-4 py-2 bg-[#1A1A1A] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500 w-64"
+              className="w-full pl-9 pr-4 py-2 bg-[#1A1A1A] border border-white/10 rounded-lg text-white text-sm focus:outline-none focus:border-purple-500"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+        <div className="overflow-x-auto scrollbar-hide">
+          <table className="w-full text-left border-collapse min-w-[500px] lg:min-w-full">
             <thead>
               <tr className="border-b border-white/10 bg-white/5">
-                <th className="p-4 font-medium text-zinc-400">{t.admin.user}</th>
-                <th className="p-4 font-medium text-zinc-400">{t.admin.currentRank}</th>
-                <th className="p-4 font-medium text-zinc-400">{t.admin.totalTime}</th>
-                <th className="p-4 font-medium text-zinc-400 text-center">{t.admin.quickAdjustment}</th>
+                <th className="p-4 font-medium text-zinc-400 text-xs uppercase tracking-wider">{t.admin.user}</th>
+                <th className="p-4 font-medium text-zinc-400 text-xs uppercase tracking-wider">{t.admin.currentRank}</th>
+                <th className="p-4 font-medium text-zinc-400 text-xs uppercase tracking-wider">{t.admin.totalTime}</th>
+                <th className="p-4 font-medium text-zinc-400 text-xs uppercase tracking-wider text-center">{t.admin.quickAdjustment}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-zinc-500">{t.admin.loading}</td>
+                  <td colSpan={4} className="p-12 text-center text-zinc-500">{t.admin.loading}</td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-zinc-500">{t.admin.noUserFound}</td>
+                  <td colSpan={4} className="p-12 text-center text-zinc-500">{t.admin.noUserFound}</td>
                 </tr>
               ) : (
                 users.map((user) => {
@@ -120,39 +120,41 @@ export default function WatchTimeManager() {
                   
                   return (
                     <tr key={user.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="p-4 flex items-center gap-3">
-                        {user.avatar_url ? (
-                          <div className="relative w-10 h-10 shrink-0">
-                            <Image 
-                              src={user.avatar_url} 
-                              alt={user.name} 
-                              fill
-                              className="rounded-full object-cover" 
-                              referrerPolicy="no-referrer"
-                            />
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          {user.avatar_url ? (
+                            <div className="relative w-8 h-8 sm:w-10 sm:h-10 shrink-0">
+                              <Image 
+                                src={user.avatar_url} 
+                                alt={user.name} 
+                                fill
+                                className="rounded-full object-cover" 
+                                referrerPolicy="no-referrer"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-zinc-800 flex items-center justify-center shrink-0">
+                              <User className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400" />
+                            </div>
+                          )}
+                          <div className="truncate max-w-[120px] sm:max-w-none">
+                            <p className="font-bold text-white text-sm truncate">{user.name}</p>
+                            <p className="text-[10px] text-zinc-500 truncate">{user.email}</p>
                           </div>
-                        ) : (
-                          <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center">
-                            <User className="w-5 h-5 text-zinc-400" />
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-white">{user.name}</p>
-                          <p className="text-xs text-zinc-500">{user.email}</p>
                         </div>
                       </td>
                       <td className="p-4">
                         {rank ? (
                           <div 
-                            className="flex items-center gap-2 px-3 py-1 rounded-full w-fit shadow-sm" 
+                            className="flex items-center gap-2 px-2 py-1 rounded-full w-fit shadow-sm" 
                             style={{ 
                               backgroundColor: `${rank.color}1A`, 
                               color: rank.color,
                               boxShadow: `0 0 10px ${rank.color}33`
                             }}
                           >
-                            <RankIcon className="w-3 h-3" style={{ color: rank.color }} />
-                            <span className="text-[10px] font-bold uppercase tracking-widest leading-none">
+                            <RankIcon className="w-2.5 h-2.5" style={{ color: rank.color }} />
+                            <span className="text-[9px] font-bold uppercase tracking-widest leading-none">
                               {rank.name}
                             </span>
                           </div>
@@ -161,8 +163,8 @@ export default function WatchTimeManager() {
                         )}
                       </td>
                       <td className="p-4">
-                        <span className="font-mono text-white font-bold">
-                          {Math.floor(user.total_watch_time / 60)}h <span className="text-zinc-500 text-xs">{user.total_watch_time % 60}m</span>
+                        <span className="font-mono text-white font-bold text-sm whitespace-nowrap">
+                          {Math.floor(user.total_watch_time / 60)}h <span className="text-zinc-500 text-[10px]">{user.total_watch_time % 60}m</span>
                         </span>
                       </td>
                       <td className="p-4">
@@ -170,18 +172,18 @@ export default function WatchTimeManager() {
                           <button 
                             onClick={() => handleAdjustWatchTime(user.id, -60)}
                             disabled={saving === user.id}
-                            className="p-2 bg-white/5 rounded hover:bg-red-500/20 hover:text-red-500 transition-colors disabled:opacity-50"
+                            className="p-1.5 sm:p-2 bg-white/5 rounded hover:bg-red-500/20 hover:text-red-500 transition-colors disabled:opacity-50"
                             title="-1h"
                           >
-                            <Minus className="w-4 h-4" />
+                            <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </button>
                           <button 
                             onClick={() => handleAdjustWatchTime(user.id, 60)}
                             disabled={saving === user.id}
-                            className="p-2 bg-white/5 rounded hover:bg-emerald-500/20 hover:text-emerald-500 transition-colors disabled:opacity-50"
+                            className="p-1.5 sm:p-2 bg-white/5 rounded hover:bg-emerald-500/20 hover:text-emerald-500 transition-colors disabled:opacity-50"
                             title="+1h"
                           >
-                            <Plus className="w-4 h-4" />
+                            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                           </button>
                         </div>
                       </td>
@@ -194,22 +196,26 @@ export default function WatchTimeManager() {
         </div>
 
         {/* Pagination */}
-        <div className="p-4 border-t border-white/10 flex justify-between items-center mt-4">
-          <button 
-            disabled={page === 1}
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors text-white"
-          >
-            <ChevronLeft className="w-4 h-4" /> {t.admin.prev}
-          </button>
-          <span className="text-zinc-400">{t.interpolate(t.admin.pageOf, { page, total: totalPages || 1 })}</span>
-          <button 
-            disabled={page === totalPages || totalPages === 0}
-            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-            className="flex items-center gap-2 px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors text-white"
-          >
-            {t.admin.next} <ChevronRight className="w-4 h-4" />
-          </button>
+        <div className="p-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 mt-4">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button 
+              disabled={page === 1}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors text-white text-sm font-medium"
+            >
+              <ChevronLeft className="w-4 h-4" /> {t.admin.prev}
+            </button>
+            <button 
+              disabled={page === totalPages || totalPages === 0}
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors text-white text-sm font-medium"
+            >
+              {t.admin.next} <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <span className="text-xs text-zinc-500 font-medium order-first sm:order-none">
+            {t.interpolate(t.admin.pageOf, { page, total: totalPages || 1 })}
+          </span>
         </div>
       </div>
 

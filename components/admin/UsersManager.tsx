@@ -109,18 +109,18 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
   };
 
   return (
-    <div className="flex h-full gap-6">
+    <div className="flex h-full gap-6 relative">
       <div className={`flex-1 flex flex-col ${selectedUser ? 'hidden lg:flex' : 'flex'}`}>
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-3xl font-bold text-white">{t.admin.users}</h2>
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <h2 className="text-2xl md:text-3xl font-bold text-white">{t.admin.users}</h2>
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
             <input 
               type="text" 
               placeholder={t.admin.searchUser}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-10 pr-4 py-2 bg-[#111] border border-white/10 rounded-lg text-white focus:outline-none focus:border-red-500 w-64"
+              className="pl-10 pr-4 py-2 bg-[#111] border border-white/10 rounded-lg text-white focus:outline-none focus:border-red-500 w-full"
             />
           </div>
         </div>
@@ -210,22 +210,24 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
           </div>
           
           {/* Pagination */}
-          <div className="p-4 border-t border-white/10 flex justify-between items-center mt-auto">
-            <button 
-              disabled={page === 1}
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors"
-            >
-              {t.admin.prev}
-            </button>
-            <span className="text-zinc-400">{t.interpolate(t.admin.pageOf, { page, total: totalPages || 1 })}</span>
-            <button 
-              disabled={page === totalPages || totalPages === 0}
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              className="px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors"
-            >
-              {t.admin.next}
-            </button>
+          <div className="p-4 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center gap-4 mt-auto">
+            <div className="flex gap-2 w-full sm:w-auto">
+              <button 
+                disabled={page === 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="flex-1 sm:flex-none px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors"
+              >
+                {t.admin.prev}
+              </button>
+              <button 
+                disabled={page === totalPages || totalPages === 0}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="flex-1 sm:flex-none px-4 py-2 bg-white/5 rounded-lg disabled:opacity-50 hover:bg-white/10 transition-colors"
+              >
+                {t.admin.next}
+              </button>
+            </div>
+            <span className="text-zinc-400 text-sm">{t.interpolate(t.admin.pageOf, { page, total: totalPages || 1 })}</span>
           </div>
         </div>
       </div>
@@ -233,12 +235,12 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
       {/* Side Panel */}
       <AnimatePresence>
         {selectedUser && (
-          <motion.div 
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 50 }}
-            className="w-full lg:w-96 bg-[#111] border border-white/10 rounded-xl flex flex-col overflow-hidden"
-          >
+            <motion.div 
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 50 }}
+              className="fixed inset-0 lg:relative lg:inset-auto z-50 lg:z-0 w-full lg:w-96 bg-[#111] border-l lg:border border-white/10 lg:rounded-xl flex flex-col overflow-hidden"
+            >
             <div className="p-6 border-b border-white/10 flex justify-between items-start">
               <h3 className="text-xl font-bold text-white">{t.admin.userProfile}</h3>
               <button 
