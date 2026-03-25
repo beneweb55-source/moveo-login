@@ -167,7 +167,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-sm md:text-xl font-extralight tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
+                className="text-sm md:text-lg xl:text-xl font-extralight tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
               >
                 <span>{greetingText}</span>
                 <span className="font-light flex items-center gap-2" style={{ color: isEditingColor ? tempColor : finalGreetingColor }}>
@@ -232,7 +232,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           )}
 
           {/* Metadata Badge Row */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-xs md:text-base font-medium">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-xs md:text-sm xl:text-base font-medium">
             <span className="px-2 py-1 md:px-3 md:py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-2">
               <Film className="w-3 h-3 md:w-4 md:h-4" />
               {movie?.media_type === "tv" ? t.nav.tvShows : t.nav.movies}
@@ -249,7 +249,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl md:text-7xl lg:text-8xl font-black tracking-tighter text-white mb-4 md:mb-6 drop-shadow-2xl leading-[1.1] md:leading-[0.9]">
+          <h1 className="text-4xl md:text-6xl xl:text-8xl font-black tracking-tighter text-white mb-4 md:mb-6 drop-shadow-2xl leading-[1.1] md:leading-[0.9]">
             {movie?.title || movie?.name}
           </h1>
 
@@ -267,7 +267,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           </div>
 
           {/* Synopsis */}
-          <p className="text-sm md:text-xl text-zinc-300 mb-6 md:mb-10 line-clamp-3 md:line-clamp-4 max-w-2xl leading-relaxed drop-shadow-md opacity-80">
+          <p className="text-sm md:text-lg xl:text-xl text-zinc-300 mb-6 md:mb-10 line-clamp-3 md:line-clamp-4 max-w-2xl leading-relaxed drop-shadow-md opacity-80">
             {movie?.overview}
           </p>
 

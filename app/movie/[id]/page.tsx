@@ -149,7 +149,7 @@ export default function MovieDetails() {
       </motion.nav>
 
       {/* Hero Section */}
-      <div className="relative w-full min-h-[60vh] md:min-h-[80vh] flex items-start pt-20 pb-12 lg:items-start lg:pt-32 lg:pb-12">
+      <div className="relative w-full min-h-[60vh] md:min-h-[70vh] xl:min-h-[85vh] flex items-start pt-20 pb-12 xl:items-start xl:pt-32 xl:pb-12">
         {/* Parallax Backdrop */}
         <div className="absolute inset-0 overflow-hidden">
             <motion.div style={{ y }} className="relative w-full h-[120%] -top-[10%]">
@@ -161,19 +161,19 @@ export default function MovieDetails() {
                     priority
                     referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/80 via-[#0A0A0A]/50 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A]/80 via-[#0A0A0A]/40 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/90 via-[#0A0A0A]/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A]/90 via-[#0A0A0A]/50 to-transparent" />
             </motion.div>
         </div>
 
         <ContentWrapper>
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 lg:gap-16 items-start mt-16 lg:mt-0 px-4 sm:px-0">
-                {/* Poster - Hidden on mobile, visible on lg */}
+            <div className="relative z-10 grid grid-cols-1 xl:grid-cols-[320px_1fr] gap-8 xl:gap-16 items-start mt-16 xl:mt-0 px-4 sm:px-0">
+                {/* Poster - Hidden on mobile/tablet, visible on xl */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.9, y: 20 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-                    className="hidden lg:block relative aspect-[2/3] rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] border border-white/10 group"
+                    className="hidden xl:block relative aspect-[2/3] rounded-[2.5rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.8)] border border-white/10 group"
                 >
                      {posterUrl ? (
                         <Image
@@ -211,17 +211,17 @@ export default function MovieDetails() {
                             ))}
                         </div>
 
-                        <h1 className="text-4xl md:text-6xl lg:text-7xl font-black tracking-tighter leading-[1.1] mb-6 md:mb-10 drop-shadow-2xl break-words">
+                        <h1 className="text-4xl md:text-5xl xl:text-7xl font-black tracking-tighter leading-[1.1] mb-6 md:mb-10 drop-shadow-2xl break-words">
                             {data?.title}
                         </h1>
 
                         {data?.tagline && (
-                            <p className="text-lg md:text-xl lg:text-2xl text-white/50 italic font-serif mb-8 md:mb-12 leading-relaxed max-w-4xl">
+                            <p className="text-lg md:text-xl xl:text-2xl text-white/50 italic font-serif mb-8 md:mb-12 leading-relaxed max-w-4xl">
                                 &ldquo;{data.tagline}&rdquo;
                             </p>
                         )}
 
-                        <div className="flex flex-wrap items-center gap-4 md:gap-8 text-xs md:text-base lg:text-lg font-black text-white/60 mb-10 md:mb-16">
+                        <div className="flex flex-wrap items-center gap-4 md:gap-8 text-xs md:text-sm xl:text-lg font-black text-white/60 mb-10 md:mb-16">
                             <div className="flex items-center gap-2 md:gap-3 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 backdrop-blur-2xl">
                                 <Star className="w-4 h-4 md:w-5 md:h-5 text-yellow-500 fill-yellow-500" />
                                 <span className="text-white">{rating}</span>
@@ -283,12 +283,12 @@ export default function MovieDetails() {
                         </div>
 
                         {/* Synopsis */}
-                        <div className="max-w-4xl mb-12 md:mb-20">
+                        <div className="max-w-4xl mb-12 md:mb-16 xl:mb-20">
                             <h3 className="text-xl md:text-2xl font-black mb-4 md:mb-6 flex items-center gap-3 uppercase tracking-tighter">
                                 <span className="w-1 h-6 md:h-8 bg-[#E50914] rounded-full" />
                                 {t.details.synopsis}
                             </h3>
-                            <p className="text-base md:text-lg lg:text-xl text-white/70 leading-relaxed font-medium">
+                            <p className="text-base md:text-lg xl:text-xl text-white/70 leading-relaxed font-medium">
                                 {data?.overview}
                             </p>
                         </div>

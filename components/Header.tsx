@@ -227,7 +227,7 @@ const Header = () => {
   return (
     <>
       <header
-        className={`fixed top-0 w-full h-16 lg:h-20 z-50 transition-all duration-300 ease-in-out ${
+        className={`fixed top-0 w-full h-16 xl:h-20 z-50 transition-all duration-300 ease-in-out ${
         show === "top"
           ? "bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm"
           : show === "show"
@@ -235,12 +235,12 @@ const Header = () => {
           : "-translate-y-full"
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 xl:px-8 h-full flex items-center justify-between gap-4">
         {/* Left Section: Mobile Menu Toggle & Logo */}
         <div className="flex items-center gap-4">
           {/* Hamburger Menu (Mobile/Tablet) */}
           <button 
-            className="lg:hidden p-1.5 -ml-1.5 text-white/80 hover:text-white transition-colors"
+            className="xl:hidden p-1.5 -ml-1.5 text-white/80 hover:text-white transition-colors"
             onClick={() => setIsMobileMenuOpen(true)}
           >
             <Menu className="w-6 h-6" />
@@ -253,7 +253,7 @@ const Header = () => {
         </div>
 
         {/* Desktop Navigation */}
-        <ul className="hidden lg:flex items-center gap-6 font-medium text-sm text-white/80">
+        <ul className="hidden xl:flex items-center gap-6 font-medium text-sm text-white/80">
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/")}>{t.nav.home}</li>
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
           <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
@@ -265,17 +265,17 @@ const Header = () => {
         </ul>
 
         {/* Center/Right Section: Search */}
-        <div className="flex-1 flex justify-end lg:justify-center max-w-2xl transition-all duration-500 ease-in-out relative" ref={searchRef}>
+        <div className="flex-1 flex justify-end xl:justify-center max-w-2xl transition-all duration-500 ease-in-out relative" ref={searchRef}>
           {/* Mobile Search Icon */}
           <button 
-            className="lg:hidden p-2 text-white/80 hover:text-white transition-colors"
+            className="xl:hidden p-2 text-white/80 hover:text-white transition-colors"
             onClick={() => setShowMobileSearch(true)}
           >
             <Search className="w-5 h-5" />
           </button>
 
           {/* Desktop Search Bar */}
-          <form onSubmit={handleSearchSubmit} className="hidden lg:block relative group w-full">
+          <form onSubmit={handleSearchSubmit} className="hidden xl:block relative group w-full">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
               <Search className="h-5 w-5 text-white/50 group-focus-within:text-white transition-colors" />
             </div>
@@ -308,7 +308,7 @@ const Header = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="hidden lg:block absolute top-full left-0 right-0 mt-2 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[120] max-h-[70vh] overflow-y-auto"
+                className="hidden xl:block absolute top-full left-0 right-0 mt-2 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[120] max-h-[70vh] overflow-y-auto"
               >
                 {/* ... (Search Results Content) ... */}
                 {loading ? (
@@ -393,7 +393,7 @@ const Header = () => {
         </div>
 
         {/* Right Section: User/Auth & Language (Desktop only) */}
-        <div className="hidden lg:flex items-center gap-4">
+        <div className="hidden xl:flex items-center gap-4">
           {user ? (
             <div className="flex items-center relative" id="user-dropdown-container">
               <button
@@ -491,7 +491,7 @@ const Header = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="lg:hidden fixed inset-0 bg-[#0A0A0A] z-[100] flex flex-col"
+          className="xl:hidden fixed inset-0 bg-[#0A0A0A] z-[100] flex flex-col"
         >
             <div className="flex items-center gap-3 p-4 border-b border-white/10">
               <button 
@@ -579,7 +579,7 @@ const Header = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="lg:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
+              className="xl:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
             />
             
             {/* Drawer */}
@@ -588,7 +588,7 @@ const Header = () => {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-              className="lg:hidden fixed inset-y-0 left-0 w-[80%] max-w-sm bg-[#0A0A0A] border-r border-white/10 z-[110] flex flex-col overflow-y-auto"
+              className="xl:hidden fixed inset-y-0 left-0 w-[80%] max-w-sm bg-[#0A0A0A] border-r border-white/10 z-[110] flex flex-col overflow-y-auto"
             >
               <div className="p-4 border-b border-white/10 flex items-center justify-between">
                 <Logo />

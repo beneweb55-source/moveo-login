@@ -442,10 +442,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
 
       {/* --- CONTRÔLES (DARK LUXURY) --- */}
-      <div className="flex flex-col lg:flex-row gap-8 items-start">
+      <div className="flex flex-col xl:flex-row gap-8 items-start">
         
         {/* Colonne Gauche : Langue & Premium */}
-        <div className="w-full lg:w-1/3 flex flex-col gap-8">
+        <div className="w-full xl:w-1/3 flex flex-col gap-8">
           
           {/* Sélecteur de Langue (Segmented Control) */}
           <div className="flex flex-col gap-3">
@@ -518,7 +518,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
 
         {/* Colonne Droite : Serveurs Alternatifs */}
-        <div className="w-full lg:w-2/3 flex flex-col gap-3">
+        <div className="w-full xl:w-2/3 flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">Sources Alternatives</h3>
             {videoUrl && (
