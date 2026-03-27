@@ -63,18 +63,7 @@ const SearchResult = () => {
       const decodedQuery = decodeURIComponent(query as string);
 
       try {
-        // 1. Check for a highly relevant person first
-        const personSearchRes = await fetchDataFromApi(`/search/person?query=${encodeURIComponent(decodedQuery)}&language=${langParam}&include_adult=false`);
-        
-        if (personSearchRes?.results?.length > 0) {
-          const firstPerson = personSearchRes.results[0];
-          if (firstPerson.popularity > 5) {
-            router.replace(`/person/${firstPerson.id}`);
-            return; // Stop here, we found a person and are redirecting
-          }
-        }
-
-        // 2. Fallback to multi search
+        // Fallback to multi search
         const multiSearchRes = await fetchDataFromApi(`/search/multi?query=${encodeURIComponent(decodedQuery)}&page=1&language=${langParam}&include_adult=false`);
         
         // Extract new genres from this batch
