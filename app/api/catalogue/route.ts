@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       // 1. Chercher dans series_catalogue
       try {
         const seriesRes = await scraperPool.query(
-          `SELECT voe_url, lang 
+          `SELECT voe_url, dood_url, lang 
            FROM series_catalogue 
            WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3
            ORDER BY 
@@ -40,10 +40,11 @@ export async function GET(request: Request) {
 
         if (seriesRes.rows.length > 0) {
           const row = seriesRes.rows[0];
-          if (row.voe_url) {
+          if (row.voe_url || row.dood_url) {
             return NextResponse.json({
               found: true,
               voe_url: row.voe_url,
+              dood_url: row.dood_url,
               lang: row.lang
             });
           }
@@ -56,7 +57,7 @@ export async function GET(request: Request) {
       // 2. Chercher dans anime_catalogue
       try {
         const animeRes = await scraperPool.query(
-          `SELECT voe_url, lang 
+          `SELECT voe_url, dood_url, lang 
            FROM anime_catalogue 
            WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3
            ORDER BY 
@@ -72,10 +73,11 @@ export async function GET(request: Request) {
 
         if (animeRes.rows.length > 0) {
           const row = animeRes.rows[0];
-          if (row.voe_url) {
+          if (row.voe_url || row.dood_url) {
             return NextResponse.json({
               found: true,
               voe_url: row.voe_url,
+              dood_url: row.dood_url,
               lang: row.lang
             });
           }
@@ -91,7 +93,7 @@ export async function GET(request: Request) {
 
     // Comportement par défaut (Films - table catalogue)
     const res = await scraperPool.query(
-      `SELECT vidoza_url, voe_url, lang 
+      `SELECT vidoza_url, voe_url, dood_url, lang 
        FROM catalogue 
        WHERE tmdb_id = $1 
        ORDER BY 
@@ -107,11 +109,12 @@ export async function GET(request: Request) {
 
     if (res.rows.length > 0) {
       const row = res.rows[0];
-      if (row.vidoza_url || row.voe_url) {
+      if (row.vidoza_url || row.voe_url || row.dood_url) {
         return NextResponse.json({
           found: true,
           vidoza_url: row.vidoza_url,
           voe_url: row.voe_url,
+          dood_url: row.dood_url,
           lang: row.lang
         });
       }

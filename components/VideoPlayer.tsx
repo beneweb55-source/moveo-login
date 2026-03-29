@@ -131,6 +131,26 @@ const toVoeEmbed = (url: string): string => {
   }
 };
 
+const toDoodEmbed = (url: string): string => {
+  if (!url) return "";
+  if (url.includes('/e/')) return url;
+  try {
+    const urlObj = new URL(url);
+    if (urlObj.pathname.startsWith('/d/')) {
+      urlObj.pathname = urlObj.pathname.replace('/d/', '/e/');
+    }
+    return urlObj.toString();
+  } catch (e) {
+    return url.replace('/d/', '/e/');
+  }
+};
+
+type PremiumHost = "VOE" | "DOOD";
+interface PremiumSource {
+  type: PremiumHost;
+  url: string;
+}
+
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
   id, type, season, episode, genres, title, posterPath, year,
   hasNext, hasPrev, onNext, onPrev
@@ -138,8 +158,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const { t } = useLanguage();
   
   const [activeLang, setActiveLang] = useState<Language>("VF");
-  // Stocke les URLs premium trouvées par langue
-  const [premiumUrls, setPremiumUrls] = useState<Record<string, string>>({});
+  // Stocke les sources premium trouvées par langue
+  const [premiumSources, setPremiumSources] = useState<Record<string, PremiumSource[]>>({});
+  // Stocke l'état de santé des URLs premium (clé: "lang_type" ex: "VF_VOE")
+  const [premiumHealth, setPremiumHealth] = useState<Record<string, boolean>>({});
+  // Hébergeur premium sélectionné
+  const [selectedPremiumHost, setSelectedPremiumHost] = useState<PremiumHost>("VOE");
   
   // Le serveur actif peut être "MOVEO PREMIUM" ou un serveur alternatif
   const [activeServerName, setActiveServerName] = useState<string>("Frembed");
@@ -165,16 +189,45 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const data = await res.json();
         
         let moveoWorks = false;
-        if (data.voe_url && isMounted) {
+        if ((data.voe_url || data.dood_url) && isMounted) {
           const serverLang = data.lang === "VOSTFR" ? "VOSTFR" : "VF";
-          const voeUrl = toVoeEmbed(data.voe_url);
-          setPremiumUrls(prev => ({ ...prev, [serverLang]: voeUrl }));
+          const sources: PremiumSource[] = [];
+          
+          if (data.voe_url) {
+            sources.push({ type: "VOE", url: toVoeEmbed(data.voe_url) });
+          }
+          if (data.dood_url) {
+            sources.push({ type: "DOOD", url: toDoodEmbed(data.dood_url) });
+          }
+          
+          setPremiumSources(prev => ({ ...prev, [serverLang]: sources }));
           setActiveLang(serverLang);
           
-          // Vérifier si Moveo Premium fonctionne (pas d'erreur 404)
-          moveoWorks = await checkServerHealth(voeUrl);
-          if (moveoWorks && isMounted) {
-            setActiveServerName("MOVEO PREMIUM");
+          // Vérifier la santé des sources
+          let anyWorks = false;
+          let firstWorkingHost: PremiumHost | null = null;
+          
+          for (const source of sources) {
+            const isHealthy = await checkServerHealth(source.url);
+            if (isMounted) {
+              setPremiumHealth(prev => ({ ...prev, [`${serverLang}_${source.type}`]: isHealthy }));
+              if (isHealthy && !anyWorks) {
+                anyWorks = true;
+                firstWorkingHost = source.type;
+              }
+            }
+          }
+          
+          if (isMounted) {
+            moveoWorks = anyWorks;
+            if (anyWorks && firstWorkingHost) {
+              setActiveServerName("MOVEO PREMIUM");
+              setSelectedPremiumHost(firstWorkingHost);
+            } else if (sources.length > 0) {
+              // Si aucun ne marche mais qu'on a des sources, on se met quand même sur MOVEO PREMIUM pour afficher l'erreur d'encodage
+              setActiveServerName("MOVEO PREMIUM");
+              setSelectedPremiumHost(sources[0].type);
+            }
           }
         }
         
@@ -214,6 +267,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setActiveLang(lang);
     setIframeLoaded(false);
     setRequestStatus('idle');
+    
+    // Update selected host if the current one is not available in the new language
+    const sources = premiumSources[lang] || [];
+    if (sources.length > 0 && !sources.find(s => s.type === selectedPremiumHost)) {
+      const healthySource = sources.find(s => premiumHealth[`${lang}_${s.type}`]);
+      setSelectedPremiumHost(healthySource ? healthySource.type : sources[0].type);
+    }
   };
 
   // 3. Handle Server Change
@@ -300,9 +360,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   let isPremiumAvailable = false;
   
   if (activeServerName === "MOVEO PREMIUM") {
-    if (premiumUrls[activeLang]) {
-      videoUrl = premiumUrls[activeLang];
+    const sources = premiumSources[activeLang] || [];
+    let selectedSource = sources.find(s => s.type === selectedPremiumHost);
+    
+    // If the selected host is not available in this language, pick the first healthy one, or the first one
+    if (!selectedSource && sources.length > 0) {
+      selectedSource = sources.find(s => premiumHealth[`${activeLang}_${s.type}`]) || sources[0];
+      // Note: We don't update state here to avoid render loops, it will just use this source for rendering
+    }
+    
+    if (selectedSource && premiumHealth[`${activeLang}_${selectedSource.type}`]) {
+      videoUrl = selectedSource.url;
       isPremiumAvailable = true;
+    } else {
+      isPremiumAvailable = false;
     }
   } else {
     const altServer = ALTERNATIVE_SERVERS.find(s => s.name === activeServerName);
@@ -471,7 +542,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     )}
                     <span className="relative z-20 flex items-center gap-2">
                       {lang}
-                      {premiumUrls[lang] && (
+                      {premiumSources[lang]?.length > 0 && (
                         <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
                       )}
                     </span>
@@ -514,6 +585,35 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 {activeServerName === "MOVEO PREMIUM" && <CheckCircle2 className="w-4 h-4 text-white/50" />}
               </div>
             </button>
+
+            {/* Host Selector */}
+            {activeServerName === "MOVEO PREMIUM" && premiumSources[activeLang]?.length > 0 && (
+              <div className="flex gap-2 mt-1">
+                {premiumSources[activeLang].map(source => {
+                  const isSelected = selectedPremiumHost === source.type;
+                  const isOffline = premiumHealth[`${activeLang}_${source.type}`] === false;
+                  
+                  return (
+                    <button
+                      key={source.type}
+                      onClick={() => {
+                        setSelectedPremiumHost(source.type);
+                        setIframeLoaded(false);
+                      }}
+                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        isSelected
+                          ? "bg-white/15 text-white border border-white/20 shadow-sm"
+                          : "bg-[#0a0a0a] text-white/40 border border-white/5 hover:bg-white/5 hover:text-white/70"
+                      }`}
+                    >
+                      <Database className={`w-3.5 h-3.5 ${isSelected ? "text-white" : "text-white/30"}`} />
+                      Serveur {source.type}
+                      {isOffline && <span className="text-red-400/80 font-normal text-[10px] uppercase tracking-wider ml-1">Hors ligne</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

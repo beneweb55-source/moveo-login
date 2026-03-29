@@ -22,7 +22,13 @@ export default function SystemManager() {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [systemLogs, setSystemLogs] = useState<any[]>([]);
+  const [systemLogs, setSystemLogs] = useState<any[]>([
+    { id: 1, action: 'User Ban', admin: 'Admin', time: '2 mins ago', status: 'success' },
+    { id: 2, action: 'Role Update', admin: 'Moderator', time: '15 mins ago', status: 'success' },
+    { id: 3, action: 'Content Pin', admin: 'Admin', time: '1 hour ago', status: 'success' },
+    { id: 4, action: 'System Backup', admin: 'System', time: '3 hours ago', status: 'success' },
+    { id: 5, action: 'Failed Login', admin: 'Unknown', time: '5 hours ago', status: 'warning' },
+  ]);
   const [apiStatus, setApiStatus] = useState({
     tmdb: 'checking',
     auth: 'online',
@@ -31,16 +37,6 @@ export default function SystemManager() {
   });
 
   useEffect(() => {
-    // Simulate fetching system logs
-    const mockLogs = [
-      { id: 1, action: 'User Ban', admin: 'Admin', time: '2 mins ago', status: 'success' },
-      { id: 2, action: 'Role Update', admin: 'Moderator', time: '15 mins ago', status: 'success' },
-      { id: 3, action: 'Content Pin', admin: 'Admin', time: '1 hour ago', status: 'success' },
-      { id: 4, action: 'System Backup', admin: 'System', time: '3 hours ago', status: 'success' },
-      { id: 5, action: 'Failed Login', admin: 'Unknown', time: '5 hours ago', status: 'warning' },
-    ];
-    setSystemLogs(mockLogs);
-
     // Simulate API health check
     const checkApi = async () => {
       try {

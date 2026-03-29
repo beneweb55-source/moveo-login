@@ -39,27 +39,27 @@ export async function POST(request: Request) {
     // Check if already in catalogue
     if (type === 'tv' && season && episode) {
       const seriesRes = await scraperPool.query(
-        'SELECT voe_url FROM series_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
+        'SELECT voe_url, dood_url FROM series_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
         [tmdb_id, season, episode]
       );
-      if (seriesRes.rows.length > 0 && seriesRes.rows[0].voe_url) {
+      if (seriesRes.rows.length > 0 && (seriesRes.rows[0].voe_url || seriesRes.rows[0].dood_url)) {
         return NextResponse.json({ status: 'already_available' });
       }
 
       const animeRes = await scraperPool.query(
-        'SELECT voe_url FROM anime_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
+        'SELECT voe_url, dood_url FROM anime_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
         [tmdb_id, season, episode]
       );
-      if (animeRes.rows.length > 0 && animeRes.rows[0].voe_url) {
+      if (animeRes.rows.length > 0 && (animeRes.rows[0].voe_url || animeRes.rows[0].dood_url)) {
         return NextResponse.json({ status: 'already_available' });
       }
     } else {
       const catalogueRes = await pool.query(
-        'SELECT voe_url FROM catalogue WHERE tmdb_id = $1 LIMIT 1',
+        'SELECT voe_url, dood_url FROM catalogue WHERE tmdb_id = $1 LIMIT 1',
         [tmdb_id]
       );
 
-      if (catalogueRes.rows.length > 0 && catalogueRes.rows[0].voe_url) {
+      if (catalogueRes.rows.length > 0 && (catalogueRes.rows[0].voe_url || catalogueRes.rows[0].dood_url)) {
         return NextResponse.json({ status: 'already_available' });
       }
     }
