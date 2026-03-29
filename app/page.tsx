@@ -110,7 +110,7 @@ export default function Home() {
         const trendingParams: any = {
           language: langParam,
         };
-        if (!profile.genreIds?.includes(16) && !profile.genreIds?.includes("16")) {
+        if (!profile.genreIds?.includes(16)) {
           trendingParams.without_genres = "16";
         }
 
@@ -172,7 +172,7 @@ export default function Home() {
         endpoint="/discover/movie"
         params={{ 
             with_genres: profile.genreIds?.join(","),
-            without_genres: profile.genreIds?.includes(16) || profile.genreIds?.includes("16") ? undefined : "16",
+            without_genres: profile.genreIds?.includes(16) ? undefined : "16",
             sort_by: "popularity.desc",
             "vote_count.gte": 100
         }}
