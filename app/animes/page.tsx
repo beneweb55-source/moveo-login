@@ -29,8 +29,21 @@ const Animes = () => {
   const [sortBy, setSortBy] = useState<string>("popularity.desc");
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
+  const [genres, setGenres] = useState<any[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<string>("");
   
   const { language, t } = useLanguage();
+
+  useEffect(() => {
+    const fetchGenres = async () => {
+      const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+      const res = await fetchDataFromApi(`/genre/${mediaType}/list`, { language: langParam });
+      if (res?.genres) {
+        setGenres(res.genres.filter((g: any) => g.id !== 16));
+      }
+    };
+    fetchGenres();
+  }, [mediaType, language]);
 
   // Fetch Watched IDs on mount
   useEffect(() => {
@@ -55,7 +68,7 @@ const Animes = () => {
       const params: any = {
         language: langParam,
         sort_by: finalSortBy,
-        with_genres: "16", // Animation Genre ID
+        with_genres: selectedGenre ? `16,${selectedGenre}` : "16", // Animation Genre ID
         with_original_language: "ja", // Focus on Japanese Anime
       };
 
@@ -92,7 +105,7 @@ const Animes = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, language, sortBy, watchedIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mediaType, language, sortBy, watchedIds, selectedGenre]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -107,7 +120,7 @@ const Animes = () => {
       language: langParam,
       sort_by: finalSortBy,
       page: pageNum,
-      with_genres: "16",
+      with_genres: selectedGenre ? `16,${selectedGenre}` : "16",
       with_original_language: "ja",
     };
 
@@ -174,6 +187,23 @@ const Animes = () => {
                 >
                     {t.nav.movies}
                 </button>
+            </div>
+
+            {/* Genre Select */}
+            <div className="relative group">
+              <select
+                value={selectedGenre}
+                onChange={(e) => setSelectedGenre(e.target.value)}
+                className="appearance-none bg-zinc-900 text-white px-6 py-3 pr-12 rounded-xl border border-zinc-800 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-800 transition-all duration-300 text-sm font-medium min-w-[160px] shadow-lg"
+              >
+                <option value="">{t.explore.allGenres}</option>
+                {genres.map((genre) => (
+                  <option key={genre.id} value={genre.id}>
+                    {genre.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
             </div>
 
             {/* Sort By Select */}

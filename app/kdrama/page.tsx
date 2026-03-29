@@ -29,7 +29,20 @@ const KDramaPage = () => {
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
+  const [genres, setGenres] = useState<any[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<string>("");
   const { language, t } = useLanguage();
+
+  useEffect(() => {
+    const fetchGenres = async () => {
+      const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
+      const res = await fetchDataFromApi(`/genre/${mediaType}/list`, { language: langParam });
+      if (res?.genres) {
+        setGenres(res.genres);
+      }
+    };
+    fetchGenres();
+  }, [mediaType, language]);
 
   useEffect(() => {
     getUserWatchedIds().then(ids => setWatchedIds(ids));
@@ -67,6 +80,10 @@ const KDramaPage = () => {
           params["vote_count.gte"] = 200;
         }
 
+        if (selectedGenre) {
+          params.with_genres = selectedGenre;
+        }
+
         const res = await fetchDataFromApi(`/discover/${mediaType}`, params);
 
         // Extract new genres from this batch
@@ -90,7 +107,7 @@ const KDramaPage = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, sortBy, watchedIds, language]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mediaType, sortBy, watchedIds, language, selectedGenre]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchNextPageData = async () => {
     try {
@@ -120,6 +137,10 @@ const KDramaPage = () => {
 
       if (sortBy === "vote_average.desc") {
         params["vote_count.gte"] = 200;
+      }
+
+      if (selectedGenre) {
+        params.with_genres = selectedGenre;
       }
 
       const res = await fetchDataFromApi(`/discover/${mediaType}`, params);
@@ -173,6 +194,23 @@ const KDramaPage = () => {
                   >
                       {t.nav.movies}
                   </button>
+              </div>
+
+              {/* Genre Select */}
+              <div className="relative group">
+                <select
+                  value={selectedGenre}
+                  onChange={(e) => setSelectedGenre(e.target.value)}
+                  className="appearance-none bg-zinc-900 text-white px-6 py-3 pr-12 rounded-xl border border-zinc-800 focus:border-[#E50914] focus:outline-none cursor-pointer hover:bg-zinc-800 transition-all duration-300 text-sm font-medium min-w-[160px] shadow-lg"
+                >
+                  <option value="">{t.explore.allGenres}</option>
+                  {genres.map((genre) => (
+                    <option key={genre.id} value={genre.id}>
+                      {genre.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50 pointer-events-none group-hover:text-[#E50914] transition-colors" />
               </div>
 
               {/* Sort By Select */}
