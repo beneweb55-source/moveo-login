@@ -463,7 +463,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 {requestStatus === 'idle' && <><Database className="w-4 h-4" /> {t.details.requestEncoding || "Demander l'encodage prioritaire"}</>}
                 {requestStatus === 'loading' && <><Loader2 className="w-4 h-4 animate-spin" /> {t.details.sending || "Envoi en cours..."}</>}
                 {requestStatus === 'success' && <><CheckCircle2 className="w-4 h-4" /> {t.details.requestSent || "Demande envoyée avec succès"}</>}
-                {requestStatus === 'already_requested' && <><CheckCircle2 className="w-4 h-4" /> {t.details.alreadyRequested || "Déjà dans la file d'attente"}</>}
+                {requestStatus === 'already_requested' && <><CheckCircle2 className="w-4 h-4" /> {t.details.requestAlready || "Déjà dans la file d'attente"}</>}
                 {requestStatus === 'error' && <><AlertCircle className="w-4 h-4" /> {t.details.error || "Une erreur est survenue"}</>}
               </motion.button>
             </motion.div>
