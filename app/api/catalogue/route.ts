@@ -19,6 +19,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ found: false });
     }
 
+    const reqType = (season && episode) ? 'TV/ANIME' : 'MOVIE';
+    console.log(`[API Catalogue] 🔍 Demande reçue: type=${reqType}, tmdb_id=${tmdb_id}, season=${season || 'N/A'}, episode=${episode || 'N/A'}`);
+
     // Si on a une saison et un épisode, c'est une série ou un anime
     if (season && episode) {
       // 1. Chercher dans series_catalogue
@@ -41,6 +44,7 @@ export async function GET(request: Request) {
         if (seriesRes.rows.length > 0) {
           const row = seriesRes.rows[0];
           if (row.voe_url || row.dood_url) {
+            console.log(`[API Catalogue] ✅ Trouvé dans series_catalogue: voe=${row.voe_url || 'N/A'}, dood=${row.dood_url || 'N/A'}, lang=${row.lang}`);
             return NextResponse.json({
               found: true,
               voe_url: row.voe_url,
@@ -74,6 +78,7 @@ export async function GET(request: Request) {
         if (animeRes.rows.length > 0) {
           const row = animeRes.rows[0];
           if (row.voe_url || row.dood_url) {
+            console.log(`[API Catalogue] ✅ Trouvé dans anime_catalogue: voe=${row.voe_url || 'N/A'}, dood=${row.dood_url || 'N/A'}, lang=${row.lang}`);
             return NextResponse.json({
               found: true,
               voe_url: row.voe_url,
@@ -88,6 +93,7 @@ export async function GET(request: Request) {
       }
 
       // Si rien trouvé dans les deux tables
+      console.log(`[API Catalogue] ❌ Introuvable pour TV/ANIME: tmdb_id=${tmdb_id}, S${season}E${episode}`);
       return NextResponse.json({ found: false });
     }
 
@@ -110,6 +116,7 @@ export async function GET(request: Request) {
     if (res.rows.length > 0) {
       const row = res.rows[0];
       if (row.vidoza_url || row.voe_url || row.dood_url) {
+        console.log(`[API Catalogue] ✅ Trouvé dans catalogue (FILM): voe=${row.voe_url || 'N/A'}, dood=${row.dood_url || 'N/A'}, lang=${row.lang}`);
         return NextResponse.json({
           found: true,
           vidoza_url: row.vidoza_url,
@@ -120,6 +127,7 @@ export async function GET(request: Request) {
       }
     }
 
+    console.log(`[API Catalogue] ❌ Introuvable pour FILM: tmdb_id=${tmdb_id}`);
     return NextResponse.json({ found: false });
   } catch (error) {
     console.error('Error fetching catalogue:', error);

@@ -178,8 +178,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // 1. Initialisation : Fetch Premium Servers
   useEffect(() => {
     let isMounted = true;
+    
+    // RESET STATE to prevent leaking previous movie/episode data
+    setPremiumSources({});
+    setPremiumHealth({});
+    setIframeLoaded(false);
+    setIsChecking(true);
+    
+    console.log(`[VideoPlayer] 🎬 Nouvelle lecture demandée: type=${type}, id=${id}, season=${season || 'N/A'}, episode=${episode || 'N/A'}`);
+
     const fetchPremium = async () => {
-      setIsChecking(true);
       try {
         const fetchUrl = type === 'movie' 
           ? `/api/catalogue?tmdb_id=${id}`
@@ -188,16 +196,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const res = await fetch(fetchUrl);
         const data = await res.json();
         
+        console.log(`[VideoPlayer] 📥 Réponse API catalogue:`, data);
+        
         let moveoWorks = false;
         if ((data.voe_url || data.dood_url) && isMounted) {
           const serverLang = data.lang === "VOSTFR" ? "VOSTFR" : "VF";
           const sources: PremiumSource[] = [];
           
           if (data.voe_url) {
-            sources.push({ type: "VOE", url: toVoeEmbed(data.voe_url) });
+            const transformedVoe = toVoeEmbed(data.voe_url);
+            console.log(`[VideoPlayer] 🔗 VOE URL: original=${data.voe_url} -> embed=${transformedVoe}`);
+            sources.push({ type: "VOE", url: transformedVoe });
           }
           if (data.dood_url) {
-            sources.push({ type: "DOOD", url: toDoodEmbed(data.dood_url) });
+            const transformedDood = toDoodEmbed(data.dood_url);
+            console.log(`[VideoPlayer] 🔗 DOOD URL: original=${data.dood_url} -> embed=${transformedDood}`);
+            sources.push({ type: "DOOD", url: transformedDood });
           }
           
           setPremiumSources(prev => ({ ...prev, [serverLang]: sources }));
@@ -209,6 +223,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           
           for (const source of sources) {
             const isHealthy = await checkServerHealth(source.url);
+            console.log(`[VideoPlayer] 🏥 Health check ${source.type}: ${isHealthy ? 'OK' : 'DEAD'}`);
             if (isMounted) {
               setPremiumHealth(prev => ({ ...prev, [`${serverLang}_${source.type}`]: isHealthy }));
               if (isHealthy && !anyWorks) {
@@ -221,9 +236,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           if (isMounted) {
             moveoWorks = anyWorks;
             if (anyWorks && firstWorkingHost) {
+              console.log(`[VideoPlayer] ✅ Sélection finale: Serveur=MOVEO PREMIUM, HostPremium=${firstWorkingHost}`);
               setActiveServerName("MOVEO PREMIUM");
               setSelectedPremiumHost(firstWorkingHost);
             } else if (sources.length > 0) {
+              console.log(`[VideoPlayer] ⚠️ Aucune source saine, fallback sur MOVEO PREMIUM avec ${sources[0].type} pour afficher l'erreur`);
               // Si aucun ne marche mais qu'on a des sources, on se met quand même sur MOVEO PREMIUM pour afficher l'erreur d'encodage
               setActiveServerName("MOVEO PREMIUM");
               setSelectedPremiumHost(sources[0].type);
@@ -232,6 +249,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
         
         if (isMounted && !moveoWorks) {
+          console.log(`[VideoPlayer] 🔄 Fallback sur les serveurs alternatifs`);
           // Moveo indisponible ou en erreur 404 → tenter les serveurs alternatifs un par un
           let foundHealthy = false;
           for (const server of ALTERNATIVE_SERVERS) {
@@ -239,6 +257,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             const serverUrl = server.url(type, id, season, episode);
             const isHealthy = await checkServerHealth(serverUrl);
             if (isHealthy && isMounted) {
+              console.log(`[VideoPlayer] ✅ Serveur alternatif sain trouvé: ${server.name}`);
               setActiveServerName(server.name);
               foundHealthy = true;
               break;
@@ -246,6 +265,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }
           
           if (!foundHealthy && isMounted) {
+            console.log(`[VideoPlayer] ❌ Aucun serveur alternatif sain, fallback sur SuperEmbed`);
             // Aucun serveur n'est "healthy", on met SuperEmbed par défaut (souvent le plus résilient)
             setActiveServerName("SuperEmbed");
           }
@@ -393,6 +413,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       videoUrl = altServer.url(type, id, season, episode);
     }
   }
+
+  useEffect(() => {
+    if (videoUrl) {
+      console.log(`[VideoPlayer] 📺 Iframe URL finale: ${videoUrl}`);
+    }
+  }, [videoUrl]);
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-8 mb-16 px-4 md:px-0">
