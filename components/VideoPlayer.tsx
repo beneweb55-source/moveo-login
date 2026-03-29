@@ -171,7 +171,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isChecking, setIsChecking] = useState(true);
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
-  const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'already_requested' | 'error'>('idle');
 
   const lastSaveTime = useRef(0);
 
@@ -301,8 +301,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         })
       });
       
+      if (res.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
+      
       if (res.ok) {
-        setRequestStatus('success');
+        const data = await res.json();
+        if (data.status === 'requested') {
+          setRequestStatus('success');
+        } else if (data.status === 'already_requested' || data.status === 'already_available') {
+          setRequestStatus('already_requested');
+        } else {
+          setRequestStatus('error');
+        }
       } else {
         setRequestStatus('error');
       }
@@ -443,6 +455,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 disabled={requestStatus !== 'idle'}
                 className={`px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-medium transition-all duration-300 ${
                   requestStatus === 'success' ? 'bg-white/10 text-white border border-white/20' :
+                  requestStatus === 'already_requested' ? 'bg-white/10 text-white/70 border border-white/20' :
                   requestStatus === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                   'bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]'
                 }`}
@@ -450,6 +463,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 {requestStatus === 'idle' && <><Database className="w-4 h-4" /> {t.details.requestEncoding || "Demander l'encodage prioritaire"}</>}
                 {requestStatus === 'loading' && <><Loader2 className="w-4 h-4 animate-spin" /> {t.details.sending || "Envoi en cours..."}</>}
                 {requestStatus === 'success' && <><CheckCircle2 className="w-4 h-4" /> {t.details.requestSent || "Demande envoyée avec succès"}</>}
+                {requestStatus === 'already_requested' && <><CheckCircle2 className="w-4 h-4" /> {t.details.alreadyRequested || "Déjà dans la file d'attente"}</>}
                 {requestStatus === 'error' && <><AlertCircle className="w-4 h-4" /> {t.details.error || "Une erreur est survenue"}</>}
               </motion.button>
             </motion.div>

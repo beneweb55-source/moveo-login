@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import * as jose from 'jose';
-import pool from '@/lib/db';
 import { Pool } from 'pg';
 
 const scraperPool = new Pool({
@@ -38,52 +37,150 @@ export async function POST(request: Request) {
 
     // Check if already in catalogue
     if (type === 'tv' && season && episode) {
-      const seriesRes = await scraperPool.query(
-        'SELECT voe_url, dood_url FROM series_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
-        [tmdb_id, season, episode]
-      );
-      if (seriesRes.rows.length > 0 && (seriesRes.rows[0].voe_url || seriesRes.rows[0].dood_url)) {
-        return NextResponse.json({ status: 'already_available' });
+      try {
+        const seriesRes = await scraperPool.query(
+          'SELECT voe_url, dood_url FROM series_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
+          [tmdb_id, season, episode]
+        );
+        if (seriesRes.rows.length > 0 && (seriesRes.rows[0].voe_url || seriesRes.rows[0].dood_url)) {
+          return NextResponse.json({ status: 'already_available' });
+        }
+      } catch (e) {
+        console.error('Error checking series_catalogue', e);
       }
 
-      const animeRes = await scraperPool.query(
-        'SELECT voe_url, dood_url FROM anime_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
-        [tmdb_id, season, episode]
-      );
-      if (animeRes.rows.length > 0 && (animeRes.rows[0].voe_url || animeRes.rows[0].dood_url)) {
-        return NextResponse.json({ status: 'already_available' });
+      try {
+        const animeRes = await scraperPool.query(
+          'SELECT voe_url, dood_url FROM anime_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
+          [tmdb_id, season, episode]
+        );
+        if (animeRes.rows.length > 0 && (animeRes.rows[0].voe_url || animeRes.rows[0].dood_url)) {
+          return NextResponse.json({ status: 'already_available' });
+        }
+      } catch (e) {
+        console.error('Error checking anime_catalogue', e);
       }
     } else {
-      const catalogueRes = await pool.query(
-        'SELECT voe_url, dood_url FROM catalogue WHERE tmdb_id = $1 LIMIT 1',
-        [tmdb_id]
-      );
+      try {
+        const catalogueRes = await scraperPool.query(
+          'SELECT voe_url, dood_url FROM catalogue WHERE tmdb_id = $1 LIMIT 1',
+          [tmdb_id]
+        );
 
-      if (catalogueRes.rows.length > 0 && (catalogueRes.rows[0].voe_url || catalogueRes.rows[0].dood_url)) {
-        return NextResponse.json({ status: 'already_available' });
+        if (catalogueRes.rows.length > 0 && (catalogueRes.rows[0].voe_url || catalogueRes.rows[0].dood_url)) {
+          return NextResponse.json({ status: 'already_available' });
+        }
+      } catch (e) {
+        console.error('Error checking catalogue', e);
       }
     }
 
-    // Check if already requested
-    const requestRes = await pool.query(
-      `SELECT status FROM content_requests 
-       WHERE tmdb_id = $1 AND type = $2 
-       AND (season IS NULL OR season = $3) 
-       AND (episode IS NULL OR episode = $4)
-       LIMIT 1`,
-      [tmdb_id, type || 'movie', season || null, episode || null]
-    );
+    // Determine the table to use: content_requests or film_requests
+    let tableName = 'content_requests';
+    let tableExists = false;
+    
+    try {
+      const tableCheck = await scraperPool.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name = 'content_requests'
+        );
+      `);
+      tableExists = tableCheck.rows[0].exists;
+    } catch (e) {
+      console.error('Error checking content_requests table', e);
+    }
 
-    if (requestRes.rows.length > 0) {
-      return NextResponse.json({ status: 'already_requested' });
+    if (!tableExists) {
+      try {
+        const tableCheck2 = await scraperPool.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_name = 'film_requests'
+          );
+        `);
+        if (tableCheck2.rows[0].exists) {
+          tableName = 'film_requests';
+          tableExists = true;
+        }
+      } catch (e) {
+        console.error('Error checking film_requests table', e);
+      }
+    }
+
+    if (!tableExists) {
+      // If neither table exists, we can't insert.
+      return NextResponse.json({ error: 'No request table found' }, { status: 503 });
+    }
+
+    // Get available columns
+    const columnsRes = await scraperPool.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+      AND table_name = $1
+    `, [tableName]);
+    
+    const availableColumns = columnsRes.rows.map(r => r.column_name);
+
+    // Check if already requested
+    try {
+      let checkQuery = `SELECT status FROM ${tableName} WHERE tmdb_id = $1`;
+      let checkParams: any[] = [tmdb_id];
+      let paramIndex = 2;
+
+      if (availableColumns.includes('type')) {
+        checkQuery += ` AND type = $${paramIndex++}`;
+        checkParams.push(type || 'movie');
+      }
+      if (availableColumns.includes('season')) {
+        checkQuery += ` AND (season IS NULL OR season = $${paramIndex++})`;
+        checkParams.push(season || null);
+      }
+      if (availableColumns.includes('episode')) {
+        checkQuery += ` AND (episode IS NULL OR episode = $${paramIndex++})`;
+        checkParams.push(episode || null);
+      }
+      
+      checkQuery += ` LIMIT 1`;
+
+      const requestRes = await scraperPool.query(checkQuery, checkParams);
+
+      if (requestRes.rows.length > 0) {
+        return NextResponse.json({ status: 'already_requested' });
+      }
+    } catch (e) {
+      console.error(`Error checking existing request in ${tableName}`, e);
     }
 
     // Insert new request
-    await pool.query(
-      `INSERT INTO content_requests (tmdb_id, title, year, type, season, episode, requested_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [tmdb_id, title, year, type || 'movie', season || null, episode || null, userId]
-    );
+    const insertColumns = ['tmdb_id', 'title', 'year'];
+    const insertValues = [tmdb_id, title, year];
+    let insertParamIndex = 4;
+
+    if (availableColumns.includes('type')) {
+      insertColumns.push('type');
+      insertValues.push(type || 'movie');
+    }
+    if (availableColumns.includes('season')) {
+      insertColumns.push('season');
+      insertValues.push(season || null);
+    }
+    if (availableColumns.includes('episode')) {
+      insertColumns.push('episode');
+      insertValues.push(episode || null);
+    }
+    if (availableColumns.includes('requested_by')) {
+      insertColumns.push('requested_by');
+      insertValues.push(userId);
+    }
+
+    const placeholders = insertValues.map((_, i) => `$${i + 1}`).join(', ');
+    const insertQuery = `INSERT INTO ${tableName} (${insertColumns.join(', ')}) VALUES (${placeholders})`;
+
+    await scraperPool.query(insertQuery, insertValues);
 
     return NextResponse.json({ status: 'requested' });
   } catch (error) {
