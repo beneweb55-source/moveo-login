@@ -7,8 +7,8 @@
  * 3. Personalization (User Genre Weighting)
  */
 
-const MIN_VOTE_COUNT = 50; // Lowered from 150
-const MIN_VOTE_AVERAGE = 4.0; // Lowered from 5.5
+const MIN_VOTE_COUNT = 5; // Lowered from 50 to allow niche content like K-Dramas
+const MIN_VOTE_AVERAGE = 0; // Lowered from 4.0 to let contentFilter.ts handle it
 const MIN_RELEASE_YEAR = 1950; // Lowered from 1985
 const EXCLUDED_GENRES = [99]; // Removed TV Movie (10770) from excluded genres
 

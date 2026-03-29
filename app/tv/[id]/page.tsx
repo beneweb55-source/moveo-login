@@ -135,6 +135,18 @@ export default function TvDetails() {
     );
   }
 
+  if (!data || data.error) {
+    return (
+      <div className="w-full h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white">
+        <h1 className="text-4xl font-bold mb-4">Contenu indisponible</h1>
+        <p className="text-white/60 mb-8">Ce contenu a été retiré ou n'existe pas.</p>
+        <button onClick={() => router.push('/')} className="px-6 py-3 bg-[#E50914] rounded-full font-bold hover:bg-red-700 transition-colors">
+          Retour à l'accueil
+        </button>
+      </div>
+    );
+  }
+
   const backdropUrl = data?.backdrop_path 
     ? `https://image.tmdb.org/t/p/original${data.backdrop_path}`
     : "https://picsum.photos/seed/backdrop/1920/1080";

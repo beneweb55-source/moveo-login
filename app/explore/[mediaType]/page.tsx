@@ -80,12 +80,20 @@ const Explore = () => {
         params["first_air_date.lte"] = now;
       }
       
+      // Filter out obscure daily shows that have high "popularity" but 0 votes
+      params["vote_count.gte"] = 10;
+
       if (sortBy === "vote_average.desc") {
         params["vote_count.gte"] = 200;
       }
 
       if (selectedGenre) {
         params.with_genres = selectedGenre;
+        if (selectedGenre !== "16") {
+          params.without_genres = "16";
+        }
+      } else {
+        params.without_genres = "16";
       }
 
       fetchDataFromApi(`/discover/${mediaType}`, params).then((res) => {
@@ -129,12 +137,20 @@ const Explore = () => {
       params["first_air_date.lte"] = now;
     }
     
+    // Filter out obscure daily shows that have high "popularity" but 0 votes
+    params["vote_count.gte"] = 10;
+
     if (sortBy === "vote_average.desc") {
       params["vote_count.gte"] = 200;
     }
 
     if (selectedGenre) {
       params.with_genres = selectedGenre;
+      if (selectedGenre !== "16") {
+        params.without_genres = "16";
+      }
+    } else {
+      params.without_genres = "16";
     }
 
     fetchDataFromApi(`/discover/${mediaType}`, params).then(

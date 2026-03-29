@@ -66,6 +66,9 @@ const Animes = () => {
         params["first_air_date.lte"] = now;
       }
       
+      // Filter out obscure daily shows that have high "popularity" but 0 votes
+      params["vote_count.gte"] = 10;
+
       if (sortBy === "vote_average.desc") {
         params["vote_count.gte"] = 200;
       }
@@ -115,6 +118,9 @@ const Animes = () => {
       params["first_air_date.lte"] = now;
     }
     
+    // Filter out obscure daily shows that have high "popularity" but 0 votes
+    params["vote_count.gte"] = 10;
+
     if (sortBy === "vote_average.desc") {
       params["vote_count.gte"] = 200;
     }

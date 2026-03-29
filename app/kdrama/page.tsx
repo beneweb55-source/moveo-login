@@ -47,6 +47,7 @@ const KDramaPage = () => {
         const now = new Date().toISOString().split('T')[0];
         const params: any = {
           with_original_language: "ko",
+          without_genres: "16",
           sort_by: sortKey,
           page: 1,
           language: langParam,
@@ -58,6 +59,9 @@ const KDramaPage = () => {
         } else {
           params["first_air_date.lte"] = now;
         }
+
+        // Filter out obscure daily shows that have high "popularity" but 0 votes
+        params["vote_count.gte"] = 10;
 
         if (sortBy === "vote_average.desc") {
           params["vote_count.gte"] = 200;
@@ -98,6 +102,7 @@ const KDramaPage = () => {
       const now = new Date().toISOString().split('T')[0];
       const params: any = {
         with_original_language: "ko",
+        without_genres: "16",
         sort_by: sortKey,
         page: pageNum + 1,
         language: langParam,
@@ -109,6 +114,9 @@ const KDramaPage = () => {
       } else {
         params["first_air_date.lte"] = now;
       }
+
+      // Filter out obscure daily shows that have high "popularity" but 0 votes
+      params["vote_count.gte"] = 10;
 
       if (sortBy === "vote_average.desc") {
         params["vote_count.gte"] = 200;
@@ -141,7 +149,7 @@ const KDramaPage = () => {
 
   return (
     <div className="min-h-screen bg-[#0A0A0A]">
-      <HeroBanner endpoint="/discover/tv" params={{ with_original_language: "ko" }} />
+      <HeroBanner endpoint="/discover/tv" params={{ with_original_language: "ko", without_genres: "16" }} />
       
       <div className="pt-10 pb-10">
         <ContentWrapper>

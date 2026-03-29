@@ -107,17 +107,20 @@ export default function Home() {
         // Use Discover endpoint for trending to support genre filtering
         // This replaces the static /trending/all/day
         const trendingEndpoint = "/trending/all/day";
-        const trendingParams = {
+        const trendingParams: any = {
           language: langParam,
         };
+        if (!profile.genreIds?.includes(16) && !profile.genreIds?.includes("16")) {
+          trendingParams.without_genres = "16";
+        }
 
         const [trendingRes, topFranceRes, popularRes, topRatedTvRes, animesRes, kdramasRes] = await Promise.all([
-          fetchDataFromApi(trendingEndpoint, trendingParams),
-          fetchDataFromApi("/movie/popular", { region: "FR", language: langParam }),
-          fetchDataFromApi("/movie/popular", { language: langParam }),
-          fetchDataFromApi("/tv/top_rated", { language: langParam }),
-          fetchDataFromApi("/discover/tv", { with_genres: "16", with_original_language: "ja", language: langParam }),
-          fetchDataFromApi("/discover/tv", { with_original_language: "ko", language: langParam }),
+          fetchDataFromApi("/discover/movie", { ...trendingParams, sort_by: "popularity.desc", "vote_count.gte": 10 }),
+          fetchDataFromApi("/discover/movie", { region: "FR", language: langParam, sort_by: "popularity.desc", without_genres: "16", "vote_count.gte": 10 }),
+          fetchDataFromApi("/discover/movie", { language: langParam, sort_by: "popularity.desc", without_genres: "16", "vote_count.gte": 10 }),
+          fetchDataFromApi("/discover/tv", { language: langParam, sort_by: "vote_average.desc", "vote_count.gte": 200, without_genres: "16" }),
+          fetchDataFromApi("/discover/tv", { with_genres: "16", with_original_language: "ja", language: langParam, "vote_count.gte": 10 }),
+          fetchDataFromApi("/discover/tv", { with_original_language: "ko", without_genres: "16", language: langParam, "vote_count.gte": 10 }),
         ]);
 
         let rawTrending = trendingRes?.results || [];
@@ -168,7 +171,8 @@ export default function Home() {
       <HeroBanner 
         endpoint="/discover/movie"
         params={{ 
-            with_genres: profile.genreIds.join(","),
+            with_genres: profile.genreIds?.join(","),
+            without_genres: profile.genreIds?.includes(16) || profile.genreIds?.includes("16") ? undefined : "16",
             sort_by: "popularity.desc",
             "vote_count.gte": 100
         }}

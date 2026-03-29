@@ -58,18 +58,25 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
     }
 
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-    const fetchEndpoint = "/trending/all/day";
-    const fetchParams = { language: langParam };
+    const fetchEndpoint = endpoint || "/trending/all/day";
+    const fetchParams = { language: langParam, ...params };
 
     fetchDataFromApi(fetchEndpoint, fetchParams).then((res) => {
       let results = res?.results || [];
       
-      // Filter out future releases
+      // Filter out future releases and unwanted genres
       const now = new Date();
       results = results.filter((item: any) => {
         const dateStr = item.release_date || item.first_air_date;
         if (!dateStr) return false;
-        return new Date(dateStr) <= now;
+        if (new Date(dateStr) > now) return false;
+        
+        // Manually filter out animes if without_genres includes 16
+        if (params?.without_genres?.includes("16") && item.genre_ids?.includes(16)) {
+          return false;
+        }
+
+        return true;
       });
 
       if (results.length > 0) {
@@ -79,6 +86,15 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
         const randomNum = Math.floor(Math.random() * pool.length);
         const selectedIndex = (currentHour + randomNum) % pool.length;
         const randomMovie = pool[selectedIndex];
+        
+        // Infer media_type from endpoint if not present
+        if (!randomMovie.media_type) {
+          if (fetchEndpoint.includes('/tv')) {
+            randomMovie.media_type = 'tv';
+          } else if (fetchEndpoint.includes('/movie')) {
+            randomMovie.media_type = 'movie';
+          }
+        }
         
         const bg = randomMovie?.backdrop_path 
           ? `https://image.tmdb.org/t/p/original${randomMovie.backdrop_path}`

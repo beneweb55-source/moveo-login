@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
+import { filterContent } from "@/utils/contentFilter";
 
 const BASE_URL = "https://api.themoviedb.org/3";
 
@@ -77,7 +78,7 @@ export async function GET(request: Request) {
         }
       });
 
-      let results = (await Promise.all(searchPromises)).filter(item => item !== null);
+      let results = filterContent((await Promise.all(searchPromises)).filter(item => item !== null));
 
       // Deduplicate
       const uniqueResults = Array.from(new Map(results.map(item => [item.id, item])).values());

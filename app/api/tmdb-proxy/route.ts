@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
+import { filterContent } from "@/utils/contentFilter";
 
 const BASE_URL = "https://api.themoviedb.org/3";
 
@@ -155,7 +156,7 @@ export async function GET(request: Request) {
         }
       });
 
-      const results = (await Promise.all(searchPromises)).filter(item => item !== null);
+      const results = filterContent((await Promise.all(searchPromises)).filter(item => item !== null));
       
       return NextResponse.json({
         page: 1,
@@ -195,6 +196,34 @@ export async function GET(request: Request) {
       // but TMDB usually does a decent job. 
       // The issue might be that "Nobody 2" is less popular or has no poster yet.
       // We are just passing data through here.
+      
+      if (data && data.results) {
+        data.results = filterContent(data.results);
+      } 
+      
+      if (data && data.cast) {
+        data.cast = filterContent(data.cast);
+      }
+      
+      if (data && data.crew) {
+        data.crew = filterContent(data.crew);
+      }
+      
+      if (data && data.recommendations && data.recommendations.results) {
+        data.recommendations.results = filterContent(data.recommendations.results);
+      }
+      
+      if (data && data.similar && data.similar.results) {
+        data.similar.results = filterContent(data.similar.results);
+      }
+      
+      if (data && data.id && !data.results && !data.cast && !data.crew) {
+        // Single item (e.g., movie details)
+        const isAllowed = filterContent([data]).length > 0;
+        if (!isAllowed) {
+          return NextResponse.json({ error: "Content not allowed" }, { status: 404 });
+        }
+      }
 
       return NextResponse.json(data, {
         status: 200,
