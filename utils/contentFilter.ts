@@ -5,6 +5,26 @@ export function filterContent(results: any[]): any[] {
     // 1. Remove pornographic content
     if (item.adult === true) return false;
 
+    const title = (item.title || item.name || '').toLowerCase();
+    const originalTitle = (item.original_title || item.original_name || '').toLowerCase();
+    const overview = (item.overview || '').toLowerCase();
+    
+    // Explicit keywords often associated with adult content that slips through TMDB
+    const adultKeywords = [
+      'hentai', 'porno', 'pornographic', 'sex tapes', 'sex tape', 'erotica', '\\bjav\\b'
+    ];
+    
+    const textToCheck = `${title} ${originalTitle} ${overview}`;
+    if (adultKeywords.some(keyword => {
+      if (keyword === '\\bjav\\b') {
+        return /\bjav\b/i.test(textToCheck);
+      }
+      return textToCheck.includes(keyword);
+    })) {
+      return false;
+    }
+
+
     // 2. Remove old films that nobody watches
     let releaseDate = item.release_date || item.first_air_date;
     if (releaseDate) {
