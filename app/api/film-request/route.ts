@@ -1,12 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import * as jose from 'jose';
-import { Pool } from 'pg';
-
-const scraperPool = new Pool({
-  connectionString: process.env.SCRAPER_DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
+import { scraperPool } from '@/lib/db';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback_secret_key_for_development_only'

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { fetchDataFromApi } from "@/utils/api";
 import ContentWrapper from "@/components/ContentWrapper";
 import MovieCard from "@/components/MovieCard";
@@ -28,9 +28,10 @@ const KDramaPage = () => {
   const [mediaType, setMediaType] = useState<"tv" | "movie">("tv");
   const [sortBy, setSortBy] = useState("popularity.desc");
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
-  const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
+  const userGenresRef = useRef<Set<number>>(new Set());
   const [genres, setGenres] = useState<any[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string>("");
+  const pageRef = useRef(1);
   const { language, t } = useLanguage();
 
   useEffect(() => {
@@ -51,6 +52,8 @@ const KDramaPage = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
+      pageRef.current = 1;
+      setPageNum(1);
       try {
         const sortKey = mediaType === "movie" && sortBy === "first_air_date.desc" 
           ? "primary_release_date.desc" 
@@ -84,21 +87,32 @@ const KDramaPage = () => {
           params.with_genres = selectedGenre;
         }
 
-        const res = await fetchDataFromApi(`/discover/${mediaType}`, params);
+        const [page1, page2, page3] = await Promise.all([
+          fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: 1 }),
+          fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: 2 }),
+          fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: 3 })
+        ]);
+        
+        const combinedResults = [...(page1?.results || []), ...(page2?.results || []), ...(page3?.results || [])];
+        const res = {
+          ...page1,
+          results: combinedResults,
+          total_pages: page1?.total_pages || 1
+        };
 
         // Extract new genres from this batch
-        const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
-        const updatedUserGenres = new Set([...userGenres, ...newGenres]);
-        setUserGenres(updatedUserGenres);
+        const newGenres = extractUserGenresFromItems(res.results, watchedIds);
+        newGenres.forEach(g => userGenresRef.current.add(g));
 
         // Sort & Mix
-        if (res?.results) {
-            const sorted = sortItems(res.results, updatedUserGenres, { sortBy: sortKey });
+        if (res.results) {
+            const sorted = sortItems(res.results, userGenresRef.current, { sortBy: sortKey });
             res.results = sortBy === "popularity.desc" ? mixCatalog(sorted) : sorted;
         }
 
         setData(res);
-        setPageNum(1);
+        pageRef.current = 4;
+        setPageNum(4);
       } catch (error) {
         console.error("Error fetching K-Dramas:", error);
       } finally {
@@ -121,7 +135,6 @@ const KDramaPage = () => {
         with_original_language: "ko",
         without_genres: "16",
         sort_by: sortKey,
-        page: pageNum + 1,
         language: langParam,
       };
 
@@ -143,16 +156,24 @@ const KDramaPage = () => {
         params.with_genres = selectedGenre;
       }
 
-      const res = await fetchDataFromApi(`/discover/${mediaType}`, params);
+      const [page1, page2] = await Promise.all([
+        fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: pageRef.current }),
+        fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: pageRef.current + 1 })
+      ]);
+      
+      const combinedResults = [...(page1?.results || []), ...(page2?.results || [])];
+      const res = {
+        ...page1,
+        results: combinedResults
+      };
       
       if (data?.results) {
         // Extract new genres
-        const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
-        const updatedUserGenres = new Set([...userGenres, ...newGenres]);
-        setUserGenres(updatedUserGenres);
+        const newGenres = extractUserGenresFromItems(res.results, watchedIds);
+        newGenres.forEach(g => userGenresRef.current.add(g));
 
         // Sort & Mix new results
-        const sortedNewResults = sortItems(res.results, updatedUserGenres, { sortBy: sortKey });
+        const sortedNewResults = sortItems(res.results, userGenresRef.current, { sortBy: sortKey });
         const mixedNewResults = sortBy === "popularity.desc" ? mixCatalog(sortedNewResults) : sortedNewResults;
 
         setData({
@@ -162,7 +183,8 @@ const KDramaPage = () => {
       } else {
         setData(res);
       }
-      setPageNum((prev) => prev + 1);
+      pageRef.current += 2;
+      setPageNum(pageRef.current);
     } catch (error) {
       console.error("Error fetching next page:", error);
     }
@@ -241,10 +263,9 @@ const KDramaPage = () => {
             <>
               {data?.results?.length > 0 ? (
                 <InfiniteScroll
-                  className="content-grid"
                   dataLength={data?.results?.length || 0}
                   next={fetchNextPageData}
-                  hasMore={pageNum < (data?.total_pages || 1)}
+                  hasMore={data && pageNum <= data.total_pages && data.total_pages > 0}
                   loader={
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6 mt-6 w-full">
                       {[...Array(5)].map((_, i) => (
@@ -252,7 +273,8 @@ const KDramaPage = () => {
                       ))}
                     </div>
                   }
-                  scrollThreshold="800px"
+                  style={{ overflow: "visible" }}
+                  scrollThreshold={0.8}
                 >
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                     {data?.results?.map((item: any, index: number) => {

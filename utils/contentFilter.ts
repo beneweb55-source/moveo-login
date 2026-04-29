@@ -19,28 +19,28 @@ export function filterContent(results: any[]): any[] {
         return false;
       }
 
-      // If it's older than 2020 and has less than 10 votes, filter it out
-      if (releaseYear < 2020 && voteCount < 10) {
+      // If it's older than 2015 and has less than 5 votes, filter it out
+      if (releaseYear < 2015 && voteCount < 5) {
         return false;
       }
 
-      // If it's older than 2010 and has less than 50 votes, filter it out
-      if (releaseYear < 2010 && voteCount < 50) {
+      // If it's older than 2010 and has less than 20 votes, filter it out
+      if (releaseYear < 2010 && voteCount < 20) {
         return false;
       }
       
-      // If it's older than 2000 and has less than 200 votes, filter it out
-      if (releaseYear < 2000 && voteCount < 200) {
+      // If it's older than 2000 and has less than 100 votes, filter it out
+      if (releaseYear < 2000 && voteCount < 100) {
         return false;
       }
 
-      // If it's older than 1990 and has less than 500 votes, filter it out
-      if (releaseYear < 1990 && voteCount < 500) {
+      // If it's older than 1990 and has less than 300 votes, filter it out
+      if (releaseYear < 1990 && voteCount < 300) {
         return false;
       }
 
-      // If it's older than 1980 and has less than 1000 votes, filter it out
-      if (releaseYear < 1980 && voteCount < 1000) {
+      // If it's older than 1980 and has less than 500 votes, filter it out
+      if (releaseYear < 1980 && voteCount < 500) {
         return false;
       }
     }

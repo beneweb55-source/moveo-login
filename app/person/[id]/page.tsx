@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { fetchDataFromApi } from "@/utils/api";
@@ -41,6 +41,7 @@ export default function PersonDetails() {
   const [allCredits, setAllCredits] = useState<any[]>([]);
   const [credits, setCredits] = useState<any>(null);
   const [creditsPage, setCreditsPage] = useState(1);
+  const creditsPageRef = useRef(1);
   const [creditsLoading, setCreditsLoading] = useState(false);
 
   useEffect(() => {
@@ -93,6 +94,7 @@ export default function PersonDetails() {
     const fetchInitialCredits = async () => {
       setCreditsLoading(true);
       setCredits(null);
+      creditsPageRef.current = 1;
       setCreditsPage(1);
 
       try {
@@ -142,6 +144,7 @@ export default function PersonDetails() {
           results: items.slice(0, 20),
           total_pages: Math.ceil(items.length / 20)
         });
+        creditsPageRef.current = 2;
         setCreditsPage(2);
       } catch (error) {
         console.error("Error fetching credits:", error);
@@ -155,7 +158,7 @@ export default function PersonDetails() {
 
   // Fetch Next Page of Credits
   const fetchNextCreditsPage = async () => {
-    const startIndex = (creditsPage - 1) * 20;
+    const startIndex = (creditsPageRef.current - 1) * 20;
     const endIndex = startIndex + 20;
     const nextItems = allCredits.slice(startIndex, endIndex);
     
@@ -164,7 +167,8 @@ export default function PersonDetails() {
         ...credits,
         results: [...credits.results, ...nextItems]
       });
-      setCreditsPage(prev => prev + 1);
+      creditsPageRef.current += 1;
+      setCreditsPage(creditsPageRef.current);
     }
   };
 
@@ -180,9 +184,9 @@ export default function PersonDetails() {
     return (
       <div className="w-full h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white">
         <h1 className="text-4xl font-bold mb-4">Contenu indisponible</h1>
-        <p className="text-white/60 mb-8">Ce contenu a été retiré ou n'existe pas.</p>
+        <p className="text-white/60 mb-8">Ce contenu a été retiré ou n&apos;existe pas.</p>
         <button onClick={() => router.push('/')} className="px-6 py-3 bg-[#E50914] rounded-full font-bold hover:bg-red-700 transition-colors">
-          Retour à l'accueil
+          Retour à l&apos;accueil
         </button>
       </div>
     );
@@ -355,22 +359,25 @@ export default function PersonDetails() {
             <Spinner initial={true} />
           ) : credits?.results?.length > 0 ? (
             <InfiniteScroll
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 overflow-hidden"
               dataLength={credits.results.length}
               next={fetchNextCreditsPage}
-              hasMore={creditsPage <= credits.total_pages}
+              hasMore={creditsPage <= (credits.total_pages || 1)}
               loader={<Spinner />}
+              style={{ overflow: "visible" }}
+              scrollThreshold={0.8}
             >
-              {credits.results.map((item: any, index: number) => {
-                if (item.media_type === "person") return null;
-                return (
-                  <MovieCard
-                    key={`${item.id}-${index}`}
-                    data={item}
-                    mediaType={mediaTypeFilter}
-                  />
-                );
-              })}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 overflow-hidden">
+                {credits.results.map((item: any, index: number) => {
+                  if (item.media_type === "person") return null;
+                  return (
+                    <MovieCard
+                      key={`${item.id}-${index}`}
+                      data={item}
+                      mediaType={mediaTypeFilter}
+                    />
+                  );
+                })}
+              </div>
             </InfiniteScroll>
           ) : (
             <div className="text-center text-white/50 py-20">

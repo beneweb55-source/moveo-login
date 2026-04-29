@@ -152,7 +152,7 @@ interface PremiumSource {
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
-  id, type, season, episode, genres, title, posterPath, year,
+  id, type, season, episode, genres, title, originalTitle, posterPath, year,
   hasNext, hasPrev, onNext, onPrev
 }) => {
   const { t } = useLanguage();
@@ -173,6 +173,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isSwitching, setIsSwitching] = useState(false);
   const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'already_requested' | 'error'>('idle');
 
+  const [sibnetVfUrl, setSibnetVfUrl]         = useState<string | null>(null);
+  const [sibnetVostfrUrl, setSibnetVostfrUrl] = useState<string | null>(null);
+  const [isSibnetLoading, setIsSibnetLoading] = useState(false);
+
   const lastSaveTime = useRef(0);
 
   // 1. Initialisation : Fetch Premium Servers
@@ -189,6 +193,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     const fetchPremium = async () => {
       try {
+        const preferredServer = typeof window !== 'undefined' ? localStorage.getItem("preferredServer") : null;
         const fetchUrl = type === 'movie' 
           ? `/api/catalogue?tmdb_id=${id}`
           : `/api/catalogue?tmdb_id=${id}&season=${season}&episode=${episode}`;
@@ -217,62 +222,77 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           setPremiumSources(prev => ({ ...prev, [serverLang]: sources }));
           setActiveLang(serverLang);
           
-          // Vérifier la santé des sources
-          let anyWorks = false;
-          let firstWorkingHost: PremiumHost | null = null;
+          // Affiche immédiatement sans attendre le health check !
+          if (sources.length > 0) {
+             const firstHost = sources[0].type;
+             setSelectedPremiumHost(firstHost);
+             if (preferredServer && preferredServer !== "MOVEO PREMIUM") {
+                setActiveServerName(preferredServer);
+             } else {
+                setActiveServerName("MOVEO PREMIUM");
+             }
+             setIsChecking(false);
+          }
           
-          for (const source of sources) {
-            const isHealthy = await checkServerHealth(source.url);
-            console.log(`[VideoPlayer] 🏥 Health check ${source.type}: ${isHealthy ? 'OK' : 'DEAD'}`);
-            if (isMounted) {
-              setPremiumHealth(prev => ({ ...prev, [`${serverLang}_${source.type}`]: isHealthy }));
-              if (isHealthy && !anyWorks) {
-                anyWorks = true;
-                firstWorkingHost = source.type;
+          // Vérifier la santé des sources en background
+          const checkHealthsBackground = async () => {
+            const tempHealth: Record<string, boolean> = {};
+            for (const source of sources) {
+              const isHealthy = await checkServerHealth(source.url);
+              tempHealth[source.type] = isHealthy;
+              console.log(`[VideoPlayer] 🏥 Health check ${source.type}: ${isHealthy ? 'OK' : 'DEAD'}`);
+              if (isMounted) {
+                setPremiumHealth(prev => ({ ...prev, [`${serverLang}_${source.type}`]: isHealthy }));
+                
+                // Auto switch if the currently selected host is PROVEN dead, and we just found a healthy one
+                if (isHealthy) {
+                   setSelectedPremiumHost(prevHost => {
+                      if (tempHealth[prevHost] === false) {
+                         return source.type;
+                      }
+                      return prevHost;
+                   });
+                }
               }
             }
-          }
-          
-          if (isMounted) {
-            moveoWorks = anyWorks;
-            if (anyWorks && firstWorkingHost) {
-              console.log(`[VideoPlayer] ✅ Sélection finale: Serveur=MOVEO PREMIUM, HostPremium=${firstWorkingHost}`);
-              setActiveServerName("MOVEO PREMIUM");
-              setSelectedPremiumHost(firstWorkingHost);
-            } else if (sources.length > 0) {
-              console.log(`[VideoPlayer] ⚠️ Aucune source saine, fallback sur MOVEO PREMIUM avec ${sources[0].type} pour afficher l'erreur`);
-              // Si aucun ne marche mais qu'on a des sources, on se met quand même sur MOVEO PREMIUM pour afficher l'erreur d'encodage
-              setActiveServerName("MOVEO PREMIUM");
-              setSelectedPremiumHost(sources[0].type);
+            if (!Object.values(tempHealth).some(h => h) && activeServerName === "MOVEO PREMIUM" && isMounted) {
+               console.log(`[VideoPlayer] ⚠️ Aucune source saine, fallback sur sélection vide/erreur`);
             }
-          }
+          };
+          checkHealthsBackground();
         }
         
-        if (isMounted && !moveoWorks) {
+        if (isMounted && !data.voe_url && !data.dood_url) {
           console.log(`[VideoPlayer] 🔄 Fallback sur les serveurs alternatifs`);
-          // Moveo indisponible ou en erreur 404 → tenter les serveurs alternatifs un par un
-          let foundHealthy = false;
-          for (const server of ALTERNATIVE_SERVERS) {
-            if (!isMounted) break;
-            const serverUrl = server.url(type, id, season, episode);
-            const isHealthy = await checkServerHealth(serverUrl);
-            if (isHealthy && isMounted) {
-              console.log(`[VideoPlayer] ✅ Serveur alternatif sain trouvé: ${server.name}`);
-              setActiveServerName(server.name);
-              foundHealthy = true;
-              break;
-            }
-          }
           
-          if (!foundHealthy && isMounted) {
-            console.log(`[VideoPlayer] ❌ Aucun serveur alternatif sain, fallback sur SuperEmbed`);
-            // Aucun serveur n'est "healthy", on met SuperEmbed par défaut (souvent le plus résilient)
-            setActiveServerName("SuperEmbed");
+          if (preferredServer && preferredServer !== "MOVEO PREMIUM") {
+             setActiveServerName(preferredServer);
+          } else {
+             // S'il n'avait rien demandé, tester les alternates background, et mettre direct sur un
+             let foundHealthy = false;
+             for (const server of ALTERNATIVE_SERVERS) {
+               if (!isMounted) break;
+               const serverUrl = server.url(type, id, season, episode);
+               const isHealthy = await checkServerHealth(serverUrl);
+               if (isHealthy && isMounted) {
+                 console.log(`[VideoPlayer] ✅ Serveur alternatif sain trouvé: ${server.name}`);
+                 setActiveServerName(server.name);
+                 foundHealthy = true;
+                 break;
+               }
+             }
+             if (!foundHealthy && isMounted) {
+               console.log(`[VideoPlayer] ❌ Aucun serveur alternatif sain, fallback sur SuperEmbed`);
+               setActiveServerName("SuperEmbed");
+             }
           }
         }
       } catch (error) {
         console.error("Catalogue fetch error", error);
-        if (isMounted) setActiveServerName("SuperEmbed");
+        if (isMounted) {
+           const preferredServer = typeof window !== 'undefined' ? localStorage.getItem("preferredServer") : null;
+           setActiveServerName(preferredServer && preferredServer !== "MOVEO PREMIUM" ? preferredServer : "SuperEmbed");
+        }
       } finally {
         if (isMounted) setIsChecking(false);
       }
@@ -280,7 +300,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     fetchPremium();
     return () => { isMounted = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, type, season, episode]);
+
+  // Fetch Sibnet URLs
+  useEffect(() => {
+    const searchTitle = title || originalTitle;
+    if (!searchTitle) return;
+
+    let isMounted = true;
+    setIsSibnetLoading(true);
+
+    const originalTitleParam = originalTitle && originalTitle !== searchTitle ? `&originalTitle=${encodeURIComponent(originalTitle)}` : "";
+
+    Promise.all([
+      fetch(`/api/sibnet?title=${encodeURIComponent(searchTitle)}${originalTitleParam}&type=${type}&season=${season || 1}&episode=${episode || 1}&lang=VF`)
+        .then(r => r.json()).catch(() => ({ found: false })),
+      fetch(`/api/sibnet?title=${encodeURIComponent(searchTitle)}${originalTitleParam}&type=${type}&season=${season || 1}&episode=${episode || 1}&lang=VOSTFR`)
+        .then(r => r.json()).catch(() => ({ found: false })),
+    ]).then(([vf, vostfr]) => {
+      if (!isMounted) return;
+      if (vf.found)     setSibnetVfUrl(vf.embed_url);
+      if (vostfr.found) setSibnetVostfrUrl(vostfr.embed_url);
+      setIsSibnetLoading(false);
+    });
+
+    return () => { isMounted = false; };
+  }, [type, title, originalTitle, season, episode]);
 
   // 2. Handle Language Change
   const handleLangChange = (lang: Language) => {
@@ -355,9 +401,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         setIsSwitching(false);
         setIframeLoaded(false);
       }, 1500);
-    }, 30000);
+    }, 50000);
     return () => clearTimeout(timeoutId);
-  }, [activeServerName, isChecking, iframeLoaded]);
+  }, [activeServerName, isChecking, iframeLoaded, activeLang]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -401,12 +447,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // Note: We don't update state here to avoid render loops, it will just use this source for rendering
     }
     
-    if (selectedSource && premiumHealth[`${activeLang}_${selectedSource.type}`]) {
+    if (selectedSource && premiumHealth[`${activeLang}_${selectedSource.type}`] !== false) {
       videoUrl = selectedSource.url;
       isPremiumAvailable = true;
     } else {
       isPremiumAvailable = false;
     }
+  } else if (activeServerName === "Sibnet VF") {
+    videoUrl = sibnetVfUrl || "";
+  } else if (activeServerName === "Sibnet VOSTFR") {
+    videoUrl = sibnetVostfrUrl || "";
   } else {
     const altServer = ALTERNATIVE_SERVERS.find(s => s.name === activeServerName);
     if (altServer) {
@@ -505,6 +555,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 </div>
               )}
               <iframe
+                key={`${activeServerName}-${activeLang}-${videoUrl}`}
                 src={videoUrl}
                 className="w-full h-full relative z-20"
                 allowFullScreen
@@ -675,6 +726,53 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
           
           <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
+            {(sibnetVfUrl || isSibnetLoading) ? (
+              <button
+                onClick={() => sibnetVfUrl && handleServerChange("Sibnet VF")}
+                disabled={!sibnetVfUrl}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+                  activeServerName === "Sibnet VF" 
+                    ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10" 
+                    : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
+                } ${!sibnetVfUrl ? "opacity-50 cursor-wait" : ""}`}
+              >
+                {isSibnetLoading && !sibnetVfUrl ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
+                ) : (
+                  <Globe className={`w-3.5 h-3.5 ${activeServerName === "Sibnet VF" ? "text-white" : "text-white/30"}`} />
+                )}
+                Sibnet VF
+              </button>
+            ) : (
+              <button disabled className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed">
+                 <Globe className="w-3.5 h-3.5 text-white/20" />
+                 Sibnet VF (Indisponible)
+              </button>
+            )}
+            
+            {(sibnetVostfrUrl || isSibnetLoading) ? (
+              <button
+                onClick={() => sibnetVostfrUrl && handleServerChange("Sibnet VOSTFR")}
+                disabled={!sibnetVostfrUrl}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+                  activeServerName === "Sibnet VOSTFR" 
+                    ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10" 
+                    : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
+                } ${!sibnetVostfrUrl ? "opacity-50 cursor-wait" : ""}`}
+              >
+                {isSibnetLoading && !sibnetVostfrUrl ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
+                ) : (
+                  <Globe className={`w-3.5 h-3.5 ${activeServerName === "Sibnet VOSTFR" ? "text-white" : "text-white/30"}`} />
+                )}
+                Sibnet VOSTFR
+              </button>
+            ) : (
+              <button disabled className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed">
+                 <Globe className="w-3.5 h-3.5 text-white/20" />
+                 Sibnet VOSTFR (Indisponible)
+              </button>
+            )}
             {ALTERNATIVE_SERVERS.map((server) => {
               const isActive = activeServerName === server.name;
               const Icon = server.icon;

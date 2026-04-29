@@ -94,16 +94,21 @@ export default function TvDetails() {
     fetchDetails();
   }, [id, langParam]);
 
+  const [isFetchingSeason, setIsFetchingSeason] = useState(false);
+
   useEffect(() => {
     if (!data || selectedSeason === undefined) return;
     
     const fetchSeasonDetails = async () => {
+      setIsFetchingSeason(true);
+      // Clear episodes data while fetching to prevent showing old episodes
+      setEpisodesData([]);
       try {
         const res = await fetchDataFromApi(`/tv/${id}/season/${selectedSeason}`, { language: langParam });
         if (res && res.episodes) {
-          setEpisodesCount(res.episodes.length);
-          setEpisodesData(res.episodes);
-          setSelectedEpisode(1);
+          const sortedEpisodes = [...res.episodes].sort((a: any, b: any) => a.episode_number - b.episode_number);
+          setEpisodesCount(sortedEpisodes.length);
+          setEpisodesData(sortedEpisodes);
         }
       } catch (error) {
         console.error("Error fetching season details:", error);
@@ -111,8 +116,9 @@ export default function TvDetails() {
         if (seasonInfo) {
           setEpisodesCount(seasonInfo.episode_count);
           setEpisodesData([]);
-          setSelectedEpisode(1);
         }
+      } finally {
+        setIsFetchingSeason(false);
       }
     };
     
@@ -139,9 +145,9 @@ export default function TvDetails() {
     return (
       <div className="w-full h-screen bg-[#0A0A0A] flex flex-col items-center justify-center text-white">
         <h1 className="text-4xl font-bold mb-4">Contenu indisponible</h1>
-        <p className="text-white/60 mb-8">Ce contenu a été retiré ou n'existe pas.</p>
+        <p className="text-white/60 mb-8">Ce contenu a été retiré ou n&apos;existe pas.</p>
         <button onClick={() => router.push('/')} className="px-6 py-3 bg-[#E50914] rounded-full font-bold hover:bg-red-700 transition-colors">
-          Retour à l'accueil
+          Retour à l&apos;accueil
         </button>
       </div>
     );
@@ -160,7 +166,7 @@ export default function TvDetails() {
   const rating = data?.vote_average ? data.vote_average.toFixed(1) : "NR";
   const seasonsCount = data?.number_of_seasons || 0;
 
-  const availableSeasons = data?.seasons?.filter((s: any) => s.season_number > 0) || [];
+  const availableSeasons = [...(data?.seasons || [])].sort((a: any, b: any) => a.season_number - b.season_number);
 
   const cast = data?.credits?.cast?.slice(0, 10) || [];
   
@@ -400,6 +406,7 @@ export default function TvDetails() {
                                                     key={season.id}
                                                     onClick={() => {
                                                         setSelectedSeason(season.season_number);
+                                                        setSelectedEpisode(1);
                                                         setIsSeasonDropdownOpen(false);
                                                     }}
                                                     className={`p-3 cursor-pointer transition-colors ${
@@ -408,7 +415,9 @@ export default function TvDetails() {
                                                             : 'hover:bg-white/5 border-l-2 border-transparent'
                                                     }`}
                                                 >
-                                                    <span className="text-sm font-medium">{t.details.season} {season.season_number}</span>
+                                                    <span className="text-sm font-medium">
+                                                        {season.season_number === 0 ? (t.details.specials || "Hors-série") : `${t.details.season} ${season.season_number}`}
+                                                    </span>
                                                 </div>
                                             ))}
                                         </motion.div>
@@ -438,7 +447,11 @@ export default function TvDetails() {
                                             exit={{ opacity: 0, y: 10 }}
                                             className="hidden lg:block absolute left-0 top-full mt-2 w-[400px] max-h-[60vh] overflow-y-auto bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/10 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/20"
                                         >
-                                            {episodesData.length > 0 ? (
+                                            {isFetchingSeason ? (
+                                                <div className="flex justify-center p-4">
+                                                    <Loader2 className="w-6 h-6 animate-spin text-white/50" />
+                                                </div>
+                                            ) : episodesData.length > 0 ? (
                                                 episodesData.map((ep: any) => (
                                                     <div
                                                         key={ep.id}
@@ -513,6 +526,7 @@ export default function TvDetails() {
                                         key={season.id}
                                         onClick={() => {
                                             setSelectedSeason(season.season_number);
+                                            setSelectedEpisode(1);
                                             setIsSeasonDropdownOpen(false);
                                         }}
                                         className={`w-full p-4 rounded-xl text-left transition-all ${
@@ -521,7 +535,9 @@ export default function TvDetails() {
                                                 : 'bg-white/5 border border-transparent text-white/60 hover:bg-white/10'
                                         }`}
                                     >
-                                        <span className="text-base font-bold">{t.details.season} {season.season_number}</span>
+                                        <span className="text-base font-bold">
+                                            {season.season_number === 0 ? (t.details.specials || "Hors-série") : `${t.details.season} ${season.season_number}`}
+                                        </span>
                                     </button>
                                 ))}
                             </div>
@@ -533,7 +549,11 @@ export default function TvDetails() {
                             title={`${t.details.episode}s`}
                         >
                             <div className="flex flex-col gap-3">
-                                {episodesData.length > 0 ? (
+                                {isFetchingSeason ? (
+                                    <div className="flex justify-center p-4">
+                                        <Loader2 className="w-6 h-6 animate-spin text-white/50" />
+                                    </div>
+                                ) : episodesData.length > 0 ? (
                                     episodesData.map((ep: any) => (
                                         <button
                                             key={ep.id}

@@ -113,10 +113,9 @@ export const sortItems = (items: any[], userGenres: Set<number>, options?: { min
     filterOptions.minReleaseYear = 0;
   }
 
-  // First, apply the "Brutal Cleaning" filter
-  const cleanedItems = filterItems(items, filterOptions);
-  
-  const sortedItems = [...cleanedItems].sort((a, b) => {
+  // NE PAS re-filtrer ici — contentFilter a déjà tout nettoyé dans le proxy
+  // filterItems est redondant et supprime trop de contenu légitime
+  const sortedItems = [...items].sort((a, b) => {
     if (sortBy === "popularity.desc") {
       const scoreA = calculateScore(a, userGenres);
       const scoreB = calculateScore(b, userGenres);

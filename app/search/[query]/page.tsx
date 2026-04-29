@@ -20,7 +20,8 @@ const SearchResult = () => {
   const [pageNum, setPageNum] = useState(1);
   const [loading, setLoading] = useState(false);
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
-  const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
+  const userGenresRef = useRef<Set<number>>(new Set());
+  const pageRef = useRef(1);
 
   const { query } = useParams();
   const router = useRouter();
@@ -33,25 +34,34 @@ const SearchResult = () => {
   
   const fetchNextPageData = () => {
     const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
-    fetchDataFromApi(`/search/multi?query=${encodeURIComponent(query as string)}&page=${pageNum}&language=${langParam}&include_adult=false`).then(
-      (res) => {
+    Promise.all([
+      fetchDataFromApi(`/search/multi?query=${encodeURIComponent(query as string)}&page=${pageRef.current}&language=${langParam}&include_adult=false`),
+      fetchDataFromApi(`/search/multi?query=${encodeURIComponent(query as string)}&page=${pageRef.current + 1}&language=${langParam}&include_adult=false`)
+    ]).then(
+      ([page1, page2]) => {
+        const combinedResults = [...(page1?.results || []), ...(page2?.results || [])];
+        const res = {
+          ...page1,
+          results: combinedResults
+        };
+
         if (data?.results) {
           // Extract new genres
-          const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
-          const updatedUserGenres = new Set([...userGenres, ...newGenres]);
-          setUserGenres(updatedUserGenres);
+          const newGenres = extractUserGenresFromItems(res.results, watchedIds);
+          newGenres.forEach(g => userGenresRef.current.add(g));
 
           // Sort new results
-          const sortedNewResults = sortItems(res.results, updatedUserGenres);
+          const sortedNewResults = sortItems(res.results, userGenresRef.current);
 
           setData({
             ...data,
-            results: [...data?.results, ...sortedNewResults],
+            results: [...data.results, ...sortedNewResults],
           });
         } else {
           setData(res);
         }
-        setPageNum((prev) => prev + 1);
+        pageRef.current += 2;
+        setPageNum(pageRef.current);
       }
     );
   };
@@ -59,25 +69,37 @@ const SearchResult = () => {
   useEffect(() => {
     const fetchInitialData = async () => {
       setLoading(true);
+      pageRef.current = 1;
+      setPageNum(1);
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
       const decodedQuery = decodeURIComponent(query as string);
 
       try {
         // Fallback to multi search
-        const multiSearchRes = await fetchDataFromApi(`/search/multi?query=${encodeURIComponent(decodedQuery)}&page=1&language=${langParam}&include_adult=false`);
+        const [page1, page2] = await Promise.all([
+          fetchDataFromApi(`/search/multi?query=${encodeURIComponent(decodedQuery)}&page=1&language=${langParam}&include_adult=false`),
+          fetchDataFromApi(`/search/multi?query=${encodeURIComponent(decodedQuery)}&page=2&language=${langParam}&include_adult=false`)
+        ]);
+        
+        const combinedResults = [...(page1?.results || []), ...(page2?.results || [])];
+        const multiSearchRes = {
+          ...page1,
+          results: combinedResults,
+          total_pages: page1?.total_pages || 1
+        };
         
         // Extract new genres from this batch
-        const newGenres = extractUserGenresFromItems(multiSearchRes?.results || [], watchedIds);
-        const updatedUserGenres = new Set([...userGenres, ...newGenres]);
-        setUserGenres(updatedUserGenres);
+        const newGenres = extractUserGenresFromItems(multiSearchRes.results, watchedIds);
+        newGenres.forEach(g => userGenresRef.current.add(g));
 
         // Sort
-        if (multiSearchRes?.results) {
-            multiSearchRes.results = sortItems(multiSearchRes.results, updatedUserGenres);
+        if (multiSearchRes.results) {
+            multiSearchRes.results = sortItems(multiSearchRes.results, userGenresRef.current);
         }
 
         setData(multiSearchRes);
-        setPageNum(2);
+        pageRef.current = 3;
+        setPageNum(3);
       } catch (error) {
         console.error("Error fetching search results:", error);
       } finally {
@@ -140,24 +162,27 @@ const SearchResult = () => {
               )}
 
               <InfiniteScroll
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8"
                 dataLength={data?.results?.length || 0}
                 next={fetchNextPageData}
-                hasMore={pageNum <= data?.total_pages}
+                hasMore={data && pageNum <= data.total_pages && data.total_pages > 0}
                 loader={<div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8 mt-6 col-span-full w-full"><Spinner /></div>}
+                style={{ overflow: "visible" }}
+                scrollThreshold={0.8}
               >
-                {media.map((item: any, index: number) => (
-                  <motion.div
-                    key={`${item.id}-${index}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: index % 10 * 0.05 }}
-                  >
-                    <MovieCard
-                      data={item}
-                    />
-                  </motion.div>
-                ))}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-8">
+                  {media.map((item: any, index: number) => (
+                    <motion.div
+                      key={`${item.id}-${index}`}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: index % 10 * 0.05 }}
+                    >
+                      <MovieCard
+                        data={item}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
               </InfiniteScroll>
             </>
           ) : (

@@ -219,7 +219,11 @@ const Header = () => {
   };
 
   const navigationHandler = (type: string) => {
-    router.push(`/explore/${type}`);
+    if (type === "movie") {
+      router.push("/films");
+    } else {
+      router.push("/series");
+    }
   };
 
   const [placeholder, setPlaceholder] = useState(t.nav.searchPlaceholder);

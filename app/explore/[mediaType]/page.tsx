@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { fetchDataFromApi } from "@/utils/api";
@@ -31,7 +31,8 @@ const Explore = () => {
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const [sortBy, setSortBy] = useState<string>("popularity.desc");
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
-  const [userGenres, setUserGenres] = useState<Set<number>>(new Set());
+  const userGenresRef = useRef<Set<number>>(new Set());
+  const pageRef = useRef(1);
   
   const { mediaType } = useParams();
   const { language, t } = useLanguage();
@@ -58,6 +59,7 @@ const Explore = () => {
     const fetchInitialData = () => {
       setLoading(true);
       setData(null);
+      pageRef.current = 1;
       setPageNum(1);
 
       const langParam = language === 'fr' ? 'fr-FR' : 'en-US';
@@ -96,18 +98,29 @@ const Explore = () => {
         params.without_genres = "16";
       }
 
-      fetchDataFromApi(`/discover/${mediaType}`, params).then((res) => {
-        const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
-        const updatedUserGenres = new Set([...userGenres, ...newGenres]);
-        setUserGenres(updatedUserGenres);
+      Promise.all([
+        fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: 1 }),
+        fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: 2 }),
+        fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: 3 })
+      ]).then(([page1, page2, page3]) => {
+        const combinedResults = [...(page1?.results || []), ...(page2?.results || []), ...(page3?.results || [])];
+        const res = {
+          ...page1,
+          results: combinedResults,
+          total_pages: page1?.total_pages || 1
+        };
 
-        if (res?.results) {
-            const sorted = sortItems(res.results, updatedUserGenres, { sortBy: finalSortBy });
+        const newGenres = extractUserGenresFromItems(res.results, watchedIds);
+        newGenres.forEach(g => userGenresRef.current.add(g));
+
+        if (res.results) {
+            const sorted = sortItems(res.results, userGenresRef.current, { sortBy: finalSortBy });
             res.results = finalSortBy === "popularity.desc" ? mixCatalog(sorted) : sorted;
         }
 
         setData(res);
-        setPageNum(2);
+        pageRef.current = 4;
+        setPageNum(4);
         setLoading(false);
       });
     };
@@ -127,7 +140,6 @@ const Explore = () => {
     const params: any = {
       language: langParam,
       sort_by: finalSortBy,
-      page: pageNum,
     };
 
     // Add date limit to avoid future releases filling the first page
@@ -153,24 +165,33 @@ const Explore = () => {
       params.without_genres = "16";
     }
 
-    fetchDataFromApi(`/discover/${mediaType}`, params).then(
-      (res) => {
-        if (data?.results) {
-          const newGenres = extractUserGenresFromItems(res?.results || [], watchedIds);
-          const updatedUserGenres = new Set([...userGenres, ...newGenres]);
-          setUserGenres(updatedUserGenres);
+    Promise.all([
+      fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: pageRef.current }),
+      fetchDataFromApi(`/discover/${mediaType}`, { ...params, page: pageRef.current + 1 })
+    ]).then(
+      ([page1, page2]) => {
+        const combinedResults = [...(page1?.results || []), ...(page2?.results || [])];
+        const res = {
+          ...page1,
+          results: combinedResults
+        };
 
-          const sortedNewResults = sortItems(res.results, updatedUserGenres, { sortBy: finalSortBy });
+        if (data?.results) {
+          const newGenres = extractUserGenresFromItems(res.results, watchedIds);
+          newGenres.forEach(g => userGenresRef.current.add(g));
+
+          const sortedNewResults = sortItems(res.results, userGenresRef.current, { sortBy: finalSortBy });
           const mixedNewResults = finalSortBy === "popularity.desc" ? mixCatalog(sortedNewResults) : sortedNewResults;
 
           setData({
             ...data,
-            results: [...data?.results, ...mixedNewResults],
+            results: [...data.results, ...mixedNewResults],
           });
         } else {
           setData(res);
         }
-        setPageNum((prev) => prev + 1);
+        pageRef.current += 2;
+        setPageNum(pageRef.current);
       }
     );
   };
@@ -229,10 +250,9 @@ const Explore = () => {
           <>
             {data?.results?.length > 0 ? (
               <InfiniteScroll
-                className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10"
                 dataLength={data?.results?.length || 0}
                 next={fetchNextPageData}
-                hasMore={pageNum <= data?.total_pages}
+                hasMore={data && pageNum <= data.total_pages && data.total_pages > 0}
                 loader={
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10 mt-10 col-span-full w-full">
                     {[...Array(6)].map((_, i) => (
@@ -240,24 +260,27 @@ const Explore = () => {
                     ))}
                   </div>
                 }
-                scrollThreshold="800px"
+                style={{ overflow: "visible" }}
+                scrollThreshold={0.8}
               >
-                {data?.results?.map((item: any, index: number) => {
-                  if (item.media_type === "person") return null;
-                  return (
-                    <motion.div
-                      key={`${item.id}-${index}`}
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6, delay: (index % 12) * 0.05, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                      <MovieCard
-                        data={item}
-                        mediaType={mediaType as string}
-                      />
-                    </motion.div>
-                  );
-                })}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 md:gap-10">
+                  {data?.results?.map((item: any, index: number) => {
+                    if (item.media_type === "person") return null;
+                    return (
+                      <motion.div
+                        key={`${item.id}-${index}`}
+                        initial={{ opacity: 0, y: 30 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: (index % 12) * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                      >
+                        <MovieCard
+                          data={item}
+                          mediaType={mediaType as string}
+                        />
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </InfiniteScroll>
             ) : (
               <div className="flex flex-col items-center justify-center py-40 text-center">

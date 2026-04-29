@@ -40,14 +40,14 @@ const nextConfig: NextConfig = {
         source: '/movie/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'ALLOWALL' },
-          { key: 'Content-Security-Policy', value: "frame-src 'self' https://vidsrc.me https://vidsrc.cc https://www.2embed.to https://superembed.stream https://femb.in https://vidmoly.to" },
+          { key: 'Content-Security-Policy', value: "frame-src 'self' https://vidsrc.me https://vidsrc.cc https://www.2embed.to https://superembed.stream https://femb.in https://vidmoly.to https://video.sibnet.ru" },
         ],
       },
       {
         source: '/tv/:path*',
         headers: [
           { key: 'X-Frame-Options', value: 'ALLOWALL' },
-          { key: 'Content-Security-Policy', value: "frame-src 'self' https://vidsrc.me https://vidsrc.cc https://www.2embed.to https://superembed.stream https://femb.in https://vidmoly.to" },
+          { key: 'Content-Security-Policy', value: "frame-src 'self' https://vidsrc.me https://vidsrc.cc https://www.2embed.to https://superembed.stream https://femb.in https://vidmoly.to https://video.sibnet.ru" },
         ],
       },
     ];

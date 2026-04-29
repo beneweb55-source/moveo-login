@@ -104,6 +104,7 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
         setMovie(randomMovie);
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language, customMovie]);
 
   const getGenreNames = (genreIds: number[]) => {
