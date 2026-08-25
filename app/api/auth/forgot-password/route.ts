@@ -3,7 +3,7 @@ import pool from '@/lib/db';
 import { Resend } from 'resend';
 import { v4 as uuidv4 } from 'uuid';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build');
 
 export async function POST(req: Request) {
   try {

@@ -13,19 +13,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'User ID and minutesToAdd required' }, { status: 400 });
     }
 
-    // Add a dummy entry to watch_history to adjust the total watch time
-    // We can use a special media_type like 'admin_adjustment'
-    await pool.query(`
-      ALTER TABLE watch_history ADD CONSTRAINT IF NOT EXISTS watch_history_unique 
-      UNIQUE (user_id, media_type, media_id);
-    `);
-
+    // Add a special entry to watch_history to adjust the total watch time
     await pool.query(`
       INSERT INTO watch_history (user_id, media_type, media_id, minutes_watched)
-      VALUES ($1, 'admin_adjustment', $2, $3)
+      VALUES ($1, 'admin_adjustment', 0, $2)
       ON CONFLICT (user_id, media_type, media_id) 
       DO UPDATE SET minutes_watched = watch_history.minutes_watched + EXCLUDED.minutes_watched, last_updated = CURRENT_TIMESTAMP
-    `, [userId, 0, minutesToAdd]);
+    `, [userId, minutesToAdd]);
+
+    // Log the admin action
+    try {
+      await pool.query(`
+        INSERT INTO admin_logs (admin_id, admin_name, action, target_type, target_id, metadata)
+        VALUES ($1, $2, 'watch_time_adjustment', 'user', $3, $4)
+      `, [adminUser.id, adminUser.name || adminUser.email, String(userId), JSON.stringify({ minutes_added: minutesToAdd })]);
+    } catch (logError) {
+      // Non-critical: don't fail the main action if logging fails
+      console.error('Failed to log admin action:', logError);
+    }
 
     return NextResponse.json({ message: 'Watch time adjusted successfully' });
   } catch (error: any) {

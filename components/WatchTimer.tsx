@@ -5,14 +5,24 @@ import { useEffect, useRef, useCallback } from 'react';
 interface WatchTimerProps {
   mediaType: string;
   mediaId: string | number;
+  title?: string;
+  posterPath?: string;
+  season?: number;
+  episode?: number;
 }
 
-const WatchTimer = ({ mediaType, mediaId }: WatchTimerProps) => {
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const SAVE_INTERVAL_MINUTES = 5;
+
+const WatchTimer = ({ mediaType, mediaId, title, posterPath, season, episode }: WatchTimerProps) => {
   const minutesRef = useRef(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const lastActivityRef = useRef(0);
+  const isActiveRef = useRef(true);
 
   useEffect(() => {
+    lastActivityRef.current = Date.now();
     let sessionId = localStorage.getItem('anon_session_id');
     if (!sessionId) {
       sessionId = `anon_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
@@ -21,13 +31,42 @@ const WatchTimer = ({ mediaType, mediaId }: WatchTimerProps) => {
     sessionIdRef.current = sessionId;
   }, []);
 
+  // Track user activity to detect inactivity
+  useEffect(() => {
+    const handleActivity = () => {
+      lastActivityRef.current = Date.now();
+      isActiveRef.current = true;
+    };
+
+    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => window.addEventListener(event, handleActivity, { passive: true }));
+
+    // Periodically check inactivity
+    const inactivityCheck = setInterval(() => {
+      if (Date.now() - lastActivityRef.current > INACTIVITY_TIMEOUT_MS) {
+        isActiveRef.current = false;
+      }
+    }, 60000); // Check every minute
+
+    return () => {
+      events.forEach(event => window.removeEventListener(event, handleActivity));
+      clearInterval(inactivityCheck);
+    };
+  }, []);
+
   const saveWatchTime = useCallback((minutes: number, isUnmount: boolean = false) => {
+    if (minutes <= 0) return;
+    
     try {
       const payload = JSON.stringify({
         media_type: mediaType,
         media_id: mediaId,
         minutes: minutes,
         session_id: sessionIdRef.current,
+        title: title || null,
+        poster_path: posterPath || null,
+        season: season || null,
+        episode: episode || null,
       });
 
       if (isUnmount && navigator.sendBeacon) {
@@ -36,9 +75,7 @@ const WatchTimer = ({ mediaType, mediaId }: WatchTimerProps) => {
         if (!success) {
           fetch('/api/watch-time', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: payload,
             keepalive: true,
           });
@@ -46,9 +83,7 @@ const WatchTimer = ({ mediaType, mediaId }: WatchTimerProps) => {
       } else {
         fetch('/api/watch-time', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: payload,
           keepalive: isUnmount,
         });
@@ -56,28 +91,25 @@ const WatchTimer = ({ mediaType, mediaId }: WatchTimerProps) => {
     } catch (error) {
       console.error('Failed to save watch time:', error);
     }
-  }, [mediaType, mediaId]);
+  }, [mediaType, mediaId, title, posterPath, season, episode]);
 
   useEffect(() => {
-    // Start interval
     intervalRef.current = setInterval(() => {
-      if (document.visibilityState === 'visible') {
+      // Only count if page is visible AND user has been active recently
+      if (document.visibilityState === 'visible' && isActiveRef.current) {
         minutesRef.current += 1;
         
-        // Every 5 minutes, save to DB
-        if (minutesRef.current % 5 === 0) {
-          saveWatchTime(5);
-          minutesRef.current = 0; // Reset local counter after save
+        if (minutesRef.current % SAVE_INTERVAL_MINUTES === 0) {
+          saveWatchTime(SAVE_INTERVAL_MINUTES);
+          minutesRef.current = 0;
         }
       }
     }, 60000); // 60 seconds
 
     return () => {
-      // Clear interval
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      // Save remaining minutes on unmount
       if (minutesRef.current > 0) {
         saveWatchTime(minutesRef.current, true);
       }

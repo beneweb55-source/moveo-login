@@ -348,6 +348,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setIframeLoaded(false);
     setRequestStatus('idle');
     localStorage.setItem("preferredServer", serverName);
+    userManualChoiceRef.current = true;
   };
 
   // 4. Request Film Logic
@@ -389,10 +390,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // 5. Watchdog & History
+  // 5. Watchdog — auto-switch if iframe doesn't load, but respect manual choice
+  const userManualChoiceRef = useRef(false);
+  const watchdogAttemptsRef = useRef(0);
+  const MAX_WATCHDOG_ATTEMPTS = 3; // Stop after 3 auto-switches
+
   useEffect(() => {
-    if (activeServerName === "MOVEO PREMIUM" || isChecking || iframeLoaded) return;
+    // Don't auto-switch if: premium server, checking in progress, iframe loaded,
+    // user manually chose this server, or max attempts exceeded
+    if (activeServerName === "MOVEO PREMIUM" || isChecking || iframeLoaded || userManualChoiceRef.current) return;
+    if (watchdogAttemptsRef.current >= MAX_WATCHDOG_ATTEMPTS) return;
+
     const timeoutId = setTimeout(() => {
+      watchdogAttemptsRef.current += 1;
       setIsSwitching(true);
       setTimeout(() => {
         const currentIndex = ALTERNATIVE_SERVERS.findIndex(s => s.name === activeServerName);
@@ -401,7 +411,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         setIsSwitching(false);
         setIframeLoaded(false);
       }, 1500);
-    }, 50000);
+    }, 120000); // 2 minutes — many third-party iframes are slow
+
     return () => clearTimeout(timeoutId);
   }, [activeServerName, isChecking, iframeLoaded, activeLang]);
 
@@ -474,7 +485,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     <div className="w-full max-w-6xl mx-auto mt-8 mb-16 px-4 md:px-0">
       
       {/* --- MOVEO PLAYER WRAPPER (DARK LUXURY) --- */}
-      <div className="relative w-full aspect-video bg-[#030303] rounded-2xl overflow-clip shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 ring-1 ring-white/5 mb-6 group">
+      <div className="relative w-full aspect-video bg-black rounded-2xl overflow-clip shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 ring-1 ring-white/5 mb-6 group">
         
         {/* Background Poster Blur (Subtle Luxury Effect) */}
         {posterPath && (
@@ -494,7 +505,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <motion.div 
               key="checking"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#030303]/80 backdrop-blur-xl text-white"
+              className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl text-white"
             >
               <Loader2 className="w-8 h-8 text-white/50 animate-spin mb-6" />
               <h3 className="text-sm font-medium tracking-widest uppercase text-white/70">{t.details.searchingServer || "Initialisation du flux..."}</h3>
@@ -503,7 +514,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <motion.div 
               key="switching"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#030303]/90 backdrop-blur-xl text-white"
+              className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/90 backdrop-blur-xl text-white"
             >
               <Loader2 className="w-8 h-8 text-white/50 animate-spin mb-4" />
               <h3 className="text-sm font-medium tracking-widest uppercase text-white/70">{t.details.slowServerDetected || "Recherche d'une source optimale..."}</h3>
@@ -512,7 +523,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <motion.div 
               key="not-available"
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#030303]/60 backdrop-blur-2xl text-white p-6 text-center"
+              className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-2xl text-white p-6 text-center"
             >
               <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(255,255,255,0.03)]">
                 <Lock className="w-6 h-6 text-white/50" />
@@ -550,7 +561,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               className="w-full h-full relative z-10"
             >
               {!iframeLoaded && (
-                <div className="absolute inset-0 z-10 flex items-center justify-center bg-[#030303]">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black">
                   <Loader2 className="w-6 h-6 text-white/30 animate-spin" />
                 </div>
               )}
@@ -570,7 +581,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* --- NAVIGATION DES ÉPISODES (Séries Uniquement) --- */}
       {type === "tv" && (
-        <div className="flex items-center justify-between w-full mb-8 bg-[#0a0a0a] px-3 py-2.5 rounded-xl border border-white/5 shadow-inner">
+        <div className="flex items-center justify-between w-full mb-8 bg-black px-3 py-2.5 rounded-xl border border-white/5 shadow-inner">
           <motion.button
             whileHover={hasPrev ? { scale: 1.02, backgroundColor: "rgba(255,255,255,0.05)" } : {}}
             whileTap={hasPrev ? { scale: 0.98 } : {}}
@@ -612,7 +623,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           {/* Sélecteur de Langue (Segmented Control) */}
           <div className="flex flex-col gap-3">
             <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">Audio</h3>
-            <div className="flex p-1 bg-[#0a0a0a] rounded-xl border border-white/10 w-fit shadow-inner">
+            <div className="flex p-1 bg-black rounded-xl border border-white/10 w-fit shadow-inner">
               {(["VF", "VOSTFR"] as Language[]).map((lang) => {
                 const isActive = activeLang === lang;
                 return (
@@ -651,7 +662,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               className={`relative w-full p-4 rounded-xl text-left overflow-hidden transition-all duration-500 border ${
                 activeServerName === "MOVEO PREMIUM" 
                   ? "bg-white/5 border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.03)]" 
-                  : "bg-[#0a0a0a] border-white/5 hover:bg-white/5"
+                  : "bg-black border-white/5 hover:bg-white/5"
               }`}
             >
               <div className="relative z-10 flex items-center justify-between">
@@ -694,7 +705,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                       className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
                         isSelected
                           ? "bg-white/15 text-white border border-white/20 shadow-sm"
-                          : "bg-[#0a0a0a] text-white/40 border border-white/5 hover:bg-white/5 hover:text-white/70"
+                          : "bg-black text-white/40 border border-white/5 hover:bg-white/5 hover:text-white/70"
                       }`}
                     >
                       <Database className={`w-3.5 h-3.5 ${isSelected ? "text-white" : "text-white/30"}`} />
@@ -725,7 +736,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             )}
           </div>
           
-          <div className="bg-[#0a0a0a] border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
+          <div className="bg-black border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
             {(sibnetVfUrl || isSibnetLoading) ? (
               <button
                 onClick={() => sibnetVfUrl && handleServerChange("Sibnet VF")}

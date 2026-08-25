@@ -9,30 +9,6 @@ export async function GET() {
   if (!adminUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS watch_history (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-        media_type VARCHAR(50) NOT NULL,
-        media_id INTEGER NOT NULL,
-        minutes_watched INTEGER DEFAULT 0,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(user_id, media_type, media_id)
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS anonymous_watch_history (
-        id SERIAL PRIMARY KEY,
-        session_id VARCHAR(64) NOT NULL,
-        media_type VARCHAR(50) NOT NULL,
-        media_id INTEGER NOT NULL,
-        minutes_watched INTEGER DEFAULT 0,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(session_id, media_type, media_id)
-      );
-    `);
-
     const totalUsersRes = await pool.query('SELECT COUNT(*) FROM users');
     const totalUsers = parseInt(totalUsersRes.rows[0].count);
 
@@ -43,16 +19,27 @@ export async function GET() {
     `);
     const totalWatchTime = parseInt(totalWatchTimeRes.rows[0].total_sum || '0');
 
+    // Real count of distinct movies/shows watched across all users
+    const totalMoviesWatchedRes = await pool.query(`
+      SELECT COUNT(DISTINCT media_id) as count
+      FROM (
+        SELECT media_id FROM watch_history WHERE media_type NOT IN ('admin_adjustment')
+        UNION
+        SELECT media_id FROM anonymous_watch_history WHERE media_type NOT IN ('admin_adjustment')
+      ) as all_media
+    `);
+    const totalMoviesWatched = parseInt(totalMoviesWatchedRes.rows[0].count || '0');
+
     const topMoviesRes = await pool.query(`
       SELECT media_id, media_type, SUM(minutes_watched) as total_minutes, COUNT(DISTINCT viewer_key) as viewer_count
       FROM (
         SELECT media_id, media_type, minutes_watched, user_id::text as viewer_key
         FROM watch_history
-        WHERE media_type != 'admin_adjustment'
+        WHERE media_type NOT IN ('admin_adjustment')
         UNION ALL
         SELECT media_id, media_type, minutes_watched, session_id as viewer_key
         FROM anonymous_watch_history
-        WHERE media_type != 'admin_adjustment'
+        WHERE media_type NOT IN ('admin_adjustment')
       ) as combined_history
       GROUP BY media_id, media_type
       ORDER BY total_minutes DESC
@@ -94,7 +81,6 @@ export async function GET() {
     const newUsersThisWeek = parseInt(newUsersRes.rows[0].count);
 
     // Fetch all users with their watch time and watched count to calculate ranks JS-side
-    // This ensures consistency with the utils/ranks.ts logic
     const allUsersStatsRes = await pool.query(`
       SELECT 
         u.id, 
@@ -122,6 +108,7 @@ export async function GET() {
     return NextResponse.json({
       totalUsers,
       totalWatchTime,
+      totalMoviesWatched,
       topMovies,
       newUsersThisWeek,
       usersByRank: rankCounts

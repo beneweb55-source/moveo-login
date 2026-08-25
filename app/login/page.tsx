@@ -165,13 +165,10 @@ export default function LoginPage() {
         transition={{ duration: 0.5, ease: "easeOut" }}
         className="relative w-full max-w-md"
       >
-        {/* Glow Effect */}
-        <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-red-600 to-purple-600 opacity-20 blur-xl transition duration-1000 group-hover:opacity-40 group-hover:duration-200" />
-
-        <div className="relative rounded-2xl bg-black/40 p-8 shadow-2xl backdrop-blur-xl border border-white/10">
+        <div className="relative rounded-2xl bg-black/80 p-8 shadow-2xl backdrop-blur-xl border border-white/5">
           <div className="mb-8 text-center">
             <Link href="/" className="inline-block">
-              <h1 className="text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-orange-500 mb-2">
+              <h1 className="text-4xl font-black tracking-tighter text-white mb-2">
                 MOVEO
               </h1>
             </Link>

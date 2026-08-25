@@ -88,6 +88,18 @@ export async function GET() {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
 
+      CREATE TABLE IF NOT EXISTS admin_logs (
+        id SERIAL PRIMARY KEY,
+        admin_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        admin_name VARCHAR(255),
+        action VARCHAR(255) NOT NULL,
+        target_type VARCHAR(100),
+        target_id INTEGER,
+        metadata JSONB,
+        status VARCHAR(50) DEFAULT 'success',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS pinned_sections (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,

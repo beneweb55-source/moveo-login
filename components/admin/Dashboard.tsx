@@ -60,7 +60,7 @@ export default function Dashboard() {
         <StatCard title={t.admin.totalUsers} value={stats.totalUsers} icon={Users} color="bg-blue-500/20 text-blue-500" />
         <StatCard title={t.admin.totalWatchTime} value={formatMinutes(stats.totalWatchTime || 0)} icon={Clock} color="bg-purple-500/20 text-purple-500" />
         <StatCard title={t.admin.newUsers} value={stats.newUsersThisWeek} icon={UserPlus} color="bg-emerald-500/20 text-emerald-500" />
-        <StatCard title={t.admin.moviesWatched} value={stats.topMovies?.length || 0} icon={Film} color="bg-rose-500/20 text-rose-500" />
+        <StatCard title={t.admin.moviesWatched} value={stats.totalMoviesWatched || 0} icon={Film} color="bg-rose-500/20 text-rose-500" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">

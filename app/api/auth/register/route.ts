@@ -4,7 +4,7 @@ import pool from '@/lib/db';
 import { Resend } from 'resend';
 import { v4 as uuidv4 } from 'uuid';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build');
 
 async function verifyHCaptchaToken(token: string) {
   const secret = process.env.HCAPTCHA_SECRET || 'ES_8ca47c0d4e43453491a3c18d81c5f9af';

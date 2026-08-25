@@ -235,7 +235,7 @@ const Header = () => {
         show === "top"
           ? "bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm"
           : show === "show"
-          ? "bg-[#0A0A0A]/95 backdrop-blur-md shadow-lg border-b border-white/5"
+          ? "bg-black/90 backdrop-blur-md shadow-lg border-b border-white/5"
           : "-translate-y-full"
       }`}
     >
@@ -312,7 +312,7 @@ const Header = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="hidden xl:block absolute top-full left-0 right-0 mt-2 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[120] max-h-[70vh] overflow-y-auto"
+                className="hidden xl:block absolute top-full left-0 right-0 mt-2 bg-black border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[120] max-h-[70vh] overflow-y-auto"
               >
                 {/* ... (Search Results Content) ... */}
                 {loading ? (
@@ -427,7 +427,7 @@ const Header = () => {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 10, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute top-full right-0 mt-2 w-56 bg-[#141414] border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-2"
+                    className="absolute top-full right-0 mt-2 w-56 bg-black border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-2"
                   >
                     <div className="px-4 py-3 border-b border-white/10 mb-2">
                       <p className="text-sm text-white font-medium">{user.name}</p>
@@ -495,7 +495,7 @@ const Header = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="xl:hidden fixed inset-0 bg-[#0A0A0A] z-[100] flex flex-col"
+          className="xl:hidden fixed inset-0 bg-black z-[100] flex flex-col"
         >
             <div className="flex items-center gap-3 p-4 border-b border-white/10">
               <button 
@@ -592,7 +592,7 @@ const Header = () => {
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
               transition={{ type: "spring", bounce: 0, duration: 0.4 }}
-              className="xl:hidden fixed inset-y-0 left-0 w-[80%] max-w-sm bg-[#0A0A0A] border-r border-white/10 z-[110] flex flex-col overflow-y-auto"
+              className="xl:hidden fixed inset-y-0 left-0 w-[80%] max-w-sm bg-black border-r border-white/10 z-[110] flex flex-col overflow-y-auto"
             >
               <div className="p-4 border-b border-white/10 flex items-center justify-between">
                 <Logo />

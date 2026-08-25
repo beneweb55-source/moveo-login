@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className="dark">
-      <body className={`${inter.className} bg-[#0A0A0A] text-white antialiased overflow-x-hidden`} suppressHydrationWarning>
+      <body className={`${inter.className} bg-black text-white antialiased overflow-x-hidden`} suppressHydrationWarning>
         <LanguageProvider>
           <StoreProvider>
             <PingTracker />

@@ -167,7 +167,7 @@ export default function Home() {
   }, [language, profile]);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white flex flex-col overflow-x-hidden">
       <HeroBanner 
         endpoint="/discover/movie"
         params={{ 
@@ -181,9 +181,14 @@ export default function Home() {
         customMovie={customHero}
       />
       
-      <main className="flex-1 relative z-20 w-full pb-40 space-y-24 md:space-y-40">
+      <main className="flex-1 relative z-20 w-full pb-40">
+        {/* Reprendre la lecture (History) immediately after Hero */}
+        <div className="max-w-[1800px] mx-auto px-4 sm:px-8 lg:px-12 relative z-40 -mt-12 md:-mt-20 mb-12">
+          <HistorySection />
+        </div>
+
         {/* Trending Section - Bento Grid */}
-        <section className="-mt-8 md:-mt-24 relative z-30">
+        <section className="relative z-30 mb-24 md:mb-40">
           <FeaturedGrid 
             title={t.home.trending} 
             data={trending} 
@@ -193,8 +198,6 @@ export default function Home() {
         
         {/* Other Sections - Carousels */}
         <div className="max-w-[1800px] mx-auto px-4 sm:px-8 lg:px-12 space-y-24 md:space-y-40">
-          <HistorySection />
-
           {pinnedSections.length > 0 ? (
             pinnedSections.map((section) => (
               <Carousel 

@@ -143,7 +143,7 @@ export default function MovieDetails() {
   const recommendations = data?.recommendations?.results?.slice(0, 10) || [];
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white font-sans selection:bg-[#E50914] selection:text-white pb-20 overflow-x-hidden">
+    <div className="min-h-screen bg-black text-white font-sans selection:bg-[#E50914] selection:text-white pb-20 overflow-x-hidden">
       <WatchTimer mediaType="movie" mediaId={id as string} />
       {/* Navigation */}
       <motion.nav
@@ -173,8 +173,8 @@ export default function MovieDetails() {
                     priority
                     referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/90 via-[#0A0A0A]/60 to-transparent" />
-                <div className="absolute inset-0 bg-gradient-to-r from-[#0A0A0A]/90 via-[#0A0A0A]/50 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent" />
             </motion.div>
         </div>
 

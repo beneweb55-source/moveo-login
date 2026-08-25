@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Carousel from "@/components/Carousel";
 import HistoryCard from "@/components/HistoryCard";
-import { getWatchHistory, WatchHistoryItem } from "@/utils/historyManager";
+import { getWatchHistory, getServerWatchHistory, WatchHistoryItem } from "@/utils/historyManager";
 import { History } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -13,22 +13,38 @@ const HistorySection = () => {
   const { t } = useLanguage();
 
   useEffect(() => {
-    // Load history from localStorage
-    const savedHistory = getWatchHistory();
-    
-    // Filter items: Keep only if not finished (progress < 95%) or if progress is unknown
-    const unfinishedHistory = savedHistory.filter(item => {
-      if (item.duration && item.timestamp) {
-        const progress = item.timestamp / item.duration;
-        return progress < 0.95;
+    const loadHistory = async () => {
+      // Try server first (for logged-in users), fallback to localStorage
+      let items: WatchHistoryItem[] = [];
+      
+      try {
+        const serverItems = await getServerWatchHistory();
+        if (serverItems.length > 0) {
+          items = serverItems;
+        }
+      } catch (e) {
+        // Server unavailable, use localStorage
       }
-      return true; // Keep if we don't know the progress
-    });
 
-    setTimeout(() => {
+      // Merge with localStorage items (localStorage may have more recent anonymous data)
+      if (items.length === 0) {
+        items = getWatchHistory();
+      }
+      
+      // Filter items: Keep only if not finished (progress < 95%) or if progress is unknown
+      const unfinishedHistory = items.filter(item => {
+        if (item.duration && item.timestamp) {
+          const progress = item.timestamp / item.duration;
+          return progress < 0.95;
+        }
+        return true;
+      });
+
       setHistory(unfinishedHistory);
       setLoading(false);
-    }, 0);
+    };
+
+    loadHistory();
   }, []);
 
   if (history.length === 0) {

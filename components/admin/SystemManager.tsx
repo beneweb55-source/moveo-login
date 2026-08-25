@@ -20,50 +20,50 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export default function SystemManager() {
   const { t } = useLanguage();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [systemLogs, setSystemLogs] = useState<any[]>([
-    { id: 1, action: 'User Ban', admin: 'Admin', time: '2 mins ago', status: 'success' },
-    { id: 2, action: 'Role Update', admin: 'Moderator', time: '15 mins ago', status: 'success' },
-    { id: 3, action: 'Content Pin', admin: 'Admin', time: '1 hour ago', status: 'success' },
-    { id: 4, action: 'System Backup', admin: 'System', time: '3 hours ago', status: 'success' },
-    { id: 5, action: 'Failed Login', admin: 'Unknown', time: '5 hours ago', status: 'warning' },
-  ]);
-  const [apiStatus, setApiStatus] = useState({
-    tmdb: 'checking',
-    auth: 'online',
-    database: 'online',
-    storage: 'online'
-  });
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
+  const [apiStatus, setApiStatus] = useState<Record<string, any>>({});
 
-  useEffect(() => {
-    // Simulate API health check
-    const checkApi = async () => {
-      try {
-        const res = await fetch('/api/tmdb-proxy?endpoint=trending/all/day');
-        if (res.ok) {
-          setApiStatus(prev => ({ ...prev, tmdb: 'online' }));
-        } else {
-          setApiStatus(prev => ({ ...prev, tmdb: 'offline' }));
-        }
-      } catch (error) {
-        setApiStatus(prev => ({ ...prev, tmdb: 'offline' }));
-      }
-    };
-    checkApi();
-  }, []);
-
-  const handleClearCache = async () => {
+  const fetchSystemData = async () => {
     setLoading(true);
-    // Simulate cache clearing
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setLoading(false);
-    alert('Cache système vidé avec succès !');
+    try {
+      const res = await fetch('/api/admin/system?action=full');
+      if (res.ok) {
+        const data = await res.json();
+        setApiStatus(data.healthChecks || {});
+        setSystemLogs(data.logs || []);
+        setMaintenanceMode(data.maintenance?.enabled || false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch system data', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleMaintenance = () => {
-    setMaintenanceMode(!maintenanceMode);
-    // In a real app, this would update a global setting in Firestore
+  useEffect(() => {
+    fetchSystemData();
+  }, []);
+
+  const toggleMaintenance = async () => {
+    try {
+      const res = await fetch('/api/admin/system', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'toggle_maintenance',
+          data: { enabled: !maintenanceMode, message: "Site en maintenance. Nous revenons bientôt." }
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMaintenanceMode(data.maintenance.enabled);
+        fetchSystemData(); // Refresh logs
+      }
+    } catch (error) {
+      console.error('Failed to toggle maintenance mode', error);
+    }
   };
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -98,12 +98,12 @@ export default function SystemManager() {
         
         <div className="flex items-center gap-3">
           <button 
-            onClick={handleClearCache}
+            onClick={fetchSystemData}
             disabled={loading}
             className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl transition-all border border-white/5 font-bold text-sm disabled:opacity-50"
           >
-            <Trash2 className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Vider le Cache
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Actualiser
           </button>
           
           <button 
@@ -134,20 +134,27 @@ export default function SystemManager() {
             </h3>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Object.entries(apiStatus).map(([service, status]) => (
+              {Object.entries(apiStatus).map(([service, info]: [string, any]) => (
                 <div key={service} className="flex items-center justify-between p-4 bg-white/5 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${status === 'online' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                    <div className={`p-2 rounded-lg ${info.status === 'online' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
                       {service === 'tmdb' ? <Film className="w-4 h-4" /> : 
                        service === 'auth' ? <ShieldCheck className="w-4 h-4" /> :
                        service === 'database' ? <Database className="w-4 h-4" /> :
                        <Zap className="w-4 h-4" />}
                     </div>
-                    <span className="text-sm font-bold text-white capitalize">{service} API</span>
+                    <div>
+                      <span className="text-sm font-bold text-white capitalize block">{service}</span>
+                      {info.latency && <span className="text-[10px] text-zinc-500 block">{info.latency}ms</span>}
+                      {info.error && <span className="text-[10px] text-red-400 line-clamp-1 max-w-[120px]">{info.error}</span>}
+                    </div>
                   </div>
-                  <StatusBadge status={status} />
+                  <StatusBadge status={info.status || 'offline'} />
                 </div>
               ))}
+              {Object.keys(apiStatus).length === 0 && !loading && (
+                <div className="text-sm text-zinc-500 col-span-2 text-center py-4">Aucune donnée de service.</div>
+              )}
             </div>
           </div>
 
@@ -166,44 +173,21 @@ export default function SystemManager() {
                     <div>
                       <p className="text-sm font-bold text-white">{log.action}</p>
                       <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
-                        Par {log.admin} • {log.time}
+                        Par {log.admin_name} • {new Date(log.created_at).toLocaleString()}
                       </p>
                     </div>
                   </div>
-                  <button className="text-zinc-600 hover:text-white transition-colors opacity-0 group-hover:opacity-100">
-                    Détails
-                  </button>
                 </div>
               ))}
+              {systemLogs.length === 0 && !loading && (
+                <div className="text-sm text-zinc-500 text-center py-4">Aucun journal trouvé.</div>
+              )}
             </div>
           </div>
         </div>
 
         {/* Quick Actions & Info */}
         <div className="space-y-6">
-          <div className="bg-gradient-to-br from-red-600 to-rose-700 rounded-2xl p-6 text-white shadow-xl shadow-red-900/20 relative overflow-hidden">
-            <div className="absolute -bottom-4 -right-4 opacity-10">
-              <Zap className="w-32 h-32" />
-            </div>
-            <h3 className="text-xl font-black mb-2 tracking-tight">ACTIONS RAPIDES</h3>
-            <p className="text-white/80 text-sm mb-6">Exécutez des tâches critiques en un clic.</p>
-            
-            <div className="space-y-3">
-              <button className="w-full flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all border border-white/10 group">
-                <span className="text-sm font-bold">Sauvegarde DB</span>
-                <Database className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              </button>
-              <button className="w-full flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all border border-white/10 group">
-                <span className="text-sm font-bold">Recharger Config</span>
-                <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
-              </button>
-              <button className="w-full flex items-center justify-between p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all border border-white/10 group">
-                <span className="text-sm font-bold">Vérifier Intégrité</span>
-                <ShieldCheck className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              </button>
-            </div>
-          </div>
-
           <div className="bg-[#111] border border-white/10 rounded-2xl p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg">
@@ -211,12 +195,20 @@ export default function SystemManager() {
               </div>
               <h3 className="text-lg font-bold text-white">Alertes Système</h3>
             </div>
-            <p className="text-sm text-zinc-400 mb-4">Aucune alerte critique détectée. Le système fonctionne normalement.</p>
-            <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
-              <p className="text-xs text-emerald-500 font-bold flex items-center gap-2">
-                <CheckCircle2 className="w-3 h-3" /> Tout est en ordre
-              </p>
-            </div>
+            
+            {Object.values(apiStatus).some((s: any) => s.status !== 'online') ? (
+               <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+                 <p className="text-xs text-red-500 font-bold flex items-center gap-2">
+                   <XCircle className="w-3 h-3" /> Certains services sont hors ligne !
+                 </p>
+               </div>
+            ) : (
+               <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+                 <p className="text-xs text-emerald-500 font-bold flex items-center gap-2">
+                   <CheckCircle2 className="w-3 h-3" /> Tout est en ordre
+                 </p>
+               </div>
+            )}
           </div>
         </div>
       </div>
