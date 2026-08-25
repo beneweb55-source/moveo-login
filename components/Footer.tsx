@@ -17,11 +17,11 @@ const Footer = () => {
           </Link>
           
           <ul className="flex flex-wrap justify-center gap-6 text-sm text-white/60 mb-8">
-            <li className="hover:text-[#E50914] transition-colors cursor-pointer">{t.footer.terms}</li>
-            <li className="hover:text-[#E50914] transition-colors cursor-pointer">{t.footer.privacy}</li>
-            <li className="hover:text-[#E50914] transition-colors cursor-pointer">{t.footer.about}</li>
-            <li className="hover:text-[#E50914] transition-colors cursor-pointer">{t.footer.blog}</li>
-            <li className="hover:text-[#E50914] transition-colors cursor-pointer">{t.footer.faq}</li>
+            <li className="hover:text-white transition-colors cursor-pointer">{t.footer.terms}</li>
+            <li className="hover:text-white transition-colors cursor-pointer">{t.footer.privacy}</li>
+            <li className="hover:text-white transition-colors cursor-pointer">{t.footer.about}</li>
+            <li className="hover:text-white transition-colors cursor-pointer">{t.footer.blog}</li>
+            <li className="hover:text-white transition-colors cursor-pointer">{t.footer.faq}</li>
           </ul>
 
           <p className="text-xs text-white/40 max-w-2xl mb-8 leading-relaxed">
@@ -29,13 +29,13 @@ const Footer = () => {
           </p>
 
           <div className="flex items-center gap-6">
-            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-[#E50914] hover:text-white transition-all duration-300">
+            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white hover:text-moveo-bg transition-all duration-300">
               <Instagram className="w-5 h-5" />
             </a>
-            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-[#E50914] hover:text-white transition-all duration-300">
+            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white hover:text-moveo-bg transition-all duration-300">
               <Twitter className="w-5 h-5" />
             </a>
-            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-[#E50914] hover:text-white transition-all duration-300">
+            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white hover:text-moveo-bg transition-all duration-300">
               <Github className="w-5 h-5" />
             </a>
           </div>

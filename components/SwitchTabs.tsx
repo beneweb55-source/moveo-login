@@ -26,7 +26,7 @@ const SwitchTabs = ({ data, onTabChange }: SwitchTabsProps) => {
           <span
             key={index}
             className={`h-full flex items-center justify-center w-[100px] text-sm font-medium cursor-pointer z-10 transition-colors duration-300 ${
-              selectedTab === index ? "text-white" : "text-white/60"
+              selectedTab === index ? "text-moveo-bg font-bold" : "text-white/60"
             }`}
             onClick={() => activeTab(tab, index)}
           >
@@ -34,7 +34,7 @@ const SwitchTabs = ({ data, onTabChange }: SwitchTabsProps) => {
           </span>
         ))}
         <span
-          className="h-full w-[100px] rounded-full bg-[#E50914] absolute left-0 transition-all duration-300 ease-in-out"
+          className="h-full w-[100px] rounded-full bg-white absolute left-0 transition-all duration-300 ease-in-out shadow-sm"
           style={{ left }}
         />
       </div>

@@ -24,8 +24,8 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
   const opacity = useTransform(scrollY, [0, 500], [1, 0]);
   const { language, t } = useLanguage();
 
-  // Default red if no theme color provided
-  const accentColor = themeColor || "#E50914";
+  // Default neutral color if no theme color provided
+  const accentColor = themeColor || "#ffffff";
 
   useEffect(() => {
     // Load custom color from localStorage
@@ -148,117 +148,75 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
   };
 
   return (
-    <div ref={containerRef} className="relative w-full h-[70vh] md:h-[85vh] min-h-[550px] md:min-h-[700px] overflow-hidden bg-black">
-      {/* Parallax Background */}
+    <div ref={containerRef} className="relative w-full min-h-screen flex items-center justify-center overflow-hidden bg-moveo-bg pt-16 md:pt-20">
+      {/* Blurred Abstract Background */}
       {background && (
         <motion.div
-          className="absolute inset-0 w-full h-[120%] -top-[10%]"
+          className="absolute inset-0 w-[120%] h-[120%] -top-[10%] -left-[10%] blur-3xl opacity-40 mix-blend-screen pointer-events-none"
           style={{ y, opacity }}
         >
           <div 
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat saturate-[1.5]"
             style={{ backgroundImage: `url(${background})` }}
           />
         </motion.div>
       )}
 
-      {/* Complex Gradients for Vignette */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent z-10" />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black z-10" />
+      {/* Gradients */}
+      <div className="absolute inset-0 bg-gradient-to-t from-moveo-bg via-moveo-bg/80 to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-r from-moveo-bg via-moveo-bg/60 to-transparent z-10 pointer-events-none" />
 
-      {/* Content */}
-      <div className="relative z-20 w-full h-full max-w-[1600px] mx-auto px-4 md:px-12 pb-12 md:pb-32 flex flex-col justify-end items-start">
+      {/* Main Content Grid */}
+      <div className="relative z-20 w-full max-w-[1800px] mx-auto px-6 md:px-12 lg:px-20 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center h-full py-12 md:py-20">
+        
+        {/* Left Column: Typography & Actions */}
         <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: "easeOut", delay: 0.2 }}
-          className="max-w-4xl w-full"
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className="lg:col-span-7 xl:col-span-6 flex flex-col justify-center items-start pt-10 lg:pt-0"
         >
-           {/* Mood Headline / Greeting */}
+           {/* Greeting */}
            {isUserLoading ? (
-             <div className="mb-4 h-8 md:h-10"></div>
+             <div className="mb-4 h-8"></div>
            ) : user ? (
-            <div className="mb-3 md:mb-4 overflow-hidden">
+            <div className="mb-6 overflow-hidden">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-sm md:text-lg xl:text-xl font-extralight tracking-[0.15em] uppercase text-white/70 flex items-center flex-wrap gap-x-2"
+                transition={{ delay: 0.3, duration: 0.8 }}
+                className="text-sm md:text-base font-sans tracking-[0.2em] uppercase text-white/60 flex items-center gap-x-2"
               >
                 <span>{greetingText}</span>
-                <span className="font-light flex items-center gap-2" style={{ color: isEditingColor ? tempColor : finalGreetingColor }}>
+                <span className="font-medium text-white/90">
                   {user.name?.split(' ')[0]}.
-                  
-                  {isEditingColor ? (
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.9, x: -10 }}
-                      animate={{ opacity: 1, scale: 1, x: 0 }}
-                      className="flex items-center gap-1.5 ml-3 bg-white/10 backdrop-blur-xl rounded-full px-3 py-1.5 border border-white/20 shadow-xl"
-                    >
-                      <div className="relative w-6 h-6 rounded-full overflow-hidden border-2 border-white/50 shadow-inner cursor-pointer hover:scale-110 transition-transform">
-                        <input 
-                          type="color" 
-                          value={tempColor}
-                          onChange={(e) => setTempColor(e.target.value)}
-                          className="absolute -top-2 -left-2 w-10 h-10 cursor-pointer border-0 p-0 bg-transparent"
-                        />
-                      </div>
-                      
-                      <div className="w-[1px] h-4 bg-white/20 mx-1" />
-                      
-                      <button 
-                        onClick={handleApplyColor}
-                        className="text-emerald-400 hover:text-emerald-300 hover:bg-white/10 rounded-full p-1.5 transition-all cursor-pointer"
-                        title="Apply"
-                      >
-                        <Check className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={handleCancelColor}
-                        className="text-rose-400 hover:text-rose-300 hover:bg-white/10 rounded-full p-1.5 transition-all cursor-pointer"
-                        title="Cancel"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </motion.div>
-                  ) : (
-                    <button 
-                      onClick={handleEditClick}
-                      className="text-white/30 hover:text-white transition-colors focus:outline-none ml-1 cursor-pointer"
-                      title="Change color"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  )}
                 </span>
               </motion.h2>
             </div>
           ) : headline && (
-            <div className="mb-3 md:mb-4 overflow-hidden">
+            <div className="mb-6 overflow-hidden">
               <motion.h2 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.5, duration: 0.8 }}
-                className="text-xl md:text-3xl font-medium tracking-wide uppercase"
-                style={{ color: accentColor }}
+                transition={{ delay: 0.3, duration: 0.8 }}
+                className="text-sm md:text-base font-sans tracking-[0.2em] uppercase text-white/60"
               >
                 {headline}
               </motion.h2>
             </div>
           )}
 
-          {/* Metadata Badge Row */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4 text-xs md:text-sm xl:text-base font-medium">
-            <span className="px-2 py-1 md:px-3 md:py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-md text-white uppercase tracking-wider flex items-center gap-2">
-              <Film className="w-3 h-3 md:w-4 md:h-4" />
+          {/* Metadata */}
+          <div className="flex flex-wrap items-center gap-4 mb-6 font-sans text-[11px] md:text-xs font-bold tracking-widest text-white/50 uppercase">
+            <span className="px-3 py-1.5 border border-white/20 rounded-full text-white/80 flex items-center gap-2">
+              <Film className="w-3 h-3" />
               {movie?.media_type === "tv" ? t.nav.tvShows : t.nav.movies}
             </span>
-            <span className="flex items-center gap-1 text-[#FFD700]">
-              <Star className="w-3.5 h-3.5 md:w-4 md:h-4 fill-current" />
+            <span className="flex items-center gap-1.5 text-white/90">
+              <Star className="w-3.5 h-3.5" />
               {movie?.vote_average?.toFixed(1)}
             </span>
-            <span className="text-zinc-300">
+            <span>
               {movie?.release_date || movie?.first_air_date
                 ? new Date(movie.release_date || movie.first_air_date).getFullYear()
                 : 'N/A'}
@@ -266,56 +224,67 @@ const HeroBanner = ({ endpoint, params, headline, themeColor, customMovie }: { e
           </div>
 
           {/* Title */}
-          <h1 className="text-4xl md:text-6xl xl:text-8xl font-black tracking-tighter text-white mb-4 md:mb-6 drop-shadow-2xl leading-[1.1] md:leading-[0.9]">
+          <h1 className="text-5xl sm:text-6xl md:text-8xl lg:text-[7rem] font-serif leading-[0.95] tracking-tight text-white mb-6 drop-shadow-2xl">
             {movie?.title || movie?.name}
           </h1>
 
           {/* Genres */}
-          <div className="flex flex-wrap gap-x-2 gap-y-1 mb-4 md:mb-6">
+          <div className="flex flex-wrap gap-2 mb-8">
             {movieGenres.map((genre: any, i: number) => {
               const genreName = typeof genre === 'object' ? genre.name : genre;
               return (
-                <span key={i} className="text-zinc-300 text-[10px] md:text-base whitespace-nowrap">
+                <span key={i} className="text-white/60 text-xs font-sans tracking-wide px-3 py-1 rounded-full bg-white/5">
                   {genreName}
-                  {i < movieGenres.length - 1 && <span className="ml-2 text-zinc-500">•</span>}
                 </span>
               );
             })}
           </div>
 
           {/* Synopsis */}
-          <p className="text-sm md:text-lg xl:text-xl text-zinc-300 mb-6 md:mb-10 line-clamp-3 md:line-clamp-4 max-w-2xl leading-relaxed drop-shadow-md opacity-80">
+          <p className="text-base md:text-lg text-white/70 mb-10 line-clamp-3 md:line-clamp-4 max-w-xl leading-relaxed font-sans font-light">
             {movie?.overview}
           </p>
 
-          {/* Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 md:gap-4">
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className="group w-full sm:w-auto flex items-center justify-center gap-3 bg-white text-black px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg transition-all duration-300 shadow-lg hover:scale-105"
-              style={{ 
-                boxShadow: `0 0 20px -5px ${accentColor}80` // 80 is alpha
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = accentColor;
-                e.currentTarget.style.color = '#ffffff';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = '#ffffff';
-                e.currentTarget.style.color = '#000000';
-              }}
+              className="w-full sm:w-auto flex items-center justify-center gap-3 bg-white text-moveo-bg px-8 py-4 rounded-full font-sans font-bold text-sm tracking-wide transition-all duration-500 hover:scale-[1.02] hover:bg-white/90"
             >
-              <Play className="w-5 h-5 md:w-6 md:h-6 fill-current transition-transform group-hover:scale-110" />
+              <Play className="w-4 h-4 fill-current" />
               {t.home.watchNow}
             </button>
             <button
               onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}
-              className="w-full sm:w-auto flex items-center justify-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-white px-6 py-3 md:px-8 md:py-4 rounded-full font-bold text-base md:text-lg hover:bg-white/20 transition-all duration-300"
+              className="w-full sm:w-auto flex items-center justify-center gap-3 bg-white/5 border border-white/10 text-white px-8 py-4 rounded-full font-sans font-bold text-sm tracking-wide transition-all duration-500 hover:bg-white/10"
             >
-              <Info className="w-5 h-5 md:w-6 md:h-6" />
+              <Info className="w-4 h-4" />
               {t.home.moreInfo}
             </button>
           </div>
+        </motion.div>
+
+        {/* Right Column: Poster Staging */}
+        <motion.div
+          initial={{ opacity: 0, x: 40, rotateY: 10 }}
+          animate={{ opacity: 1, x: 0, rotateY: 0 }}
+          transition={{ duration: 1.2, ease: "easeOut", delay: 0.2 }}
+          className="lg:col-span-5 xl:col-span-6 hidden lg:flex justify-end items-center perspective-1000"
+        >
+          {movie && (
+            <div className="relative w-[340px] xl:w-[420px] aspect-[2/3] rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-white/10 transform-gpu hover:scale-105 transition-transform duration-700 ease-out cursor-pointer group" onClick={() => router.push(`/${movie?.media_type || "movie"}/${movie?.id}`)}>
+              <img
+                src={movie.poster_path ? `https://image.tmdb.org/t/p/w780${movie.poster_path}` : background}
+                alt={movie.title || movie.name}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
+                 <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center scale-90 group-hover:scale-100 transition-transform duration-500">
+                    <Play className="w-6 h-6 text-white fill-current ml-1" />
+                 </div>
+              </div>
+            </div>
+          )}
         </motion.div>
       </div>
     </div>

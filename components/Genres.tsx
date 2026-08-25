@@ -15,7 +15,7 @@ const Genres = ({ data }: { data: number[] }) => {
         return (
           <div
             key={g}
-            className="bg-[#E50914]/20 text-[#E50914] text-xs px-2 py-1 rounded-md font-medium"
+            className="bg-white/10 text-white text-xs px-2 py-1 rounded-md font-medium"
           >
             {name}
           </div>

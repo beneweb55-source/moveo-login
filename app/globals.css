@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-serif), ui-serif, Georgia, serif;
+  
+  --color-moveo-bg: #0A0A0C;
+  --color-moveo-surface: #121214;
+  --color-moveo-surface-hover: #1A1A1D;
+  --color-moveo-text: #F5F5F7;
+  --color-moveo-text-muted: #A0A0A5;
+  --color-moveo-border: rgba(255, 255, 255, 0.08);
+}
+
 :root {
   --app-height: 100%;
   --safe-area-inset-top: env(safe-area-inset-top, 0px);
@@ -15,7 +27,8 @@ html, body {
   -webkit-user-select: none;
   user-select: none;
   overscroll-behavior-y: none;
-  background-color: #000;
+  background-color: var(--color-moveo-bg);
+  color: var(--color-moveo-text);
 }
 
 body {
