@@ -14,6 +14,8 @@ const VIDEO_FRAME_DOMAINS = [
   'https://*.dood.wf',
   // Alternative servers (VideoPlayer ALTERNATIVE_SERVERS)
   'https://frembed.work',
+  'https://frembed.casa',
+  'https://vercel.live',
   'https://multiembed.mov',
   'https://vidsrc.to',
   'https://vidsrc.me',
