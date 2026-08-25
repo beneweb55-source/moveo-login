@@ -115,11 +115,11 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
   return (
     <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-8 py-10 sm:py-20 lg:py-24">
       <div className="flex items-center justify-between mb-8 sm:mb-16">
-        <h2 className="text-3xl sm:text-5xl lg:text-7xl font-serif text-white tracking-tighter uppercase leading-none">
+        <h2 className="text-3xl sm:text-5xl lg:text-7xl font-black text-white tracking-tighter uppercase leading-none">
           {title}
         </h2>
         <div className="h-px flex-grow bg-white/10 ml-6 sm:ml-12" />
-        <div className="ml-6 text-white/40 font-mono text-sm sm:text-xl">
+        <div className="ml-6 text-zinc-500 font-mono text-sm sm:text-xl">
           {activeIdx + 1} / {slides.length}
         </div>
       </div>
@@ -133,15 +133,15 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
       >
         {/* Main Card */}
         <div 
-          className="relative cursor-pointer rounded-2xl sm:rounded-3xl lg:rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] bg-moveo-surface aspect-[4/5] sm:aspect-[16/10] lg:aspect-[21/8] w-full max-w-full border border-white/5"
+          className="relative cursor-pointer rounded-[2rem] sm:rounded-[3rem] lg:rounded-[4rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.9)] bg-zinc-900 aspect-[4/5] sm:aspect-[16/10] lg:aspect-[21/8] w-full max-w-full border border-white/5"
           onClick={() => router.push(`/${mainItem.media_type || "movie"}/${mainItem.id}`)}
         >
           <AnimatePresence mode="wait">
             <motion.div
               key={activeIdx}
-              initial={{ opacity: 0, scale: 1.05 }}
+              initial={{ opacity: 0, scale: 1.1 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
+              exit={{ opacity: 0, scale: 0.95 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
               className="absolute inset-0"
             >
@@ -149,19 +149,19 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                 src={mainItem.poster_path ? `https://image.tmdb.org/t/p/original${mainItem.poster_path}` : (mainItem.backdrop_path ? `https://image.tmdb.org/t/p/original${mainItem.backdrop_path}` : `https://picsum.photos/seed/${mainItem.id}/1920/1080`)}
                 alt={mainItem.title || mainItem.name}
                 fallbackId={mainItem.id}
-                className="object-cover transition-transform duration-[10000ms] scale-100 sm:group-hover:scale-105"
+                className="object-cover transition-transform duration-[10000ms] scale-100 sm:group-hover:scale-110"
                 sizes="100vw"
               />
               {/* Enhanced Gradient for better readability */}
-              <div className="absolute inset-0 bg-gradient-to-t from-moveo-bg via-moveo-bg/60 to-transparent z-10" />
-              <div className="absolute inset-0 bg-gradient-to-r from-moveo-bg via-moveo-bg/20 to-transparent z-10 sm:block hidden" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent z-10" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/20 to-transparent z-10 sm:block hidden" />
               
               <div className="absolute bottom-0 left-0 right-0 p-6 sm:p-12 lg:p-16 z-20 flex flex-col items-center text-center sm:items-start sm:text-left">
                 <motion.div 
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.2 }}
-                  className="inline-flex items-center gap-3 bg-white/10 backdrop-blur-md border border-white/20 text-[10px] sm:text-xs font-medium px-4 py-1.5 sm:px-5 sm:py-2 rounded-full mb-4 sm:mb-6 tracking-[0.2em] uppercase text-white/90"
+                  className="inline-flex items-center gap-3 bg-[#E50914] text-[10px] sm:text-xs font-black px-4 py-1.5 sm:px-5 sm:py-2 rounded-full mb-4 sm:mb-6 shadow-2xl tracking-[0.2em] uppercase"
                 >
                   {mainItem.media_type === 'tv' ? <Tv className="w-3 h-3 sm:w-4 sm:h-4" /> : <Film className="w-3 h-3 sm:w-4 sm:h-4" />}
                   #{activeIdx + 1} {t.home.trending}
@@ -171,7 +171,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.3 }}
-                  className="text-3xl sm:text-5xl lg:text-6xl font-serif text-white mb-4 sm:mb-6 tracking-tight leading-[1] drop-shadow-lg line-clamp-2 max-w-2xl lg:max-w-4xl"
+                  className="text-3xl sm:text-5xl lg:text-6xl font-black text-white mb-4 sm:mb-6 tracking-tighter leading-[0.9] drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)] line-clamp-2 max-w-2xl lg:max-w-4xl"
                 >
                   {mainItem.title || mainItem.name}
                 </motion.h3>
@@ -180,7 +180,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.4 }}
-                  className="text-white/70 text-sm sm:text-base lg:text-lg line-clamp-2 max-w-xl lg:max-w-2xl mb-6 sm:mb-10 font-light leading-relaxed sm:block hidden"
+                  className="text-zinc-300 text-sm sm:text-base lg:text-lg line-clamp-2 max-w-xl lg:max-w-2xl mb-6 sm:mb-10 font-medium leading-relaxed opacity-80 sm:block hidden"
                 >
                   {mainItem.overview}
                 </motion.p>
@@ -191,20 +191,20 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                   transition={{ delay: 0.5 }}
                   className="flex flex-col items-center sm:items-start gap-4 sm:gap-6 w-full sm:w-auto"
                 >
-                  <button className="flex items-center justify-center gap-3 bg-white text-moveo-bg w-[90%] sm:w-auto px-8 sm:px-10 py-3 sm:py-3.5 rounded-full hover:bg-white/90 transition-all cursor-pointer active:scale-95 shadow-xl font-bold text-sm sm:text-base">
+                  <button className="flex items-center justify-center gap-3 bg-white text-black w-[90%] sm:w-auto px-6 sm:px-10 py-3 sm:py-3.5 rounded-full hover:bg-zinc-200 transition-all cursor-pointer active:scale-95 shadow-2xl font-black text-sm sm:text-base">
                     <Play className="w-5 h-5 sm:w-5 sm:h-5 fill-current" />
                     {t.home.watchNow}
                   </button>
                   
                   {/* Grouped Metadata on a single line below the button */}
-                  <div className="flex items-center gap-4 text-xs sm:text-sm font-bold text-white/50 uppercase tracking-widest">
+                  <div className="flex items-center gap-4 text-xs sm:text-sm font-black text-white/60">
                     <div className="flex items-center gap-2">
-                      <Star className="w-4 h-4 sm:w-4 sm:h-4 text-white/80" />
+                      <Star className="w-4 h-4 sm:w-4 sm:h-4 text-yellow-400 fill-current" />
                       <span>{mainItem.vote_average?.toFixed(1)}</span>
                     </div>
                     <div className="w-1 h-1 rounded-full bg-white/20" />
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-4 h-4 sm:w-4 sm:h-4 text-white/50" />
+                      <Calendar className="w-4 h-4 sm:w-4 sm:h-4 text-zinc-400" />
                       <span>{new Date(mainItem.release_date || mainItem.first_air_date).getFullYear()}</span>
                     </div>
                   </div>
@@ -215,27 +215,27 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
 
           {/* Decorative element - Hide on mobile */}
           <div className="absolute top-10 right-10 z-20 hidden sm:block">
-            <div className="w-32 h-32 rounded-full border border-white/10 flex items-center justify-center backdrop-blur-md group-hover:border-white/30 transition-colors duration-500">
-              <Play className="w-10 h-10 text-white/70 group-hover:text-white transition-colors duration-500 fill-current ml-2" />
+            <div className="w-32 h-32 rounded-full border-2 border-white/10 flex items-center justify-center backdrop-blur-sm group-hover:border-[#E50914]/50 transition-colors duration-500">
+              <Play className="w-12 h-12 text-white group-hover:text-[#E50914] transition-colors duration-500 fill-current" />
             </div>
           </div>
 
           {/* Navigation Arrows - Hide on mobile, use swipe instead */}
           <button 
             onClick={(e) => { e.stopPropagation(); prevSlide(); }}
-            className="absolute left-6 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-moveo-surface/80 backdrop-blur-md text-white opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-white/10 hidden sm:block border border-white/10"
+            className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/50 text-white opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-[#E50914] hidden sm:block"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="w-8 h-8" />
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-            className="absolute right-6 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-moveo-surface/80 backdrop-blur-md text-white opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-white/10 hidden sm:block border border-white/10"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-2 rounded-full bg-black/50 text-white opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-[#E50914] hidden sm:block"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="w-8 h-8" />
           </button>
 
           {/* Progress Bar */}
-          <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10 z-30">
+          <div className="absolute bottom-0 left-0 w-full h-1 bg-white/20 z-30">
             <AnimatePresence mode="wait">
               {!paused && (
                 <motion.div
@@ -243,7 +243,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                   initial={{ width: "0%" }}
                   animate={{ width: "100%" }}
                   transition={{ duration: 6, ease: "linear" }}
-                  className="h-full bg-white/50"
+                  className="h-full bg-[#E50914]"
                 />
               )}
             </AnimatePresence>
@@ -256,7 +256,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
             <div 
               key={item.id}
               onClick={() => setActiveIdx(idx)}
-              className={`relative flex-shrink-0 w-20 sm:w-[calc(12.5%-10px)] aspect-video rounded-lg overflow-hidden cursor-pointer transition-all duration-300 snap-start ${activeIdx === idx ? 'border border-white scale-105 opacity-100 z-10' : 'opacity-40 hover:opacity-80'}`}
+              className={`relative flex-shrink-0 w-20 sm:w-[calc(12.5%-10px)] aspect-video rounded-lg overflow-hidden cursor-pointer transition-all duration-300 snap-start ${activeIdx === idx ? 'ring-2 ring-[#E50914] scale-105 opacity-100 z-10' : 'opacity-50 hover:opacity-80'}`}
             >
               <SafeImage
                 src={item.backdrop_path ? `https://image.tmdb.org/t/p/w500${item.backdrop_path}` : (item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : `https://picsum.photos/seed/${item.id}/500/300`)}
@@ -265,7 +265,7 @@ const FeaturedGrid: React.FC<FeaturedGridProps> = ({ data, loading, title }) => 
                 className="object-cover"
                 sizes="(max-width: 768px) 100px, 200px"
               />
-              <div className="absolute bottom-1 left-1 bg-moveo-bg/80 text-white/80 text-[10px] font-medium px-1.5 py-0.5 rounded backdrop-blur-sm">
+              <div className="absolute bottom-1 left-1 bg-black/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
                 #{idx + 1}
               </div>
             </div>

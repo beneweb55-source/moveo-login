@@ -231,253 +231,313 @@ const Header = () => {
   return (
     <>
       <header
-        className={`fixed left-1/2 -translate-x-1/2 z-50 transition-all duration-500 ease-out flex items-center justify-center w-full px-4 sm:px-6 ${
-          show === "top"
-            ? "top-6 sm:top-8"
-            : show === "show"
-            ? "top-4 sm:top-6"
-            : "-top-24"
-        }`}
-      >
-        <div 
-          className={`flex items-center justify-between gap-4 sm:gap-8 px-4 sm:px-6 h-14 sm:h-16 rounded-full bg-moveo-surface/70 backdrop-blur-2xl shadow-2xl border transition-all duration-500 ease-out w-full max-w-5xl ${
-            show === "top" ? "border-transparent bg-transparent shadow-none" : "border-white/10"
-          }`}
-        >
-          {/* Mobile Menu Toggle */}
+        className={`fixed top-0 w-full h-16 xl:h-20 z-50 transition-all duration-300 ease-in-out ${
+        show === "top"
+          ? "bg-gradient-to-b from-black/80 to-transparent backdrop-blur-sm"
+          : show === "show"
+          ? "bg-black/90 backdrop-blur-md shadow-lg border-b border-white/5"
+          : "-translate-y-full"
+      }`}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 xl:px-8 h-full flex items-center justify-between gap-4">
+        {/* Left Section: Mobile Menu Toggle & Logo */}
+        <div className="flex items-center gap-4">
+          {/* Hamburger Menu (Mobile/Tablet) */}
           <button 
-            className="xl:hidden p-2 -ml-2 text-moveo-text hover:text-white transition-colors"
+            className="xl:hidden p-1.5 -ml-1.5 text-white/80 hover:text-white transition-colors"
             onClick={() => setIsMobileMenuOpen(true)}
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-6 h-6" />
           </button>
 
           {/* Logo */}
-          <Link href="/" className="flex items-center flex-shrink-0 hover:opacity-80 transition-opacity">
+          <Link href="/" className="flex items-center gap-2 cursor-pointer flex-shrink-0 hover:scale-105 transition-transform duration-300">
             <Logo />
           </Link>
+        </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden xl:flex items-center gap-8">
-            <ul className="flex items-center gap-6 text-[13px] font-medium tracking-wide uppercase text-white/70">
-              <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/")}>{t.nav.home}</li>
-              <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
-              <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
-              <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/animes")}>{t.nav.animes}</li>
-              <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/kdrama")}>{t.nav.kdramas}</li>
-              {user && (
-                <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/my-list")}>{t.nav.myList}</li>
+        {/* Desktop Navigation */}
+        <ul className="hidden xl:flex items-center gap-6 font-medium text-sm text-white/80">
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/")}>{t.nav.home}</li>
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/animes")}>{t.nav.animes}</li>
+          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/kdrama")}>{t.nav.kdramas}</li>
+          {user && (
+            <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/my-list")}>{t.nav.myList}</li>
+          )}
+        </ul>
+
+        {/* Center/Right Section: Search */}
+        <div className="flex-1 flex justify-end xl:justify-center max-w-2xl transition-all duration-500 ease-in-out relative" ref={searchRef}>
+          {/* Mobile Search Icon */}
+          <button 
+            className="xl:hidden p-2 text-white/80 hover:text-white transition-colors"
+            onClick={() => setShowMobileSearch(true)}
+          >
+            <Search className="w-5 h-5" />
+          </button>
+
+          {/* Desktop Search Bar */}
+          <form onSubmit={handleSearchSubmit} className="hidden xl:block relative group w-full">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-white/50 group-focus-within:text-white transition-colors" />
+            </div>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onFocus={() => query.trim() && setShowSearchDropdown(true)}
+              placeholder={t.nav.searchPlaceholder}
+              className="w-full bg-white/10 border border-white/10 rounded-full py-2.5 pl-12 pr-10 text-sm text-white placeholder:text-white/50 focus:outline-none focus:border-white/30 focus:bg-black/80 transition-all duration-300"
+            />
+            <div className="absolute inset-y-0 right-0 pr-2 flex items-center gap-1">
+              {query && (
+                <button 
+                  type="button" 
+                  onClick={() => setQuery("")}
+                  className="p-2 text-white/50 hover:text-white transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               )}
-            </ul>
-          </nav>
+            </div>
+          </form>
 
-          {/* Right Section: Search & User */}
-          <div className="flex items-center gap-3 sm:gap-5" ref={searchRef}>
-            {/* Search */}
-            <div className="relative group flex items-center">
-              <button 
-                className="xl:hidden p-2 text-white/70 hover:text-white transition-colors"
-                onClick={() => setShowMobileSearch(true)}
+          {/* Desktop Search Dropdown */}
+          <AnimatePresence>
+            {showSearchDropdown && (
+              <motion.div
+                key="search-dropdown"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="hidden xl:block absolute top-full left-0 right-0 mt-2 bg-black border border-white/10 rounded-xl shadow-2xl overflow-hidden z-[120] max-h-[70vh] overflow-y-auto"
               >
-                <Search className="w-5 h-5" />
-              </button>
-
-              <form onSubmit={handleSearchSubmit} className="hidden xl:flex items-center relative overflow-hidden rounded-full bg-white/5 border border-white/5 focus-within:border-white/20 focus-within:bg-white/10 transition-all duration-300 w-48 focus-within:w-64">
-                <div className="pl-3 pointer-events-none">
-                  <Search className="h-4 w-4 text-white/50" />
-                </div>
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => query.trim() && setShowSearchDropdown(true)}
-                  placeholder={t.nav.searchPlaceholder}
-                  className="w-full bg-transparent py-2 pl-2 pr-8 text-xs text-white placeholder:text-white/40 focus:outline-none"
-                />
-                {query && (
-                  <button 
-                    type="button" 
-                    onClick={() => setQuery("")}
-                    className="absolute right-2 text-white/40 hover:text-white transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </form>
-
-              {/* Desktop Search Dropdown */}
-              <AnimatePresence>
-                {showSearchDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.98 }}
-                    transition={{ duration: 0.2 }}
-                    className="hidden xl:block absolute top-full right-0 mt-4 w-96 bg-moveo-surface border border-moveo-border rounded-2xl shadow-2xl overflow-hidden z-[120] max-h-[60vh] overflow-y-auto"
-                  >
-                    {loading ? (
-                      <div className="flex justify-center p-8">
-                        <Loader2 className="w-5 h-5 text-white/50 animate-spin" />
-                      </div>
-                    ) : results.length > 0 ? (
-                      <div className="flex flex-col py-2">
-                        {aiReasoning && (
-                          <div className="px-4 py-3 bg-white/5 border-b border-white/5 flex items-start gap-2">
-                            <Sparkles className="w-4 h-4 text-white/70 shrink-0 mt-0.5" />
-                            <span className="text-[11px] leading-relaxed text-white/70">
-                              {aiReasoning}
-                            </span>
-                          </div>
-                        )}
-                        {results.map((item) => {
-                          const isPerson = item.media_type === "person";
-                          const isMovie = item.media_type === "movie" || (!item.media_type && !isPerson);
-                          const title = item.title || item.name;
-                          const year = (item.release_date || item.first_air_date) ? new Date(item.release_date || item.first_air_date).getFullYear() : "";
-                          const posterUrl = isPerson
-                            ? (item.profile_path ? `https://image.tmdb.org/t/p/w92${item.profile_path}` : "https://picsum.photos/seed/poster/92/138")
-                            : (item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : "https://picsum.photos/seed/poster/92/138");
-
-                          return (
-                            <div 
-                              key={item.id}
-                              onClick={() => {
-                                router.push(`/${isPerson ? "person" : isMovie ? "movie" : "tv"}/${item.id}`);
-                                setShowSearchDropdown(false);
-                              }}
-                              className="flex items-center gap-4 px-4 py-3 hover:bg-white/5 cursor-pointer transition-colors"
-                            >
-                              <div className={`relative flex-shrink-0 bg-white/5 overflow-hidden ${isPerson ? 'w-10 h-10 rounded-full' : 'w-10 h-14 rounded-md'}`}>
-                                <Image src={posterUrl} alt={title} fill className="object-cover" referrerPolicy="no-referrer" />
-                              </div>
-                              <div className="flex flex-col">
-                                <h4 className="text-white text-sm font-medium">{title}</h4>
-                                <span className="text-xs text-white/40 mt-0.5">
-                                  {year} {year && "•"} {isPerson ? (language === 'fr' ? 'Personne' : 'Person') : (isMovie ? t.nav.movies : t.nav.tvShows)}
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="p-8 text-center text-white/40 text-xs">
-                        {t.nav.noResults} &quot;{query}&quot;
+                {/* ... (Search Results Content) ... */}
+                {loading ? (
+                  <div className="flex flex-col items-center justify-center p-8 gap-3">
+                    <Loader2 className="w-6 h-6 text-[#E50914] animate-spin" />
+                    {query.split(' ').length >= 3 || ["triste", "peur", "rire", "joyeux", "sombre", "calme", "amour", "action", "film", "serie", "space", "espace"].some(k => query.toLowerCase().includes(k)) ? (
+                      <span className="text-xs text-white/50 animate-pulse">
+                        Analyse de votre mood...
+                      </span>
+                    ) : null}
+                  </div>
+                ) : results.length > 0 ? (
+                  <div className="flex flex-col">
+                    {aiReasoning && (
+                      <div className="px-4 py-2 bg-white/5 border-b border-white/5 flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-[#E50914] animate-pulse" />
+                        <span className="text-xs font-medium text-white/80 uppercase tracking-wide">
+                          AI: {aiReasoning}
+                        </span>
                       </div>
                     )}
+                    {results.map((item) => {
+                      const isPerson = item.media_type === "person";
+                      const isMovie = item.media_type === "movie" || (!item.media_type && !isPerson);
+                      const title = item.title || item.name;
+                      const date = item.release_date || item.first_air_date;
+                      const year = date ? new Date(date).getFullYear() : (isPerson ? item.known_for_department : "N/A");
+                      const rating = item.vote_average ? item.vote_average.toFixed(1) : "NR";
+                      const posterUrl = isPerson
+                        ? (item.profile_path ? `https://image.tmdb.org/t/p/w92${item.profile_path}` : "https://picsum.photos/seed/poster/92/138")
+                        : (item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : "https://picsum.photos/seed/poster/92/138");
+
+                      return (
+                        <div 
+                          key={item.id}
+                          onClick={() => {
+                            router.push(`/${isPerson ? "person" : isMovie ? "movie" : "tv"}/${item.id}`);
+                            setShowSearchDropdown(false);
+                          }}
+                          className="flex items-center gap-4 p-3 hover:bg-white/5 cursor-pointer transition-colors border-b border-white/5 last:border-0"
+                        >
+                          <div className={`relative flex-shrink-0 bg-[#2a2a2a] overflow-hidden ${isPerson ? 'w-12 h-12 rounded-full' : 'w-12 h-16 rounded'}`}>
+                            <Image src={posterUrl} alt={title} fill className="object-cover" referrerPolicy="no-referrer" />
+                          </div>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <h4 className="text-white font-medium text-sm truncate">{title}</h4>
+                            <div className="flex items-center gap-2 text-xs text-white/50 mt-1">
+                              <span>{year}</span>
+                              {!isPerson && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Star className="w-3 h-3 text-yellow-500 fill-current" />
+                                    {rating}
+                                  </span>
+                                </>
+                              )}
+                              <span>•</span>
+                              <span className="uppercase text-[10px] tracking-wider border border-white/20 px-1 rounded whitespace-nowrap">
+                                {isPerson ? (language === 'fr' ? 'Personne' : 'Person') : (isMovie ? t.nav.movies : t.nav.tvShows)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div 
+                      onClick={handleSearchSubmit}
+                      className="p-3 text-center text-sm text-white/70 hover:text-white hover:bg-white/5 cursor-pointer transition-colors truncate"
+                    >
+                      {t.nav.searchResults} &quot;{query}&quot;
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-6 text-center text-white/50 text-sm">
+                    {t.nav.noResults} &quot;{query}&quot;
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Right Section: User/Auth & Language (Desktop only) */}
+        <div className="hidden xl:flex items-center gap-4">
+          {user ? (
+            <div className="flex items-center relative" id="user-dropdown-container">
+              <button
+                onClick={() => setShowUserDropdown(!showUserDropdown)}
+                className="flex items-center gap-2 hover:bg-white/5 p-1.5 rounded-full transition-colors"
+              >
+                {user.avatar_url ? (
+                  <div className="w-8 h-8 rounded-full overflow-hidden relative shadow-lg border border-white/10">
+                    <Image src={user.avatar_url} alt={user.name} fill className="object-cover" referrerPolicy="no-referrer" />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#E50914] to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                    {user.name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                )}
+                <span className="text-sm font-medium text-white/90 mr-1">
+                  {user.name}
+                </span>
+              </button>
+
+              {/* Desktop User Dropdown */}
+              <AnimatePresence>
+                {showUserDropdown && (
+                  <motion.div
+                    key="user-dropdown"
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute top-full right-0 mt-2 w-56 bg-black border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-2"
+                  >
+                    <div className="px-4 py-3 border-b border-white/10 mb-2">
+                      <p className="text-sm text-white font-medium">{user.name}</p>
+                      <p className="text-xs text-white/50 truncate">{user.email}</p>
+                    </div>
+                    
+                    <div className="flex flex-col">
+                      <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-white/80 hover:text-white hover:bg-white/5 transition-colors">
+                        <User className="w-4 h-4" />
+                        {t.nav.profile}
+                      </Link>
+                      {user.permissions?.includes('access_admin_panel') && (
+                        <Link href="/admin" className="flex items-center gap-3 px-4 py-2.5 text-sm font-bold text-red-500 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                          <Shield className="w-4 h-4" />
+                          Panel Admin
+                        </Link>
+                      )}
+                    </div>
+                    
+                    <div className="mt-2 pt-2 border-t border-white/10">
+                      <button
+                        onClick={handleLogout}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#E50914] hover:bg-[#E50914]/10 transition-colors cursor-pointer"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        {t.nav.logout}
+                      </button>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
-
-            <div className="w-px h-4 bg-white/10 hidden sm:block" />
-
-            {/* User & Lang */}
-            <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                onClick={toggleLanguage}
-                className="hidden sm:flex text-[11px] font-bold text-white/50 hover:text-white transition-colors uppercase tracking-widest"
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="px-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium"
               >
-                {language}
-              </button>
-
-              {user ? (
-                <div className="relative" id="user-dropdown-container">
-                  <button
-                    onClick={() => setShowUserDropdown(!showUserDropdown)}
-                    className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 transition-colors border border-white/10 overflow-hidden"
-                  >
-                    {user.avatar_url ? (
-                      <Image src={user.avatar_url} alt={user.name} fill className="object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold text-white/80">{user.name?.charAt(0).toUpperCase()}</span>
-                    )}
-                  </button>
-
-                  <AnimatePresence>
-                    {showUserDropdown && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute top-full right-0 mt-4 w-56 bg-moveo-surface border border-moveo-border rounded-2xl shadow-2xl overflow-hidden z-50 py-2"
-                      >
-                        <div className="px-4 py-3 border-b border-white/5 mb-2">
-                          <p className="text-sm font-medium text-white">{user.name}</p>
-                          <p className="text-xs text-white/40 truncate mt-0.5">{user.email}</p>
-                        </div>
-                        <Link href="/profile" className="flex items-center gap-3 px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors">
-                          <User className="w-4 h-4" /> {t.nav.profile}
-                        </Link>
-                        {user.permissions?.includes('access_admin_panel') && (
-                          <Link href="/admin" className="flex items-center gap-3 px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors">
-                            <Shield className="w-4 h-4" /> Admin
-                          </Link>
-                        )}
-                        <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-4 py-2 text-sm text-white/50 hover:text-white hover:bg-white/5 transition-colors text-left"
-                        >
-                          <LogOut className="w-4 h-4" /> {t.nav.logout}
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              ) : (
-                <Link
-                  href="/login"
-                  className="text-xs font-medium text-white hover:text-white/70 transition-colors tracking-wide"
-                >
-                  {t.nav.signIn}
-                </Link>
-              )}
+                {t.nav.signIn}
+              </Link>
+              <Link
+                href="/register"
+                className="px-4 py-1.5 rounded-full bg-[#E50914] hover:bg-[#E50914]/90 transition-colors text-sm font-medium text-white"
+              >
+                {t.nav.signUp}
+              </Link>
             </div>
-          </div>
-        </div>
-      </header>
+          )}
 
-      {/* Mobile Search Overlay */}
-      <AnimatePresence>
-        {showMobileSearch && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="xl:hidden fixed inset-0 bg-moveo-bg z-[100] flex flex-col"
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-colors text-sm font-medium cursor-pointer"
           >
-            <div className="flex items-center gap-3 p-4 border-b border-moveo-border">
+            <Globe className="w-4 h-4 text-white/70" />
+            <span className="uppercase">{language}</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    {/* Mobile Search Overlay */}
+    <AnimatePresence>
+      {showMobileSearch && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="xl:hidden fixed inset-0 bg-black z-[100] flex flex-col"
+        >
+            <div className="flex items-center gap-3 p-4 border-b border-white/10">
               <button 
                 onClick={() => { setShowMobileSearch(false); setQuery(""); }}
-                className="p-2 text-white/50 hover:text-white"
+                className="p-2 text-white/70 hover:text-white"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-6 h-6" />
               </button>
-              <form onSubmit={(e) => { handleSearchSubmit(e); setShowMobileSearch(false); }} className="flex-1">
+              <form onSubmit={(e) => { handleSearchSubmit(e); setShowMobileSearch(false); }} className="flex-1 relative">
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder={t.nav.searchPlaceholder}
                   autoFocus
-                  className="w-full bg-transparent text-white placeholder:text-white/30 focus:outline-none text-lg font-light"
+                  className="w-full bg-transparent text-white placeholder:text-white/50 focus:outline-none text-lg"
                 />
+                {query && (
+                  <button 
+                    type="button" 
+                    onClick={() => setQuery("")}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 p-2 text-white/50 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                )}
               </form>
             </div>
             
+            {/* Mobile Search Results */}
             <div className="flex-1 overflow-y-auto p-4">
               {loading ? (
                 <div className="flex justify-center p-8">
-                  <Loader2 className="w-6 h-6 text-white/30 animate-spin" />
+                  <Loader2 className="w-8 h-8 text-[#E50914] animate-spin" />
                 </div>
               ) : results.length > 0 ? (
-                <div className="flex flex-col gap-1">
+                <div className="flex flex-col gap-4">
                   {results.map((item) => {
                     const isPerson = item.media_type === "person";
                     const isMovie = item.media_type === "movie" || (!item.media_type && !isPerson);
                     const title = item.title || item.name;
-                    const year = (item.release_date || item.first_air_date) ? new Date(item.release_date || item.first_air_date).getFullYear() : "";
+                    const year = (item.release_date || item.first_air_date) ? new Date(item.release_date || item.first_air_date).getFullYear() : "N/A";
                     const posterUrl = isPerson
                       ? (item.profile_path ? `https://image.tmdb.org/t/p/w92${item.profile_path}` : "https://picsum.photos/seed/poster/92/138")
                       : (item.poster_path ? `https://image.tmdb.org/t/p/w92${item.poster_path}` : "https://picsum.photos/seed/poster/92/138");
@@ -490,21 +550,21 @@ const Header = () => {
                           setShowMobileSearch(false);
                           setQuery("");
                         }}
-                        className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors"
+                        className="flex items-center gap-4"
                       >
-                        <div className={`relative flex-shrink-0 bg-white/5 overflow-hidden ${isPerson ? 'w-12 h-12 rounded-full' : 'w-12 h-16 rounded-lg'}`}>
+                        <div className={`relative flex-shrink-0 bg-[#2a2a2a] overflow-hidden ${isPerson ? 'w-12 h-12 rounded-full' : 'w-12 h-16 rounded'}`}>
                           <Image src={posterUrl} alt={title} fill className="object-cover" referrerPolicy="no-referrer" />
                         </div>
                         <div className="flex flex-col">
                           <h4 className="text-white font-medium">{title}</h4>
-                          <span className="text-xs text-white/40">{year} • {isPerson ? 'Person' : (isMovie ? 'Movie' : 'TV')}</span>
+                          <span className="text-sm text-white/50">{year} • {isPerson ? 'Person' : (isMovie ? 'Movie' : 'TV')}</span>
                         </div>
                       </div>
                     );
                   })}
                 </div>
               ) : query ? (
-                <div className="text-center text-white/30 mt-12 text-sm">
+                <div className="text-center text-white/50 mt-8">
                   {t.nav.noResults} &quot;{query}&quot;
                 </div>
               ) : null}
@@ -517,83 +577,139 @@ const Header = () => {
       <AnimatePresence>
         {isMobileMenuOpen && (
           <>
+            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="xl:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
+              className="xl:hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100]"
             />
             
+            {/* Drawer */}
             <motion.div
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
-              transition={{ type: "spring", bounce: 0, duration: 0.5 }}
-              className="xl:hidden fixed inset-y-0 left-0 w-[85%] max-w-sm bg-moveo-bg border-r border-moveo-border z-[110] flex flex-col"
+              transition={{ type: "spring", bounce: 0, duration: 0.4 }}
+              className="xl:hidden fixed inset-y-0 left-0 w-[80%] max-w-sm bg-black border-r border-white/10 z-[110] flex flex-col overflow-y-auto"
             >
-              <div className="p-6 border-b border-white/5 flex items-center justify-between">
+              <div className="p-4 border-b border-white/10 flex items-center justify-between">
                 <Logo />
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 text-white/50 hover:text-white"
+                  className="p-2 text-white/70 hover:text-white bg-white/5 rounded-full"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto py-6 px-4 flex flex-col gap-2">
+              {/* User Profile Section (Mobile) */}
+              <div className="p-6 border-b border-white/10">
+                {user ? (
+                  <div className="flex items-center gap-4">
+                    {user.avatar_url ? (
+                      <div className="w-12 h-12 rounded-full overflow-hidden relative border border-white/10">
+                        <Image src={user.avatar_url} alt={user.name} fill className="object-cover" referrerPolicy="no-referrer" />
+                      </div>
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#E50914] to-purple-600 flex items-center justify-center text-white font-bold text-xl">
+                        {user.name?.charAt(0).toUpperCase() || 'U'}
+                      </div>
+                    )}
+                    <div className="flex flex-col">
+                      <span className="font-bold text-white text-lg">{user.name}</span>
+                      <span className="text-sm text-white/50">{user.email}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm text-white/70 mb-2">Connectez-vous pour plus de fonctionnalités</p>
+                    <div className="flex gap-3">
+                      <Link
+                        href="/login"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex-1 text-center py-2.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium text-white"
+                      >
+                        {t.nav.signIn}
+                      </Link>
+                      <Link
+                        href="/register"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="flex-1 text-center py-2.5 rounded-lg bg-[#E50914] hover:bg-[#E50914]/90 transition-colors text-sm font-medium text-white shadow-lg shadow-red-500/20"
+                      >
+                        {t.nav.signUp}
+                      </Link>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Navigation Links (Mobile) */}
+              <div className="flex-1 py-4 flex flex-col gap-1 px-3">
                 <Link href="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 text-white/80 hover:text-white transition-colors">
+                  <Home className="w-5 h-5 text-white/50" />
                   <span className="font-medium">{t.nav.home}</span>
                 </Link>
                 <button onClick={() => { navigationHandler("movie"); setIsMobileMenuOpen(false); }} className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 text-white/80 hover:text-white transition-colors w-full text-left">
+                  <Film className="w-5 h-5 text-white/50" />
                   <span className="font-medium">{t.nav.movies}</span>
                 </button>
                 <button onClick={() => { navigationHandler("tv"); setIsMobileMenuOpen(false); }} className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 text-white/80 hover:text-white transition-colors w-full text-left">
+                  <Tv className="w-5 h-5 text-white/50" />
                   <span className="font-medium">{t.nav.tvShows}</span>
                 </button>
                 <Link href="/animes" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 text-white/80 hover:text-white transition-colors">
+                  <Sparkles className="w-5 h-5 text-white/50" />
                   <span className="font-medium">{t.nav.animes}</span>
                 </Link>
                 <Link href="/kdrama" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 text-white/80 hover:text-white transition-colors">
+                  <Globe className="w-5 h-5 text-white/50" />
                   <span className="font-medium">{t.nav.kdramas}</span>
                 </Link>
                 
                 {user && (
                   <>
-                    <div className="h-px bg-white/5 my-4 mx-4" />
+                    <div className="h-px bg-white/10 my-2 mx-4" />
                     <Link href="/my-list" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 text-white/80 hover:text-white transition-colors">
+                      <Bookmark className="w-5 h-5 text-white/50" />
                       <span className="font-medium">{t.nav.myList}</span>
                     </Link>
                     <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-white/5 text-white/80 hover:text-white transition-colors">
+                      <User className="w-5 h-5 text-white/50" />
                       <span className="font-medium">{t.nav.profile}</span>
                     </Link>
                     {user.permissions?.includes('access_admin_panel') && (
-                      <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 rounded-xl text-white/50 hover:text-white transition-colors">
-                        <span className="font-medium">Admin</span>
+                      <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-red-500/10 text-red-500 transition-colors">
+                        <Shield className="w-5 h-5" />
+                        <span className="font-medium">Panel Admin</span>
                       </Link>
                     )}
                   </>
                 )}
               </div>
 
-              <div className="p-6 border-t border-white/5 flex flex-col gap-4">
+              {/* Footer Actions (Mobile) */}
+              <div className="p-4 border-t border-white/10 flex flex-col gap-2">
                 <button
                   onClick={toggleLanguage}
-                  className="flex items-center justify-between px-4 py-3 rounded-xl border border-white/10 hover:bg-white/5 transition-colors"
+                  className="flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
                 >
-                  <span className="text-sm font-medium text-white/70">Language</span>
-                  <span className="uppercase text-xs font-bold tracking-widest text-white">{language}</span>
+                  <div className="flex items-center gap-3 text-white/80">
+                    <Languages className="w-5 h-5" />
+                    <span className="font-medium">Langue</span>
+                  </div>
+                  <span className="uppercase text-xs font-bold bg-white/10 px-2 py-1 rounded">{language}</span>
                 </button>
 
-                {!user && (
-                  <Link
-                    href="/login"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="text-center py-3 rounded-xl bg-white text-black font-semibold text-sm transition-opacity hover:opacity-90"
+                {user && (
+                  <button
+                    onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
+                    className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors font-medium mt-2"
                   >
-                    {t.nav.signIn}
-                  </Link>
+                    <LogOut className="w-5 h-5" />
+                    {t.nav.logout}
+                  </button>
                 )}
               </div>
             </motion.div>

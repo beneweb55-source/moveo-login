@@ -8,7 +8,7 @@ const Spinner = ({ initial }: { initial?: boolean }) => {
       }`}
     >
       <svg
-        className="w-12 h-12 text-white/60 animate-spin"
+        className="w-12 h-12 text-[#E50914] animate-spin"
         xmlns="http://www.w3.org/2000/svg"
         fill="none"
         viewBox="0 0 24 24"

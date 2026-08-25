@@ -39,9 +39,7 @@ const HomeMovieCard = ({ data }: HomeMovieCardProps) => {
         
         {/* Dark Overlay & Play Button on Hover */}
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center transform scale-50 group-hover:scale-100 transition-transform duration-300 shadow-lg">
-            <Play className="w-8 h-8 text-black fill-current ml-1" />
-          </div>
+          <Play className="w-14 h-14 text-[#E50914] fill-current transform scale-50 group-hover:scale-100 transition-transform duration-300" />
         </div>
         
         {/* Rating Badge */}
@@ -53,7 +51,7 @@ const HomeMovieCard = ({ data }: HomeMovieCardProps) => {
 
       {/* Info Section */}
       <div className="flex flex-col">
-        <h3 className="text-base font-semibold text-white truncate transition-colors">
+        <h3 className="text-base font-semibold text-white truncate group-hover:text-[#E50914] transition-colors">
           {data.title || data.name}
         </h3>
         <span className="text-sm text-white/50">{releaseYear}</span>

@@ -139,40 +139,41 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-moveo-bg px-4 py-12 sm:px-6 lg:px-8 selection:bg-white/20">
+    <div className="relative flex min-h-screen items-center justify-center bg-black px-4 py-12 sm:px-6 lg:px-8">
       {/* Dynamic Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="absolute inset-0 overflow-hidden">
         {background && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 1.5 }}
-            className="h-full w-full grayscale opacity-20 blur-xl"
+            className="h-full w-full"
           >
             <Img
               src={background}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover opacity-40 scale-105 blur-sm"
             />
           </motion.div>
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-moveo-bg via-moveo-bg/80 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/40" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/40 to-black" />
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeOut" }}
-        className="relative w-full max-w-md z-10"
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative w-full max-w-md"
       >
-        <div className="relative rounded-3xl bg-moveo-surface/80 p-8 sm:p-12 shadow-2xl backdrop-blur-xl border border-white/5">
-          <div className="mb-10 text-center">
-            <Link href="/" className="inline-block mb-6 hover:scale-105 transition-transform">
-              <h1 className="text-3xl font-serif tracking-tight text-white">
+        <div className="relative rounded-2xl bg-black/80 p-8 shadow-2xl backdrop-blur-xl border border-white/5">
+          <div className="mb-8 text-center">
+            <Link href="/" className="inline-block">
+              <h1 className="text-4xl font-black tracking-tighter text-white mb-2">
                 MOVEO
               </h1>
             </Link>
-            <h2 className="text-2xl font-serif text-white">{t.auth.welcomeBack}</h2>
-            <p className="mt-2 text-sm font-sans text-white/50 tracking-wide">
+            <h2 className="text-2xl font-bold text-white mt-4">{t.auth.welcomeBack}</h2>
+            <p className="mt-2 text-sm text-gray-400">
               {t.auth.loginSubtitle}
             </p>
           </div>
@@ -182,17 +183,17 @@ export default function LoginPage() {
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
-                className="rounded-xl bg-white/5 p-4 text-sm text-red-400 border border-red-500/30 flex items-start gap-3 font-sans"
+                className="rounded-lg bg-red-500/10 p-4 text-sm text-red-400 border border-red-500/20 flex items-center gap-2"
               >
-                <div className="h-1.5 w-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                <p>{error}</p>
+                <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                {error}
               </motion.div>
             )}
 
             <div className="space-y-4">
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40 group-focus-within:text-white transition-colors">
-                  <Mail className="h-4 w-4" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-500 transition-colors">
+                  <Mail className="h-5 w-5" />
                 </div>
                 <input
                   id="email"
@@ -200,7 +201,7 @@ export default function LoginPage() {
                   type="email"
                   autoComplete="email"
                   required
-                  className="block w-full rounded-full border border-white/10 bg-transparent py-4 pl-12 pr-4 text-white placeholder:text-white/30 focus:border-white focus:bg-white/5 sm:text-sm transition-all duration-300 font-sans outline-none"
+                  className="block w-full rounded-xl border-0 bg-white/5 py-3.5 pl-10 pr-4 text-white shadow-sm ring-1 ring-inset ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-red-500 focus:bg-white/10 sm:text-sm sm:leading-6 transition-all duration-200"
                   placeholder={t.auth.emailPlaceholder}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -208,8 +209,8 @@ export default function LoginPage() {
               </div>
 
               <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-white/40 group-focus-within:text-white transition-colors">
-                  <Lock className="h-4 w-4" />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-red-500 transition-colors">
+                  <Lock className="h-5 w-5" />
                 </div>
                 <input
                   id="password"
@@ -217,7 +218,7 @@ export default function LoginPage() {
                   type="password"
                   autoComplete="current-password"
                   required
-                  className="block w-full rounded-full border border-white/10 bg-transparent py-4 pl-12 pr-4 text-white placeholder:text-white/30 focus:border-white focus:bg-white/5 sm:text-sm transition-all duration-300 font-sans outline-none"
+                  className="block w-full rounded-xl border-0 bg-white/5 py-3.5 pl-10 pr-4 text-white shadow-sm ring-1 ring-inset ring-white/10 placeholder:text-gray-500 focus:ring-2 focus:ring-inset focus:ring-red-500 focus:bg-white/10 sm:text-sm sm:leading-6 transition-all duration-200"
                   placeholder={t.auth.passwordPlaceholder}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -225,26 +226,26 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs font-sans tracking-wide">
+            <div className="flex items-center justify-between text-sm">
               <div className="flex items-center">
                 <input
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 rounded-sm border-white/20 bg-transparent text-white focus:ring-1 focus:ring-white focus:ring-offset-0 focus:ring-offset-transparent cursor-pointer transition-colors"
+                  className="h-4 w-4 rounded border-gray-600 bg-white/5 text-red-600 focus:ring-red-500 focus:ring-offset-black"
                 />
-                <label htmlFor="remember-me" className="ml-3 block text-white/60 cursor-pointer hover:text-white transition-colors">
+                <label htmlFor="remember-me" className="ml-2 block text-gray-400">
                   {t.auth.rememberMe}
                 </label>
               </div>
-              <div>
-                <Link href="/forgot-password" className="text-white/60 hover:text-white transition-colors underline decoration-white/20 underline-offset-4">
+              <div className="text-sm">
+                <Link href="/forgot-password" className="font-medium text-red-500 hover:text-red-400 transition-colors">
                   {t.auth.forgotPassword}
                 </Link>
               </div>
             </div>
 
-            <div className="flex justify-center scale-90 sm:scale-100 origin-center">
+            <div className="flex justify-center">
               <HCaptcha
                 sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITEKEY || '81cabbe0-0f18-4588-9850-8e7209d69ae2'}
                 onVerify={(token) => setCaptchaToken(token)}
@@ -257,24 +258,24 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading || !captchaToken}
-              className="group relative flex w-full justify-center items-center gap-3 rounded-full bg-white py-4 px-4 text-sm font-bold font-sans text-moveo-bg hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 active:scale-95"
+              className="group relative flex w-full justify-center items-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 py-3.5 px-4 text-sm font-bold text-white hover:from-red-500 hover:to-orange-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-black disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg shadow-red-600/20 hover:shadow-red-600/40 hover:scale-[1.02] active:scale-[0.98]"
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="uppercase tracking-widest">{t.auth.signingIn}</span>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  {t.auth.signingIn}
                 </>
               ) : (
                 <>
-                  <span className="uppercase tracking-widest">{t.auth.signIn}</span>
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  {t.auth.signIn}
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </>
               )}
             </button>
 
-            <div className="flex items-center justify-center gap-4 py-2">
+            <div className="flex items-center justify-center gap-4">
               <div className="h-px flex-1 bg-white/10" />
-              <span className="text-xs font-sans tracking-widest uppercase text-white/30">
+              <span className="text-sm text-gray-400">
                 {t.auth.orContinueWith}
               </span>
               <div className="h-px flex-1 bg-white/10" />
@@ -285,9 +286,9 @@ export default function LoginPage() {
                 type="button"
                 disabled={!captchaToken}
                 onClick={handleGoogleLogin}
-                className="flex w-full items-center justify-center gap-3 rounded-full border border-white/20 bg-transparent px-4 py-4 text-sm font-bold font-sans text-white hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 hover:scale-105 active:scale-95"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/5 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-inset ring-white/10 hover:bg-white/10 hover:ring-white/20 cursor-pointer active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="h-4 w-4" viewBox="0 0 24 24">
+                <svg className="h-5 w-5" viewBox="0 0 24 24">
                   <path
                     d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                     fill="#4285F4"
@@ -305,13 +306,13 @@ export default function LoginPage() {
                     fill="#EA4335"
                   />
                 </svg>
-                <span className="uppercase tracking-widest">Google</span>
+                Google
               </button>
             </div>
 
-            <div className="text-center text-xs font-sans text-white/50 pt-4">
+            <div className="text-center text-sm text-gray-400 mt-6">
               {t.auth.noAccount}{' '}
-              <Link href="/register" className="font-bold text-white hover:text-white/80 transition-colors underline decoration-white/30 underline-offset-4">
+              <Link href="/register" className="font-semibold text-red-500 hover:text-red-400 transition-colors hover:underline decoration-2 underline-offset-4">
                 {t.auth.signUpNow}
               </Link>
             </div>

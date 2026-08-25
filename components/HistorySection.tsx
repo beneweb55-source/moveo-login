@@ -53,9 +53,9 @@ const HistorySection = () => {
 
   return (
     <div className="relative mb-12">
-      <h2 className="text-2xl md:text-3xl font-serif font-bold mb-8 text-white flex items-center gap-2">
-        <span className="w-1 h-8 bg-white rounded-full mr-2"></span>
-        <History className="w-6 h-6 text-white" />
+      <h2 className="text-2xl md:text-3xl font-bold mb-8 text-white flex items-center gap-2">
+        <span className="w-1 h-8 bg-[#E50914] rounded-full mr-2"></span>
+        <History className="w-6 h-6 text-[#E50914]" />
         {t.home.resumeWatching}
       </h2>
       
