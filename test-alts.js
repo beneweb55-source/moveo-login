@@ -1,5 +1,5 @@
 const urls = [
-  "https://frembed.work/api/film.php?id=123",
+  "https://frembed.surf/api/film.php?id=123",
   "https://multiembed.mov/?video_id=123&tmdb=1",
   "https://vidsrc.to/embed/movie/123",
   "https://vidsrc.me/embed/movie?tmdb=123",

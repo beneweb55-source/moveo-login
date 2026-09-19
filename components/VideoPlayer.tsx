@@ -40,7 +40,7 @@ const ALTERNATIVE_SERVERS: ServerObj[] = [
     group: "Alternative",
     icon: Globe,
     url: (type: string, id: string, s?: number, e?: number) =>
-      type === "movie" ? `https://frembed.work/api/film.php?id=${id}` : `https://frembed.work/api/serie.php?id=${id}&sa=${s}&epi=${e}`,
+      type === "movie" ? `https://frembed.surf/api/film.php?id=${id}` : `https://frembed.surf/api/serie.php?id=${id}&sa=${s}&epi=${e}`,
   },
   {
     name: "SuperEmbed",
