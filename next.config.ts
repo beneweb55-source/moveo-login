@@ -35,7 +35,7 @@ const VIDEO_FRAME_DOMAINS = [
 ].join(' ');
 
 const cspHeaders = [
-  { key: 'Content-Security-Policy', value: `frame-src ${VIDEO_FRAME_DOMAINS}` },
+  { key: 'Content-Security-Policy', value: `frame-src https: 'self' data: blob:` },
 ];
 
 const nextConfig: NextConfig = {
