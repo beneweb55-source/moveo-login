@@ -13,7 +13,13 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import nextConfig from '../next.config';
-import {PREMIUM_EMBED_HOSTS, PROVIDERS, SBNET_FRAME_ORIGIN, buildProviderUrl} from '../lib/providers';
+import {
+  PREMIUM_EMBED_HOSTS,
+  PROVIDERS,
+  PROVIDER_FRAME_ORIGINS,
+  SBNET_FRAME_ORIGIN,
+  buildProviderUrl,
+} from '../lib/providers';
 
 const getFrameSrc = async (): Promise<string> => {
   assert.ok(nextConfig.headers, 'next.config.ts must define headers()');
@@ -47,12 +53,32 @@ const originAllowed = (origin: string, entries: string[]): boolean => {
 };
 
 describe('frame-src covers every provider the app can frame', () => {
-  it('allows each provider own frame origin', async () => {
+  it('allows every origin each provider can put in a frame document', async () => {
+    // Not just the origin we write into the iframe: a provider that redirects
+    // moves the frame to a different origin, and the browser checks frame-src
+    // against the TARGET of that redirect. Checking only frameOrigins[0] is
+    // what let the SuperEmbed and VidSrc breaks ship with a green suite.
     const entries = tokens(await getFrameSrc());
     for (const provider of PROVIDERS) {
-      assert.ok(
-        originAllowed(provider.frameOrigin, entries),
-        `${provider.name} (${provider.frameOrigin}) would be blocked by our own CSP`,
+      for (const origin of provider.frameOrigins) {
+        assert.ok(
+          originAllowed(origin, entries),
+          `${provider.name} frames ${origin} (or is redirected there) but our own CSP blocks it`,
+        );
+      }
+    }
+  });
+
+  it('declares the entry origin first for every provider', async () => {
+    // frameOrigins[0] is the contract other code relies on (e.g. the
+    // check-server probe target), so it must match the URL buildUrl() returns.
+    for (const provider of PROVIDERS) {
+      const url = buildProviderUrl(provider.name, {type: 'movie', id: '550'});
+      assert.ok(url, `${provider.name} did not build a movie URL`);
+      assert.equal(
+        new URL(url).origin,
+        provider.frameOrigins[0],
+        `${provider.name} builds ${url} but declares a different entry origin`,
       );
     }
   });
@@ -204,6 +230,103 @@ describe('the premium pinning list and the CSP cannot drift apart', () => {
     const entries = tokens(await getFrameSrc());
     for (const host of PREMIUM_EMBED_HOSTS) {
       assert.ok(entries.includes(`https://${host}`), `missing bare host entry for ${host}`);
+    }
+  });
+});
+
+/**
+ * The regression this block exists to prevent.
+ *
+ * A provider's entry URL is only the first hop. Chrome re-checks `frame-src`
+ * against a redirect's TARGET, so a provider whose entry point 302s to another
+ * origin is blocked unless BOTH origins are listed. The earlier suite asserted
+ * only `frameOrigins[0]`, so SuperEmbed and VidSrc.me were blocked in
+ * production while every test passed.
+ *
+ * The chains below are MEASUREMENTS, not documentation. If a provider rotates
+ * a host, this block fails — which is the point: the fix is to re-measure and
+ * update the registry deliberately, not to quietly widen the CSP.
+ */
+describe('measured provider redirect chains stay covered', () => {
+  const MEASURED_CHAINS: ReadonlyArray<{
+    provider: string;
+    entry: string;
+    hops: readonly string[];
+  }> = [
+    {
+      // GET https://multiembed.mov/?video_id=550&tmdb=1 -> 302 -> streamingnow.mov
+      provider: 'SuperEmbed',
+      entry: 'https://multiembed.mov',
+      hops: ['https://streamingnow.mov'],
+    },
+    {
+      // GET https://vidsrc.me/embed/movie?tmdb=550 -> 301 -> vidsrc.sh
+      provider: 'VidSrc.me',
+      entry: 'https://vidsrc.me',
+      hops: ['https://vidsrc.sh'],
+    },
+    {
+      // Framed directly, so no hop is ever taken (see lib/providers.ts header).
+      provider: 'Frembed',
+      entry: 'https://frembed.surf',
+      hops: [],
+    },
+  ];
+
+  it('declares every hop of each measured chain on the provider', () => {
+    for (const chain of MEASURED_CHAINS) {
+      const provider = PROVIDERS.find((p) => p.name === chain.provider);
+      assert.ok(provider, `${chain.provider} is no longer a provider`);
+      assert.equal(
+        provider.frameOrigins[0],
+        chain.entry,
+        `${chain.provider} no longer starts at ${chain.entry}`,
+      );
+      for (const hop of chain.hops) {
+        assert.ok(
+          provider.frameOrigins.includes(hop),
+          `${chain.provider} is redirected to ${hop} but does not declare it`,
+        );
+      }
+    }
+  });
+
+  it('allows every hop of each measured chain in frame-src', async () => {
+    const entries = tokens(await getFrameSrc());
+    for (const chain of MEASURED_CHAINS) {
+      for (const origin of [chain.entry, ...chain.hops]) {
+        assert.ok(
+          originAllowed(origin, entries),
+          `${chain.provider}: ${origin} is reachable by a frame we create but our own CSP blocks it`,
+        );
+      }
+    }
+  });
+
+  it('does not allow anything the application cannot reach', async () => {
+    // The converse drift: an entry added to frame-src from documentation rather
+    // than from a code path is permission nobody needs. Everything allowed for
+    // providers must be traceable to a declared provider origin.
+    const entries = tokens(await getFrameSrc());
+    const declared = new Set<string>(PROVIDER_FRAME_ORIGINS);
+    for (const entry of entries) {
+      if (entry === "'self'") continue;
+      // Premium hosts and their wildcards are governed by their own test above.
+      if (PREMIUM_EMBED_HOSTS.some((h) => entry === `https://${h}` || entry === `https://*.${h}`)) {
+        continue;
+      }
+      // Origins that are not provider frames at all, each with its own reason.
+      if (
+        entry === 'https://video.sibnet.ru' || // /api/sibnet embed origin
+        entry === 'https://www.youtube.com' ||
+        entry === 'https://youtube.com'
+      ) {
+        continue;
+      }
+      assert.ok(
+        declared.has(entry),
+        `${entry} is allowed by frame-src but no provider declares it`,
+      );
     }
   });
 });

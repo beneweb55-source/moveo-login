@@ -207,7 +207,10 @@ export async function GET(request: Request) {
     targetUrl = built;
   } else {
     // No id: probe the provider entry point only, still from our own list.
-    targetUrl = provider.frameOrigin;
+    // frameOrigins[0] is the origin of the URL buildUrl() generates — the entry
+    // point. Later entries are redirect targets and are not where a probe
+    // should start.
+    targetUrl = provider.frameOrigins[0];
   }
 
   const controller = new AbortController();

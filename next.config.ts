@@ -18,7 +18,12 @@ import type {NextConfig} from 'next';
 //   frembed.work      — 302-redirects to frembed.surf, so it is never framed
 //   vidsrc.cc         — no code path references it
 //   www.2embed.to     — no code path references it (the app uses 2embed.cc)
-//   superembed.stream — no code path references it (the app uses multiembed.mov)
+//   superembed.stream — no code path references it (the app uses multiembed.mov).
+//     CORRECTION (2026-09-20): the SuperEmbed family DOES still use that host —
+//     the bare root of streamingnow.mov 302s to it. It is deliberately NOT
+//     reinstated, because the embed path we actually frame
+//     (streamingnow.mov/?play=<payload>) answers 200 and does not redirect. It
+//     becomes eligible only with a measurement of OUR embed path, not the root.
 //   femb.in           — no code path references it
 //   vidmoly.to        — no code path references it
 //   data: / blob:     — there is no data: or blob: iframe anywhere in the app
@@ -63,8 +68,26 @@ const VIDEO_FRAME_DOMAINS = [
   // Alternative servers — see PROVIDERS in lib/providers.ts
   'https://frembed.surf',
   'https://multiembed.mov',
+  // SuperEmbed's REDIRECT TARGET, measured 2026-09-20:
+  //   GET https://multiembed.mov/?video_id=550&tmdb=1
+  //     -> 302 -> https://streamingnow.mov/?play=<base64 payload>
+  // The payload is generated server-side, so the hop cannot be skipped the way
+  // frembed.work's is — the frame starts at multiembed.mov and lands here, and
+  // Chrome re-checks frame-src against the target. Without this entry the
+  // provider was blocked by our own policy while tests/csp.test.ts stayed green,
+  // because that test only ever checked the origin WE generate.
+  // streamingnow.mov is the provider's own host, not an ad domain:
+  //   GET https://streamingnow.mov/ -> 302 -> https://www.superembed.stream?c=embed
+  'https://streamingnow.mov',
   'https://vidsrc.to',
   'https://vidsrc.me',
+  // VidSrc.me's REDIRECT TARGET, measured 2026-09-20:
+  //   GET https://vidsrc.me/embed/movie?tmdb=550
+  //     -> 301 Moved Permanently -> https://vidsrc.sh/embed/movie?tmdb=550 (200)
+  // The query string survives the hop, so a later change could point the
+  // provider straight at vidsrc.sh and drop vidsrc.me; until that is reviewed
+  // deliberately, both origins are permitted so the frame works either way.
+  'https://vidsrc.sh',
   'https://www.2embed.cc',
   'https://player.smashy.stream',
   'https://vidlink.pro',

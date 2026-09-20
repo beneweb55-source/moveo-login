@@ -164,14 +164,21 @@ describe('input hardening', () => {
     );
   });
 
-  it('builds every URL on that provider own declared frame origin', () => {
+  it('builds every URL on that provider own declared entry origin', () => {
+    // frameOrigins[0] is the ENTRY origin — the origin of the URL buildUrl()
+    // produces. Later entries are redirect targets the provider chooses, so a
+    // generated URL can never legitimately sit on one of those.
     for (const provider of PROVIDERS) {
       const url = buildProviderUrl(provider.name, MOVIE);
       assert.ok(url);
       assert.equal(
         new URL(url).origin,
-        provider.frameOrigin,
+        provider.frameOrigins[0],
         `${provider.name} frames a different origin than it declares`,
+      );
+      assert.ok(
+        !provider.frameOrigins.slice(1).includes(new URL(url).origin),
+        `${provider.name} generates a URL on one of its redirect targets`,
       );
     }
   });
@@ -231,9 +238,20 @@ describe('provider list validation', () => {
   });
 
   it('declares HTTPS origins with no path', () => {
+    // Applies to every hop, not just the entry: a redirect target is matched by
+    // the browser as an origin, so a value carrying a path would be a config
+    // mistake that silently fails to match anything.
     for (const provider of PROVIDERS) {
-      assert.ok(provider.frameOrigin.startsWith('https://'), provider.name);
-      assert.equal(new URL(provider.frameOrigin).pathname, '/', provider.name);
+      assert.ok(provider.frameOrigins.length > 0, `${provider.name} declares no origin at all`);
+      for (const origin of provider.frameOrigins) {
+        assert.ok(origin.startsWith('https://'), `${provider.name}: ${origin}`);
+        assert.equal(new URL(origin).pathname, '/', `${provider.name}: ${origin}`);
+      }
+      assert.equal(
+        new Set(provider.frameOrigins).size,
+        provider.frameOrigins.length,
+        `${provider.name} lists the same origin twice`,
+      );
     }
     assert.ok(SBNET_FRAME_ORIGIN.startsWith('https://'));
   });

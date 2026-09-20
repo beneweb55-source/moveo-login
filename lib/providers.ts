@@ -45,8 +45,19 @@ export interface ProviderDefinition {
   group: string;
   /** i18n key for a provider-specific caveat, if any. */
   warningKey?: string;
-  /** Origin of the document we actually frame. Kept for CSP regression tests. */
-  frameOrigin: string;
+  /**
+   * EVERY origin this provider can put in a frame document, in navigation
+   * order: `[0]` is the origin of the URL buildUrl() produces, and each later
+   * entry is the origin of a redirect target the provider itself issues.
+   *
+   * WHY A LIST AND NOT A SINGLE ORIGIN: `frame-src` is re-checked against a
+   * redirect's TARGET, not only against the URL we wrote into the iframe. A
+   * single-origin field therefore described only half of what the browser
+   * enforces, and a provider whose entry point 302s was silently blocked while
+   * the test suite stayed green. Every entry below is a MEASUREMENT with a
+   * date — re-measure before editing, and never add one from documentation.
+   */
+  frameOrigins: readonly string[];
   /**
    * Origins permitted to postMessage our window on this provider's behalf.
    * EMPTY means: accept nothing. Only origins observed emitting real messages
@@ -79,7 +90,10 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
   {
     name: "Frembed",
     group: "Alternative",
-    frameOrigin: FREMBED_ORIGIN,
+    // No redirect hop: buildUrl targets frembed.surf directly rather than the
+    // frembed.work redirector (see module header). One origin is the whole
+    // chain.
+    frameOrigins: [FREMBED_ORIGIN],
     /**
      * Verified emitter. The audit observed exactly one message from this
      * origin: `{type:"episode_change",season:1,episode:1}` — which is NOT a
@@ -102,7 +116,16 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
   {
     name: "SuperEmbed",
     group: "Alternative",
-    frameOrigin: "https://multiembed.mov",
+    // MEASURED 2026-09-20 — this provider is a redirect chain, and unlike
+    // frembed.work the hop CANNOT be skipped:
+    //   GET /?video_id=550&tmdb=1 -> 302 -> https://streamingnow.mov/?play=<b64>
+    // The `play` payload is generated server-side, so the final URL is not
+    // reproducible from the id — the iframe must start at multiembed.mov and
+    // land on streamingnow.mov. BOTH origins must therefore be in `frame-src`,
+    // because Chrome re-checks frame-src against a redirect's target.
+    // streamingnow.mov is the same provider, not an ad domain:
+    //   GET https://streamingnow.mov/ -> 302 -> https://www.superembed.stream?c=embed
+    frameOrigins: ["https://multiembed.mov", "https://streamingnow.mov"],
     messageOrigins: [],
     buildUrl: ({type, id, season, episode}) => {
       const safeId = encodeId(id);
@@ -114,7 +137,7 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
   {
     name: "VidSrc.to",
     group: "Alternative",
-    frameOrigin: "https://vidsrc.to",
+    frameOrigins: ["https://vidsrc.to"],
     messageOrigins: [],
     buildUrl: ({type, id, season, episode}) => {
       const safeId = encodeId(id);
@@ -126,7 +149,15 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
   {
     name: "VidSrc.me",
     group: "Alternative",
-    frameOrigin: "https://vidsrc.me",
+    // MEASURED 2026-09-20 — this host is migrating:
+    //   GET /embed/movie?tmdb=550 -> 301 Moved Permanently -> https://vidsrc.sh/...
+    // (and a later probe from the same network got no answer at all from
+    // vidsrc.me while vidsrc.sh served the embed with 200). The query string is
+    // preserved across the hop, so the redirect COULD be skipped by pointing
+    // buildUrl at vidsrc.sh directly — that is a deliberate behavioural change
+    // and is left for its own review. Meantime both origins are allowed, so the
+    // provider works whether the browser takes the hop or not.
+    frameOrigins: ["https://vidsrc.me", "https://vidsrc.sh"],
     messageOrigins: [],
     buildUrl: ({type, id, season, episode}) => {
       const safeId = encodeId(id);
@@ -138,7 +169,7 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
   {
     name: "2Embed",
     group: "Alternative",
-    frameOrigin: "https://www.2embed.cc",
+    frameOrigins: ["https://www.2embed.cc"],
     messageOrigins: [],
     buildUrl: ({type, id, season, episode}) => {
       const safeId = encodeId(id);
@@ -150,7 +181,10 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
   {
     name: "SmashyStream",
     group: "Alternative",
-    frameOrigin: "https://player.smashy.stream",
+    // UNVERIFIED from our network on 2026-09-20 (connection timeout), so no
+    // redirect target can be declared. If this provider is revived, re-measure
+    // the chain before trusting this single entry.
+    frameOrigins: ["https://player.smashy.stream"],
     messageOrigins: [],
     buildUrl: ({type, id, season, episode}) => {
       const safeId = encodeId(id);
@@ -163,7 +197,7 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
     name: "VidLink",
     group: "Alternative",
     warningKey: "disableAdblock",
-    frameOrigin: "https://vidlink.pro",
+    frameOrigins: ["https://vidlink.pro"],
     messageOrigins: [],
     buildUrl: ({type, id, season, episode}) => {
       const safeId = encodeId(id);
@@ -172,6 +206,21 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
         : `https://vidlink.pro/tv/${safeId}/${toPositiveInt(season, 1)}/${toPositiveInt(episode, 1)}`;
     },
   },
+];
+
+/**
+ * Every origin ANY provider can place in a frame document — the union of the
+ * per-provider `frameOrigins`, including redirect targets.
+ *
+ * This is the list `frame-src` must cover. It exists because the previous
+ * single-origin field let a provider pass the CSP test while the browser
+ * blocked it: the test checked the origin we wrote, and the browser also checks
+ * where the provider redirects us. Consumers that want one canonical origin per
+ * provider (e.g. a probe target) should keep using `frameOrigins[0]`, which is
+ * the origin of the URL buildUrl() produces.
+ */
+export const PROVIDER_FRAME_ORIGINS: readonly string[] = [
+  ...new Set(PROVIDERS.flatMap((provider) => provider.frameOrigins)),
 ];
 
 /** Premium host, resolved from our own catalogue rather than a URL template. */
