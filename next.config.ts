@@ -15,7 +15,7 @@ import type {NextConfig} from 'next';
 //
 // Entries were pruned only when no code path can produce them (verified by
 // grepping the whole repo, not by assumption). The removed origins, and why:
-//   frembed.work      — does not resolve; the app generates frembed.surf only
+//   frembed.work      — 302-redirects to frembed.surf, so it is never framed
 //   vidsrc.cc         — no code path references it
 //   www.2embed.to     — no code path references it (the app uses 2embed.cc)
 //   superembed.stream — no code path references it (the app uses multiembed.mov)
@@ -23,7 +23,17 @@ import type {NextConfig} from 'next';
 //   vidmoly.to        — no code path references it
 //   data: / blob:     — there is no data: or blob: iframe anywhere in the app
 // Do not re-add these from third-party documentation: several listings still
-// name frembed.pro, which is a parked domain, and frembed.work, which is dead.
+// name frembed.pro, which is a parked domain.
+//
+// CORRECTION (2026-09-20): an earlier note here claimed frembed.work "does not
+// resolve". That was wrong. It resolves (Cloudflare) and 302-redirects to
+// frembed.surf:
+//   GET https://frembed.work/api/film.php?id=98               -> 302 -> frembed.surf/...
+//   GET https://frembed.work/api/serie.php?id=1399&sa=1&epi=1 -> 302 -> frembed.surf/...
+// The application deliberately frames frembed.surf DIRECTLY and never frames
+// the redirector. That is what matters for `frame-src`: Chrome re-checks
+// frame-src against a redirect's target, so framing frembed.work would require
+// allowing frembed.surf anyway. The hop is skipped rather than permitted.
 const VIDEO_FRAME_DOMAINS = [
   "'self'",
   // Premium servers (VOE / Dood). These URLs come from the catalogue tables

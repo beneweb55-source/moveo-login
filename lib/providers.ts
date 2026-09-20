@@ -17,8 +17,17 @@
  * no frame-ancestors, no CSP) on 2026-09-20.
  *
  * NOTE ON HOSTS: frembed.pro is a PARKED DOMAIN ("This domain may be for
- * sale") and frembed.work does not resolve. Several third-party listings
- * still reference .pro — do not "restore" it from documentation.
+ * sale"). Several third-party listings still reference it — do not "restore"
+ * it from documentation.
+ *
+ * frembed.work is a REDIRECTOR, not a dead host, despite an earlier note here
+ * claiming it "does not resolve". Measured 2026-09-20:
+ *   GET https://frembed.work/api/film.php?id=98               -> 302 -> frembed.surf/...
+ *   GET https://frembed.work/api/serie.php?id=1399&sa=1&epi=1 -> 302 -> frembed.surf/...
+ * The app deliberately frames frembed.surf DIRECTLY rather than the redirector,
+ * so frembed.work is intentionally absent from `frame-src` in next.config.ts.
+ * Framing the redirector would be pointless: Chrome re-checks frame-src against
+ * the redirect's target, so frembed.surf would have to be allowed regardless.
  */
 
 export type MediaType = "movie" | "tv";
