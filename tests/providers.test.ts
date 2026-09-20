@@ -20,8 +20,6 @@ import {describe, it} from 'node:test';
 
 import {
   DEFAULT_PROVIDER_NAME,
-  PREMIUM_EMBED_HOSTS,
-  PREMIUM_SERVER_NAME,
   PROVIDERS,
   SBNET_FRAME_ORIGIN,
   SBNET_SERVER_NAMES,
@@ -32,7 +30,6 @@ import {
   isProvider,
   isSibnetServer,
   isStorableServer,
-  pinPremiumEmbedUrl,
 } from '../lib/providers';
 
 const MOVIE = {type: 'movie' as const, id: '550'};
@@ -201,7 +198,15 @@ describe('provider list validation', () => {
     for (const name of SBNET_SERVER_NAMES) {
       assert.ok(isStorableServer(name), `${name} must be storable`);
     }
-    assert.ok(isStorableServer(PREMIUM_SERVER_NAME));
+    // Regression: the premium (VOE / Dood) tier was removed from the product,
+    // so a value it left behind in localStorage must NOT be treated as
+    // selectable — otherwise a user who last chose it is restored onto a server
+    // that no longer exists. resolveStoredProvider maps it to the default.
+    assert.equal(
+      isStorableServer('MOVEO PREMIUM'),
+      false,
+      'the removed premium server must not be restorable',
+    );
     assert.equal(isStorableServer('Bogus'), false);
     assert.equal(isStorableServer(''), false);
   });
@@ -262,70 +267,20 @@ describe('provider list validation', () => {
   });
 });
 
-describe('pinPremiumEmbedUrl — catalogue URLs are data, not constants', () => {
-  it('accepts a normal VOE embed URL', () => {
-    assert.equal(pinPremiumEmbedUrl('https://voe.sx/e/abc123'), 'https://voe.sx/e/abc123');
-  });
-
-  it('accepts Dood hosts and their subdomains', () => {
-    for (const url of [
-      'https://dood.watch/e/abc',
-      'https://player.dood.so/e/abc',
-      'https://cdn.dood.to/e/abc',
-    ]) {
-      assert.equal(pinPremiumEmbedUrl(url), url, url);
-    }
-  });
-
-  it('rejects a protocol-relative URL', () => {
-    // The shape that satisfied the old `includes('/e/')` short-circuit and was
-    // returned verbatim, to be used as an iframe src and as a link href.
-    assert.equal(pinPremiumEmbedUrl('//evil.example/e/x'), '');
-  });
-
-  it('rejects non-https schemes that carry a path', () => {
-    for (const url of [
-      'javascript:alert(1)',
-      'data:text/html,<script>alert(1)</script>',
-      'blob:https://voe.sx/1234',
-      'http://voe.sx/e/abc',
-    ]) {
-      assert.equal(pinPremiumEmbedUrl(url), '', url);
-    }
-  });
-
-  it('rejects a host merely containing an allowed host as a substring', () => {
-    // `voe.sx.evil.example` must not be treated as voe.sx, and neither must a
-    // lookalike hidden in a path or a query.
-    for (const url of [
-      'https://voe.sx.evil.example/e/x',
-      'https://evil.example/voe.sx/e/x',
-      'https://evil.example/?redirect=https://voe.sx/e/x',
-    ]) {
-      assert.equal(pinPremiumEmbedUrl(url), '', url);
-    }
-  });
-
-  it('rejects a bare id or relative path rather than guessing a host', () => {
-    for (const url of ['abc123', '/e/abc123', '']) {
-      assert.equal(pinPremiumEmbedUrl(url), '', url);
-    }
-  });
-
-  it('trims surrounding whitespace before deciding', () => {
-    assert.equal(pinPremiumEmbedUrl('  https://voe.sx/e/abc  '), 'https://voe.sx/e/abc');
-  });
-
-  it('rejects a non-string input without throwing', () => {
-    for (const value of [null, undefined, 42, {}, ['https://voe.sx/e/a']]) {
-      assert.equal(pinPremiumEmbedUrl(value as unknown as string), '');
-    }
-  });
-
-  it('accepts exactly the hosts it advertises, and no others', () => {
-    for (const host of PREMIUM_EMBED_HOSTS) {
-      assert.equal(pinPremiumEmbedUrl(`https://${host}/e/x`), `https://${host}/e/x`);
-    }
-    assert.equal(pinPremiumEmbedUrl('https://frembed.surf/e/x'), '');
-  });
-});
+/**
+ * The premium (VOE / Dood) tier used to have its own suite here, guarding
+ * `pinPremiumEmbedUrl` — the gate that decided which catalogue URLs could reach
+ * an iframe src or a link href. That function, its host list and the catalogue
+ * lookup that fed it were all removed together: the tier is not supported, and
+ * the URLs it stored were measured dead on production (voe.sx answered 404).
+ *
+ * The guards that still matter are kept, because they are about the REMOVAL
+ * holding rather than about the deleted code:
+ *   - the server cannot be restored from localStorage (see the storable-servers
+ *     test above);
+ *   - the hosts cannot be framed, because they are no longer in `frame-src`
+ *     (see the dead-origins test in tests/csp.test.ts).
+ * The lesson the deleted suite encoded still applies to every surviving
+ * provider: a value that came from a scrape is DATA, so it must be validated
+ * against an allowlist before it reaches a sink, and it must fail closed.
+ */

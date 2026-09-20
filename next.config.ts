@@ -27,6 +27,16 @@ import type {NextConfig} from 'next';
 //   femb.in           — no code path references it
 //   vidmoly.to        — no code path references it
 //   data: / blob:     — there is no data: or blob: iframe anywhere in the app
+//
+// REMOVED 2026-09-20 — voe.sx and the dood.* hosts, twelve entries in all (six
+// hosts, each listed bare and as a `*.` wildcard, because a wildcard does not
+// cover the bare host). These existed for one purpose: letting the player frame
+// a `voe_url`/`dood_url` read from /api/catalogue. That tier has been removed
+// from the product — VOE and Dood are not supported — and the mechanism that
+// selected it was measured on production 2026-09-20 selecting a dead embed
+// (voe.sx answered 404) as the DEFAULT source for a first-time visitor. No code
+// path can produce these origins now, which is the same standard applied to
+// every other removal above. Do not re-add them from a provider listing.
 // Do not re-add these from third-party documentation: several listings still
 // name frembed.pro, which is a parked domain.
 //
@@ -41,30 +51,6 @@ import type {NextConfig} from 'next';
 // allowing frembed.surf anyway. The hop is skipped rather than permitted.
 const VIDEO_FRAME_DOMAINS = [
   "'self'",
-  // Premium servers (VOE / Dood). These URLs come from the catalogue tables
-  // (voe_url / dood_url) and toVoeEmbed/toDoodEmbed only rewrites the PATH, so
-  // the host is whatever the scraper stored. Both the bare host and its
-  // subdomains are listed: a CSP `*.host` wildcard does NOT cover the bare
-  // host, and `https://dood.watch/e/...` is a normal shape for these links.
-  //
-  // RESIDUAL RISK, stated plainly: if the scraper ever stores a dood/voe mirror
-  // on a host that is not listed here, the browser will block that iframe,
-  // whereas the old blanket `https:` allowed it. The player reports such a
-  // frame as a load failure with Retry / Change server / Open in new tab, so it
-  // is visible and recoverable rather than silent. The fix is to add the host
-  // here — that is a deliberate, reviewed act, which is the point of the list.
-  'https://*.voe.sx',
-  'https://voe.sx',
-  'https://*.dood.watch',
-  'https://dood.watch',
-  'https://*.dood.to',
-  'https://dood.to',
-  'https://*.dood.so',
-  'https://dood.so',
-  'https://*.dood.pm',
-  'https://dood.pm',
-  'https://*.dood.wf',
-  'https://dood.wf',
   // Alternative servers — see PROVIDERS in lib/providers.ts
   'https://frembed.surf',
   'https://multiembed.mov',

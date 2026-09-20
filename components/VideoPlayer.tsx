@@ -9,7 +9,6 @@ import {
   ExternalLink,
   Globe,
   Loader2,
-  Lock,
   RefreshCw,
   Server,
   SkipBack,
@@ -22,7 +21,6 @@ import { saveWatchHistory } from "@/utils/historyManager";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   DEFAULT_PROVIDER_NAME,
-  PREMIUM_SERVER_NAME,
   PROVIDERS,
   SBNET_VF_NAME,
   SBNET_VOSTFR_NAME,
@@ -30,7 +28,6 @@ import {
   buildProviderUrl,
   getMessageOrigins,
   isStorableServer,
-  pinPremiumEmbedUrl,
 } from "@/lib/providers";
 import {
   createInitialPlayerState,
@@ -54,14 +51,6 @@ interface VideoPlayerProps {
   hasPrev?: boolean;
   onNext?: () => void;
   onPrev?: () => void;
-}
-
-type Language = "VF" | "VOSTFR";
-
-type PremiumHost = "VOE" | "DOOD";
-interface PremiumSource {
-  type: PremiumHost;
-  url: string;
 }
 
 const PROVIDER_ICONS: Record<string, React.ElementType> = {
@@ -88,13 +77,6 @@ const IFRAME_LOAD_TIMEOUT_MS = 20000;
  */
 const PLAYBACK_VERIFY_TIMEOUT_MS = 15000;
 
-/**
- * Upper bound on waiting for our own catalogue before rendering the default
- * provider. This is a first-party lookup of our own content, not a third-party
- * availability probe — and it is capped so it can never hold playback hostage.
- */
-const SOURCE_RESOLVE_CAP_MS = 2500;
-
 const WATCH_PROGRESS_THROTTLE_MS = 5000;
 
 /**
@@ -104,38 +86,6 @@ const WATCH_PROGRESS_THROTTLE_MS = 5000;
  * skips when there is no URL) and no error panel.
  */
 const SBNET_FETCH_TIMEOUT_MS = 8000;
-
-const toVoeEmbed = (url: string): string => {
-  if (!url) return "";
-  if (url.includes("/e/")) return url;
-  try {
-    const urlObj = new URL(url);
-    if (!urlObj.pathname.startsWith("/e/")) {
-      const pathParts = urlObj.pathname.split("/").filter(Boolean);
-      if (pathParts.length > 0 && pathParts[0] !== "e") {
-        urlObj.pathname = "/e/" + pathParts.join("/");
-      }
-    }
-    return urlObj.toString();
-  } catch {
-    if (url && !url.includes("http")) return `https://voe.sx/e/${url}`;
-    return url;
-  }
-};
-
-const toDoodEmbed = (url: string): string => {
-  if (!url) return "";
-  if (url.includes("/e/")) return url;
-  try {
-    const urlObj = new URL(url);
-    if (urlObj.pathname.startsWith("/d/")) {
-      urlObj.pathname = urlObj.pathname.replace("/d/", "/e/");
-    }
-    return urlObj.toString();
-  } catch {
-    return url.replace("/d/", "/e/");
-  }
-};
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
   id,
@@ -153,10 +103,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const { t } = useLanguage();
 
-  const [activeLang, setActiveLang] = useState<Language>("VF");
-  const [premiumSources, setPremiumSources] = useState<Record<string, PremiumSource[]>>({});
-  const [selectedPremiumHost, setSelectedPremiumHost] = useState<PremiumHost>("VOE");
-  const [isResolvingSources, setIsResolvingSources] = useState(true);
   const [requestStatus, setRequestStatus] = useState<
     "idle" | "loading" | "success" | "already_requested" | "error"
   >("idle");
@@ -210,20 +156,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // ---------------------------------------------------------------------------
   // 1. Resolve the content source for this title/episode.
   //
-  // This no longer asks a server-side probe whether a provider is "healthy".
-  // It fetches our OWN catalogue (premium sources) and otherwise renders the
-  // user's stored provider and lets the browser try it. A datacenter fetch of a
-  // third-party page is not evidence about a user's browser, and treating it as
-  // evidence is what used to strand users on a wrong source.
+  // This never asks a server whether a provider is "healthy". A datacenter fetch
+  // of a third-party page is not evidence about a user's browser, and treating it
+  // as evidence is what used to strand users on a wrong source. The stored
+  // preference (or the default) is rendered immediately and the browser tries it.
+  //
+  // It also no longer reads /api/catalogue. That lookup existed to find a premium
+  // (VOE / Dood) source and to prefer it over every real provider. The tier is
+  // gone, and the URLs it returned were measured dead on production (voe.sx
+  // answered 404), so the effect was defaulting first-time visitors onto a 404.
+  // What remains is a synchronous decision — which is also why there is no longer
+  // a "resolving" overlay for playback to wait behind.
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    let isMounted = true;
-
     // Reset everything that belongs to the previous title/episode, so nothing
     // leaks across (this includes the Sibnet URLs, which previously survived an
     // episode change and pointed at the previous episode).
-    setPremiumSources({});
-    setSelectedPremiumHost("VOE");
     setSibnetVfUrl(null);
     setSibnetVostfrUrl(null);
     setRequestStatus("idle");
@@ -232,10 +180,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     // real position of a new title/episode can be swallowed by a save belonging
     // to the previous one.
     lastSaveTime.current = 0;
-    setIsResolvingSources(true);
 
     // Back to LOADING for the new title/episode. Keeps the user's server, but
-    // re-arms the load timeout and the loading overlay.
+    // re-arms the load timeout.
     dispatch({ type: "RETRY" });
 
     // Validate the stored preference. An unknown value is ignored, removed, and
@@ -261,96 +208,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     }
 
-    // Apply an explicit stored preference NOW instead of waiting for the
-    // catalogue. Measured reason: when the lookup outlasts
-    // SOURCE_RESOLVE_CAP_MS the resolving overlay is lifted first, so the
-    // DEFAULT provider's frame started loading and was then discarded when the
-    // real preference arrived — a wasted third-party load, a second watchdog
-    // cycle, and a visible flash of the wrong player.
-    //
-    // Deliberately narrow. Nothing is dispatched when the user has no stored
-    // preference (there is nothing known synchronously to apply, so the current
-    // server is left as it is), and nothing is dispatched for a stored PREMIUM
-    // preference either — whether premium has a source at all is exactly what
-    // the lookup establishes. Dispatching in either of those cases would force
-    // the server back to the default on every episode change, which is the same
-    // wrong-provider flash in the opposite direction.
-    if (hadStored && preferred !== PREMIUM_SERVER_NAME) {
+    // Deliberately narrow: nothing is dispatched when the user has no stored
+    // preference, because there is nothing known to apply and dispatching the
+    // default would force the server back on every episode change — the same
+    // flash of the wrong provider in the opposite direction. A manual choice
+    // therefore survives episode and title navigation.
+    if (hadStored) {
       dispatch({ type: "SELECT_AUTO", server: preferred });
     }
 
-    // Cap the wait: we never block playback on this lookup.
-    const cap = setTimeout(() => {
-      if (isMounted) setIsResolvingSources(false);
-    }, SOURCE_RESOLVE_CAP_MS);
-
-    const resolveSources = async () => {
-      try {
-        const fetchUrl =
-          type === "movie"
-            ? `/api/catalogue?tmdb_id=${id}`
-            : `/api/catalogue?tmdb_id=${id}&season=${season}&episode=${episode}`;
-        const res = await fetch(fetchUrl);
-        const data = await res.json();
-
-        if (!isMounted) return;
-
-        // The catalogue columns are scraper-written DATA, not constants, and
-        // toVoeEmbed/toDoodEmbed only rewrite the path — so every URL is pinned
-        // to the premium hosts before it can reach an iframe src or a link href.
-        // `//evil.example/e/x` and `javascript:`/`data:` previously passed the
-        // path rewrite through unchanged; see pinPremiumEmbedUrl.
-        const sources: PremiumSource[] = [];
-        if (data?.voe_url) {
-          sources.push({ type: "VOE", url: pinPremiumEmbedUrl(toVoeEmbed(data.voe_url)) });
-        }
-        if (data?.dood_url) {
-          sources.push({ type: "DOOD", url: pinPremiumEmbedUrl(toDoodEmbed(data.dood_url)) });
-        }
-        const usable = sources.filter((source) => source.url !== "");
-
-        // A URL we will not frame must not count as "premium available": the
-        // premium branch tells the user the content is still being encoded,
-        // which would be a false explanation when the real cause is a host the
-        // CSP does not permit.
-        const hasPremium = usable.length > 0;
-
-        if (hasPremium) {
-          const serverLang: Language = data?.lang === "VOSTFR" ? "VOSTFR" : "VF";
-
-          setPremiumSources((prev) => ({ ...prev, [serverLang]: usable }));
-          setActiveLang(serverLang);
-          setSelectedPremiumHost(usable[0].type);
-
-          // The user's explicit provider preference outranks premium; otherwise
-          // premium is the intended default.
-          const target =
-            hadStored && preferred !== PREMIUM_SERVER_NAME ? preferred : PREMIUM_SERVER_NAME;
-          dispatch({ type: "SELECT_AUTO", server: target });
-        } else {
-          // No premium source: keep the user's provider, or the default.
-          const target = preferred === PREMIUM_SERVER_NAME ? DEFAULT_PROVIDER_NAME : preferred;
-          dispatch({ type: "SELECT_AUTO", server: target });
-        }
-      } catch (error) {
-        console.error("[VideoPlayer] catalogue lookup failed", error);
-        if (!isMounted) return;
-        const target = preferred === PREMIUM_SERVER_NAME ? DEFAULT_PROVIDER_NAME : preferred;
-        dispatch({ type: "SELECT_AUTO", server: target });
-      } finally {
-        if (isMounted) {
-          clearTimeout(cap);
-          setIsResolvingSources(false);
-        }
-      }
-    };
-
-    resolveSources();
-
-    return () => {
-      isMounted = false;
-      clearTimeout(cap);
-    };
   }, [id, type, season, episode, resetPlaybackObservation]);
 
   // ---------------------------------------------------------------------------
@@ -428,26 +294,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // 3. The resolved iframe URL. Built only from our own provider list.
   // ---------------------------------------------------------------------------
   const videoUrl = useMemo(() => {
-    if (player.server === PREMIUM_SERVER_NAME) {
-      const sources = premiumSources[activeLang] || [];
-      const selected = sources.find((s) => s.type === selectedPremiumHost) || sources[0];
-      return selected ? selected.url : "";
-    }
     if (player.server === SBNET_VF_NAME) return sibnetVfUrl || "";
     if (player.server === SBNET_VOSTFR_NAME) return sibnetVostfrUrl || "";
     return buildProviderUrl(player.server, { type, id, season, episode }) ?? "";
-  }, [
-    player.server,
-    premiumSources,
-    activeLang,
-    selectedPremiumHost,
-    sibnetVfUrl,
-    sibnetVostfrUrl,
-    type,
-    id,
-    season,
-    episode,
-  ]);
+  }, [player.server, sibnetVfUrl, sibnetVostfrUrl, type, id, season, episode]);
 
   // ---------------------------------------------------------------------------
   // 4. Timers. Both are armed by the phase and cleaned up by React, so no timer
@@ -458,14 +308,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     if (player.phase !== "LOADING") return;
     if (!videoUrl) return; // no URL to load; handled as UNAVAILABLE below
-    // The clock must start when the frame can actually load. While the resolving
-    // overlay is up the iframe is not mounted yet, and AnimatePresence holds the
-    // exit animation — measured as ~2.8s of this budget already spent before the
-    // frame existed, on a timeout whose own comment calls it generous.
-    if (isResolvingSources) return;
+    // The clock starts with the frame, which is now mounted on the same render
+    // that produces a URL — there is no resolving overlay for it to wait behind.
     const timer = setTimeout(() => dispatch({ type: "LOAD_TIMEOUT" }), IFRAME_LOAD_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [player.phase, player.attempt, player.server, videoUrl, isResolvingSources]);
+  }, [player.phase, player.attempt, player.server, videoUrl]);
 
   // The document loaded but nothing observable arrived: advisory only, and the
   // iframe stays mounted.
@@ -479,37 +326,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return () => clearTimeout(timer);
   }, [player.phase, player.attempt, player.server, playbackObserved]);
 
-  // There is no source to load at all (premium not in the catalogue, or Sibnet
-  // returned nothing). Distinct from a load failure: the iframe never existed.
+  // There is no source to load at all (Sibnet returned nothing, or the selected
+  // server produced no URL). Distinct from a load failure: the iframe never
+  // existed.
   useEffect(() => {
     // Idempotence is enforced by the reducer as well, but the guard is stated
     // here so the invariant is visible where the dispatch is made: once
     // UNAVAILABLE, this effect has nothing left to say.
     if (player.phase === "UNAVAILABLE") return;
     if (videoUrl) return;
-    if (isResolvingSources) return;
-    if (player.server === PREMIUM_SERVER_NAME && premiumSources[activeLang]?.length) return;
     if (isSibnetLoading) return;
     dispatch({ type: "MARK_UNAVAILABLE" });
-  }, [
-    videoUrl,
-    isResolvingSources,
-    isSibnetLoading,
-    player.server,
-    player.phase,
-    premiumSources,
-    activeLang,
-  ]);
+  }, [videoUrl, isSibnetLoading, player.server, player.phase]);
 
   // 4b. A source became resolvable AFTER we declared UNAVAILABLE: resume.
   //
-  // Measured failure this prevents: on an episode change the catalogue lookup can
-  // outlast SOURCE_RESOLVE_CAP_MS, so UNAVAILABLE is declared at the cap and the
-  // catalogue's later SELECT_AUTO is then a NO-OP — it names the server already
-  // selected (playerState.ts:87) — leaving the phase terminal while a working URL
-  // exists. The render branch below tests the phase BEFORE the URL, so the iframe
-  // was never mounted and the user was told the content was still being encoded.
-  // The same applies whenever a manual premium selection's URL arrives late.
+  // Measured failure this prevents: on an episode change the Sibnet scrape can
+  // still be in flight when UNAVAILABLE is declared, and the later arrival of a
+  // URL then left the phase terminal while a working URL existed — the dispatch
+  // that names the server already selected is a NO-OP (playerState.ts:87). The
+  // render branch below tests the phase BEFORE the URL, so the iframe would never
+  // be mounted and the user would be told the content was still being encoded.
   //
   // Terminates immediately: RETRY moves the phase off UNAVAILABLE, which is this
   // effect's own guard, so it cannot dispatch twice. It also cannot fight the
@@ -604,13 +441,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     [resetPlaybackObservation],
   );
 
-  const handleLangChange = (lang: Language) => {
-    setActiveLang(lang);
-    setRequestStatus("idle");
-    resetPlaybackObservation();
-    dispatch({ type: "RETRY" });
-  };
-
   const handleRequestFilm = async () => {
     setRequestStatus("loading");
     try {
@@ -643,12 +473,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const nextServerName = useMemo(() => {
     const names = PROVIDERS.map((p) => p.name);
     const index = names.indexOf(player.server);
-    if (index === -1) return names[0] ?? DEFAULT_PROVIDER_NAME; // premium / Sibnet → first provider
+    if (index === -1) return names[0] ?? DEFAULT_PROVIDER_NAME; // Sibnet → first provider
     return names[(index + 1) % names.length];
   }, [player.server]);
-
-  const isPremiumWithoutSource =
-    player.phase === "UNAVAILABLE" && player.server === PREMIUM_SERVER_NAME;
 
   const phaseLabel =
     player.phase === "LOADING"
@@ -675,90 +502,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         )}
 
         <AnimatePresence mode="wait">
-          {isResolvingSources ? (
-            <motion.div
-              key="resolving"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl text-white"
-            >
-              <Loader2 className="w-8 h-8 text-white/50 animate-spin mb-6" />
-              <h3 className="text-sm font-medium tracking-widest uppercase text-white/70">
-                {t.details.searchingServer || "Initialisation du flux..."}
-              </h3>
-            </motion.div>
-          ) : isHardFailure(player.phase) ? (
-            isPremiumWithoutSource ? (
-              <motion.div
-                key="premium-unavailable"
-                role="alert"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/60 backdrop-blur-2xl text-white p-6 text-center"
-              >
-                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(255,255,255,0.03)]">
-                  <Lock className="w-6 h-6 text-white/50" />
-                </div>
-                <h3 className="text-xl font-light tracking-tight text-white mb-2">
-                  {t.interpolate(t.details.encodingTitle, { lang: activeLang }) ||
-                    "Contenu en cours d'encodage"}
-                </h3>
-                <p className="text-sm text-white/40 max-w-md mb-8 leading-relaxed">
-                  {t.details.encodingDesc ||
-                    "Ce contenu n'est pas encore disponible sur nos serveurs sécurisés Moveo Premium en " +
-                      activeLang +
-                      ". Vous pouvez demander son encodage prioritaire ou utiliser une source alternative ci-dessous."}
-                </p>
-
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleRequestFilm}
-                  disabled={requestStatus !== "idle"}
-                  className={`px-6 py-3 rounded-xl flex items-center gap-3 text-sm font-medium transition-all duration-300 ${
-                    requestStatus === "success"
-                      ? "bg-white/10 text-white border border-white/20"
-                      : requestStatus === "already_requested"
-                        ? "bg-white/10 text-white/70 border border-white/20"
-                        : requestStatus === "error"
-                          ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                          : "bg-white text-black hover:bg-zinc-200 shadow-[0_0_20px_rgba(255,255,255,0.1)]"
-                  }`}
-                >
-                  {requestStatus === "idle" && (
-                    <>
-                      <Database className="w-4 h-4" />{" "}
-                      {t.details.requestEncoding || "Demander l'encodage prioritaire"}
-                    </>
-                  )}
-                  {requestStatus === "loading" && (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />{" "}
-                      {t.details.sending || "Envoi en cours..."}
-                    </>
-                  )}
-                  {requestStatus === "success" && (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />{" "}
-                      {t.details.requestSent || "Demande envoyée avec succès"}
-                    </>
-                  )}
-                  {requestStatus === "already_requested" && (
-                    <>
-                      <CheckCircle2 className="w-4 h-4" />{" "}
-                      {t.details.requestAlready || "Déjà dans la file d'attente"}
-                    </>
-                  )}
-                  {requestStatus === "error" && (
-                    <>
-                      <AlertCircle className="w-4 h-4" /> {t.details.error || "Une erreur est survenue"}
-                    </>
-                  )}
-                </motion.button>
-              </motion.div>
-            ) : player.phase === "UNAVAILABLE" ? (
+          {isHardFailure(player.phase) ? (
+            player.phase === "UNAVAILABLE" ? (
               <motion.div
                 key="source-unavailable"
                 role="alert"
@@ -777,12 +522,70 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   {t.details.sourceUnavailableDesc ||
                     "Aucun flux n'a pu être résolu pour cette source. Choisis-en une autre ci-dessous."}
                 </p>
-                <button
-                  onClick={() => handleServerChange(nextServerName)}
-                  className="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-sm font-medium transition-all duration-300"
-                >
-                  {t.details.changeServer || "Changer de source"}
-                </button>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    onClick={() => handleServerChange(nextServerName)}
+                    className="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-sm font-medium transition-all duration-300"
+                  >
+                    {t.details.changeServer || "Changer de source"}
+                  </button>
+                  {/*
+                    Relocated from the removed premium panel, where this button
+                    was the only way to ask for an encode. That panel was the
+                    wrong home for it: it claimed "contenu en cours d'encodage"
+                    for any title whose premium URL was missing — an explanation
+                    the player itself documented as false — and it only appeared
+                    for that one server. Requesting an encode belongs here, where
+                    the honest condition is simply "no source resolved".
+                    The same request is also offered by the movie page itself.
+                  */}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleRequestFilm}
+                    disabled={requestStatus !== "idle"}
+                    className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-300 ${
+                      requestStatus === "success"
+                        ? "bg-white/10 text-white border border-white/20"
+                        : requestStatus === "already_requested"
+                          ? "bg-white/10 text-white/70 border border-white/20"
+                          : requestStatus === "error"
+                            ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                            : "bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    {requestStatus === "idle" && (
+                      <>
+                        <Database className="w-4 h-4" />{" "}
+                        {t.details.requestEncoding || "Demander l'encodage prioritaire"}
+                      </>
+                    )}
+                    {requestStatus === "loading" && (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                        {t.details.sending || "Envoi en cours..."}
+                      </>
+                    )}
+                    {requestStatus === "success" && (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />{" "}
+                        {t.details.requestSent || "Demande envoyée avec succès"}
+                      </>
+                    )}
+                    {requestStatus === "already_requested" && (
+                      <>
+                        <CheckCircle2 className="w-4 h-4" />{" "}
+                        {t.details.requestAlready || "Déjà dans la file d'attente"}
+                      </>
+                    )}
+                    {requestStatus === "error" && (
+                      <>
+                        <AlertCircle className="w-4 h-4" />{" "}
+                        {t.details.error || "Une erreur est survenue"}
+                      </>
+                    )}
+                  </motion.button>
+                </div>
               </motion.div>
             ) : (
               <motion.div
@@ -938,7 +741,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
               <iframe
                 ref={iframeRef}
-                key={`${player.server}-${activeLang}-${videoUrl}-${player.attempt}`}
+                key={`${player.server}-${videoUrl}-${player.attempt}`}
                 src={videoUrl}
                 className="w-full h-full relative z-20"
                 allowFullScreen
@@ -995,238 +798,110 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
 
       {/* --- CONTRÔLES (DARK LUXURY) --- */}
-      <div className="flex flex-col xl:flex-row gap-8 items-start">
-        {/* Colonne Gauche : Langue & Premium */}
-        <div className="w-full xl:w-1/3 flex flex-col gap-8">
-          {/* Sélecteur de Langue (Segmented Control) */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">
-              Audio
-            </h3>
-            <div className="flex p-1 bg-black rounded-xl border border-white/10 w-fit shadow-inner">
-              {(["VF", "VOSTFR"] as Language[]).map((lang) => {
-                const isActive = activeLang === lang;
-                return (
-                  <button
-                    key={lang}
-                    aria-pressed={isActive}
-                    onClick={() => handleLangChange(lang)}
-                    className={`relative px-8 py-2.5 rounded-lg text-xs font-bold transition-all duration-300 z-10 ${
-                      isActive ? "text-white" : "text-white/40 hover:text-white/70"
-                    }`}
-                  >
-                    {isActive && (
-                      <motion.div
-                        layoutId="activeLangBg"
-                        className="absolute inset-0 bg-white/10 rounded-lg border border-white/5 shadow-[0_2px_10px_rgba(0,0,0,0.2)]"
-                        initial={false}
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-20 flex items-center gap-2">
-                      {lang}
-                      {premiumSources[lang]?.length > 0 && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-                      )}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Serveur Premium */}
-          <div className="flex flex-col gap-3">
-            <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">
-              Source Principale
-            </h3>
-            <button
-              onClick={() => handleServerChange(PREMIUM_SERVER_NAME)}
-              className={`relative w-full p-4 rounded-xl text-left overflow-hidden transition-all duration-500 border ${
-                player.server === PREMIUM_SERVER_NAME
-                  ? "bg-white/5 border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.03)]"
-                  : "bg-black border-white/5 hover:bg-white/5"
-              }`}
+      <div className="w-full flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">
+            Sources Alternatives
+          </h3>
+          {videoUrl && (
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-white/40 hover:text-white/80 transition-all group"
             >
-              <div className="relative z-10 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`p-2 rounded-lg flex items-center justify-center ${
-                      player.server === PREMIUM_SERVER_NAME ? "bg-white/10" : "bg-white/5"
-                    }`}
-                  >
-                    <Image
-                      src="/favicon.png"
-                      alt="Moveo"
-                      width={20}
-                      height={20}
-                      unoptimized={true}
-                      className={`w-5 h-5 object-contain transition-opacity duration-300 ${
-                        player.server === PREMIUM_SERVER_NAME ? "opacity-100" : "opacity-50"
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <h4
-                      className={`font-medium text-sm flex items-center gap-2 ${
-                        player.server === PREMIUM_SERVER_NAME ? "text-white" : "text-white/60"
-                      }`}
-                    >
-                      MOVEO PREMIUM
-                    </h4>
-                    <p className="text-xs text-white/40 mt-0.5">Réseau Sécurisé Privé</p>
-                  </div>
-                </div>
-                {player.server === PREMIUM_SERVER_NAME && (
-                  <CheckCircle2 className="w-4 h-4 text-white/50" />
-                )}
-              </div>
-            </button>
-
-            {/*
-              Host selector. The previous "Hors ligne" badge came from a
-              server-side fetch of the source URL, which reports VOE as
-              unreachable from a datacenter while it plays fine in a browser.
-              Showing that as fact was misleading, so the badge is gone and the
-              iframe result is the only authority.
-            */}
-            {player.server === PREMIUM_SERVER_NAME && premiumSources[activeLang]?.length > 0 && (
-              <div className="flex gap-2 mt-1">
-                {premiumSources[activeLang].map((source) => {
-                  const isSelected = selectedPremiumHost === source.type;
-                  return (
-                    <button
-                      key={source.type}
-                      aria-pressed={isSelected}
-                      onClick={() => {
-                        setSelectedPremiumHost(source.type);
-                        resetPlaybackObservation();
-                        dispatch({ type: "RETRY" });
-                      }}
-                      className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        isSelected
-                          ? "bg-white/15 text-white border border-white/20 shadow-sm"
-                          : "bg-black text-white/40 border border-white/5 hover:bg-white/5 hover:text-white/70"
-                      }`}
-                    >
-                      <Database
-                        className={`w-3.5 h-3.5 ${isSelected ? "text-white" : "text-white/30"}`}
-                      />
-                      Serveur {source.type}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+              <span>{t.details.openInNewTab || "Ouvrir"}</span>
+              <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+            </a>
+          )}
         </div>
 
-        {/* Colonne Droite : Serveurs Alternatifs */}
-        <div className="w-full xl:w-2/3 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">
-              Sources Alternatives
-            </h3>
-            {videoUrl && (
-              <a
-                href={videoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-white/40 hover:text-white/80 transition-all group"
-              >
-                <span>{t.details.openInNewTab || "Ouvrir"}</span>
-                <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-              </a>
-            )}
-          </div>
-
-          <div className="bg-black border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
-            {sibnetVfUrl || isSibnetLoading ? (
-              <button
-                onClick={() => sibnetVfUrl && handleServerChange(SBNET_VF_NAME)}
-                disabled={!sibnetVfUrl}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+        <div className="bg-black border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
+          {sibnetVfUrl || isSibnetLoading ? (
+            <button
+              onClick={() => sibnetVfUrl && handleServerChange(SBNET_VF_NAME)}
+              disabled={!sibnetVfUrl}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
                   player.server === SBNET_VF_NAME
                     ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
                     : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
                 } ${!sibnetVfUrl ? "opacity-50 cursor-wait" : ""}`}
-              >
-                {isSibnetLoading && !sibnetVfUrl ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
-                ) : (
-                  <Globe
-                    className={`w-3.5 h-3.5 ${
+            >
+              {isSibnetLoading && !sibnetVfUrl ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
+              ) : (
+                <Globe
+                  className={`w-3.5 h-3.5 ${
                       player.server === SBNET_VF_NAME ? "text-white" : "text-white/30"
                     }`}
-                  />
-                )}
-                Sibnet VF
-              </button>
-            ) : (
-              <button
-                disabled
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
-              >
-                <Globe className="w-3.5 h-3.5 text-white/20" />
-                Sibnet VF (Indisponible)
-              </button>
-            )}
+                />
+              )}
+              Sibnet VF
+            </button>
+          ) : (
+            <button
+              disabled
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
+            >
+              <Globe className="w-3.5 h-3.5 text-white/20" />
+              Sibnet VF (Indisponible)
+            </button>
+          )}
 
-            {sibnetVostfrUrl || isSibnetLoading ? (
-              <button
-                onClick={() => sibnetVostfrUrl && handleServerChange(SBNET_VOSTFR_NAME)}
-                disabled={!sibnetVostfrUrl}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+          {sibnetVostfrUrl || isSibnetLoading ? (
+            <button
+              onClick={() => sibnetVostfrUrl && handleServerChange(SBNET_VOSTFR_NAME)}
+              disabled={!sibnetVostfrUrl}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
                   player.server === SBNET_VOSTFR_NAME
                     ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
                     : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
                 } ${!sibnetVostfrUrl ? "opacity-50 cursor-wait" : ""}`}
-              >
-                {isSibnetLoading && !sibnetVostfrUrl ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
-                ) : (
-                  <Globe
-                    className={`w-3.5 h-3.5 ${
+            >
+              {isSibnetLoading && !sibnetVostfrUrl ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
+              ) : (
+                <Globe
+                  className={`w-3.5 h-3.5 ${
                       player.server === SBNET_VOSTFR_NAME ? "text-white" : "text-white/30"
                     }`}
-                  />
-                )}
-                Sibnet VOSTFR
-              </button>
-            ) : (
-              <button
-                disabled
-                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
-              >
-                <Globe className="w-3.5 h-3.5 text-white/20" />
-                Sibnet VOSTFR (Indisponible)
-              </button>
-            )}
+                />
+              )}
+              Sibnet VOSTFR
+            </button>
+          ) : (
+            <button
+              disabled
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
+            >
+              <Globe className="w-3.5 h-3.5 text-white/20" />
+              Sibnet VOSTFR (Indisponible)
+            </button>
+          )}
 
-            {PROVIDERS.map((provider) => {
-              const isActive = player.server === provider.name;
-              const Icon = PROVIDER_ICONS[provider.name] ?? Server;
-              return (
-                <button
-                  key={provider.name}
-                  onClick={() => handleServerChange(provider.name)}
-                  title={provider.warningKey ? t.details.disableAdblock : undefined}
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+          {PROVIDERS.map((provider) => {
+            const isActive = player.server === provider.name;
+            const Icon = PROVIDER_ICONS[provider.name] ?? Server;
+            return (
+              <button
+                key={provider.name}
+                onClick={() => handleServerChange(provider.name)}
+                title={provider.warningKey ? t.details.disableAdblock : undefined}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
                     isActive
                       ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
                       : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
                   }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-white/30"}`} />
-                  {provider.name}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-[10px] text-white/20 px-2 mt-2 uppercase tracking-wider">
-            Les sources alternatives proviennent de serveurs tiers publics.
-          </p>
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-white/30"}`} />
+                {provider.name}
+              </button>
+            );
+          })}
         </div>
+        <p className="text-[10px] text-white/20 px-2 mt-2 uppercase tracking-wider">
+          Les sources alternatives proviennent de serveurs tiers publics.
+        </p>
       </div>
     </div>
   );

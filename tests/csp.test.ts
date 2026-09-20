@@ -14,7 +14,6 @@ import {describe, it} from 'node:test';
 
 import nextConfig from '../next.config';
 import {
-  PREMIUM_EMBED_HOSTS,
   PROVIDERS,
   PROVIDER_FRAME_ORIGINS,
   SBNET_FRAME_ORIGIN,
@@ -105,20 +104,6 @@ describe('frame-src covers every provider the app can frame', () => {
     assert.ok(originAllowed(SBNET_FRAME_ORIGIN, entries));
   });
 
-  it('allows the premium hosts the catalogue can return', async () => {
-    // Those URLs come from /api/catalogue (voe_url / dood_url) at runtime.
-    const entries = tokens(await getFrameSrc());
-    for (const host of [
-      'https://voe.sx',
-      'https://sub.voe.sx',
-      'https://dood.watch',
-      'https://sub.dood.to',
-      'https://player.dood.so',
-    ]) {
-      assert.ok(originAllowed(host, entries), `${host} would be blocked by our own CSP`);
-    }
-  });
-
   it('allows the YouTube trailer embed', async () => {
     const entries = tokens(await getFrameSrc());
     assert.ok(originAllowed('https://www.youtube.com', entries));
@@ -168,6 +153,36 @@ describe('frame-src is narrower than what it replaced', () => {
     }
   });
 
+  it('no longer permits the removed premium (VOE / Dood) hosts, bare or as a wildcard', async () => {
+    // This is the point of the removal, stated as a test so it cannot be undone
+    // by accident. Those twelve entries existed only so the player could frame a
+    // voe_url/dood_url from /api/catalogue. The tier is not supported by the
+    // product, the lookup that fed it is gone, and the URLs it stored were
+    // measured dead (voe.sx answered 404) — so nothing may frame these again.
+    //
+    // Both shapes are asserted: a `https://*.host` wildcard does NOT cover the
+    // bare host, so leaving either behind would still be permission for a
+    // provider we no longer have.
+    const entries = tokens(await getFrameSrc());
+    for (const host of [
+      'voe.sx',
+      'dood.watch',
+      'dood.to',
+      'dood.so',
+      'dood.pm',
+      'dood.wf',
+    ]) {
+      assert.ok(
+        !entries.includes(`https://${host}`),
+        `${host} is still permitted as a bare host`,
+      );
+      assert.ok(
+        !entries.includes(`https://*.${host}`),
+        `${host} is still permitted as a wildcard`,
+      );
+    }
+  });
+
   it('still allows every origin the previous policy allowed that code can use', async () => {
     // A narrowing that silently dropped a working provider would be a bug.
     const entries = tokens(await getFrameSrc());
@@ -182,7 +197,6 @@ describe('frame-src is narrower than what it replaced', () => {
       'https://video.sibnet.ru',
       'https://youtube.com',
       'https://www.youtube.com',
-      'https://voe.sx',
     ]) {
       assert.ok(entries.includes(kept), `${kept} must remain allowed`);
     }
@@ -202,35 +216,6 @@ describe('the policy is scoped to frame-src only', () => {
     // loosened or tightened by this change.
     assert.equal((csp.value.match(/;/g) ?? []).length, 0);
     assert.ok(csp.value.trim().startsWith('frame-src '));
-  });
-});
-
-describe('the premium pinning list and the CSP cannot drift apart', () => {
-  it('permits every host pinPremiumEmbedUrl will accept', async () => {
-    // pinPremiumEmbedUrl is the gate deciding which catalogue URLs may reach an
-    // iframe src or a link href. If it accepts a host that frame-src rejects,
-    // the player offers a source the browser then blocks — so the two lists are
-    // held together here.
-    const entries = tokens(await getFrameSrc());
-    for (const host of PREMIUM_EMBED_HOSTS) {
-      assert.ok(
-        originAllowed(`https://${host}`, entries),
-        `${host} is accepted by pinPremiumEmbedUrl but blocked by our own CSP`,
-      );
-      assert.ok(
-        originAllowed(`https://cdn.${host}`, entries),
-        `subdomains of ${host} are accepted by pinPremiumEmbedUrl but blocked by our own CSP`,
-      );
-    }
-  });
-
-  it('lists the bare host as well as the wildcard for each one', async () => {
-    // A `https://*.host` entry does NOT cover the bare host, and
-    // `https://dood.watch/e/...` is a normal shape for these links.
-    const entries = tokens(await getFrameSrc());
-    for (const host of PREMIUM_EMBED_HOSTS) {
-      assert.ok(entries.includes(`https://${host}`), `missing bare host entry for ${host}`);
-    }
   });
 });
 
@@ -305,16 +290,17 @@ describe('measured provider redirect chains stay covered', () => {
 
   it('does not allow anything the application cannot reach', async () => {
     // The converse drift: an entry added to frame-src from documentation rather
-    // than from a code path is permission nobody needs. Everything allowed for
-    // providers must be traceable to a declared provider origin.
+    // than from a code path is permission nobody needs. Every entry must now be
+    // traceable to a declared provider origin, or be one of the three
+    // non-provider frames the app actually creates (the Sibnet embed and the two
+    // YouTube trailer origins). This is what keeps the list from growing back:
+    // with the premium tier gone there is no category left that would justify an
+    // entry from anywhere else — no wildcard category, and no host we merely
+    // expect a provider to redirect to.
     const entries = tokens(await getFrameSrc());
     const declared = new Set<string>(PROVIDER_FRAME_ORIGINS);
     for (const entry of entries) {
       if (entry === "'self'") continue;
-      // Premium hosts and their wildcards are governed by their own test above.
-      if (PREMIUM_EMBED_HOSTS.some((h) => entry === `https://${h}` || entry === `https://*.${h}`)) {
-        continue;
-      }
       // Origins that are not provider frames at all, each with its own reason.
       if (
         entry === 'https://video.sibnet.ru' || // /api/sibnet embed origin

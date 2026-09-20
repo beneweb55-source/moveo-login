@@ -223,9 +223,6 @@ export const PROVIDER_FRAME_ORIGINS: readonly string[] = [
   ...new Set(PROVIDERS.flatMap((provider) => provider.frameOrigins)),
 ];
 
-/** Premium host, resolved from our own catalogue rather than a URL template. */
-export const PREMIUM_SERVER_NAME = "MOVEO PREMIUM";
-
 /** Sibnet is resolved via /api/sibnet (a scrape), not by URL template. */
 export const SBNET_VF_NAME = "Sibnet VF";
 export const SBNET_VOSTFR_NAME = "Sibnet VOSTFR";
@@ -237,11 +234,15 @@ export const SBNET_SERVER_NAMES: readonly string[] = [SBNET_VF_NAME, SBNET_VOSTF
  * Every value that may legitimately appear in localStorage["preferredServer"].
  * Anything outside this list is stale and must be discarded (see
  * resolveStoredProvider) — this is the validation the audit found missing.
+ *
+ * A value previously written for the removed premium tier ("MOVEO PREMIUM") is
+ * therefore discarded on next load rather than selected, which is the intended
+ * migration: it resolves to DEFAULT_PROVIDER_NAME instead of stranding the user
+ * on a server that no longer exists.
  */
 export const STORABLE_SERVERS: readonly string[] = [
   ...PROVIDERS.map((p) => p.name),
   ...SBNET_SERVER_NAMES,
-  PREMIUM_SERVER_NAME,
 ];
 
 export const DEFAULT_PROVIDER_NAME = "Frembed";
@@ -272,73 +273,22 @@ export const getMessageOrigins = (serverName: string): readonly string[] =>
   getProvider(serverName)?.messageOrigins ?? [];
 
 /**
- * Hosts the premium (VOE / Dood) catalogue links are allowed to live on.
- *
- * Kept in sync with `frame-src` in next.config.ts by tests/csp.test.ts, which
- * fails if a host listed here is not also permitted by the CSP.
- */
-export const PREMIUM_EMBED_HOSTS: readonly string[] = [
-  "voe.sx",
-  "dood.watch",
-  "dood.to",
-  "dood.so",
-  "dood.pm",
-  "dood.wf",
-];
-
-/**
- * Pins a premium catalogue URL to the premium hosts, or returns "".
- *
- * WHY THIS EXISTS: `toVoeEmbed`/`toDoodEmbed` only rewrite the path, and the
- * value they receive is a `voe_url`/`dood_url` column written by a scraper —
- * i.e. it is data, not a constant. Two consequences were measured on the
- * previous shape:
- *
- *   - `//evil.example/e/x` satisfies an `includes("/e/")` short-circuit and is
- *     returned verbatim, and
- *   - the `pathname` setter is a no-op on an opaque-path URL, so `javascript:`
- *     and `data:` pass through unchanged.
- *
- * The narrowed CSP now blocks both as an iframe `src` — but CSP does not govern
- * top-level navigation, and this URL is also used for the "open in a new tab"
- * links. A row containing `javascript:` would therefore be offered to the user
- * as a clickable "open your video source" link. Validating here means an
- * unusable value can never reach either sink; it fails closed to "" and the
- * player reports an unavailable source.
- */
-export const pinPremiumEmbedUrl = (
-  url: string,
-  hosts: readonly string[] = PREMIUM_EMBED_HOSTS,
-): string => {
-  const candidate = typeof url === "string" ? url.trim() : "";
-  // Protocol-relative ("//host/path") is rejected before URL parsing: it is a
-  // valid URL against the page's scheme and would otherwise inherit `https:`.
-  if (candidate === "" || candidate.startsWith("//")) return "";
-  try {
-    const parsed = new URL(candidate);
-    // Only https. This rejects javascript:, data:, blob: and http: alike.
-    if (parsed.protocol !== "https:") return "";
-    const host = parsed.hostname.toLowerCase();
-    const allowed = hosts.some(
-      (allowedHost) => host === allowedHost || host.endsWith(`.${allowedHost}`),
-    );
-    if (!allowed) return "";
-    return parsed.toString();
-  } catch {
-    // Not an absolute URL at all (e.g. a bare "abc123" id): reject rather than
-    // guessing a host for it.
-    return "";
-  }
-};
-
-/**
  * NOTE: SBNET_FRAME_ORIGIN is deliberately NOT wired into getMessageOrigins.
  *
  * The message validator rejects everything for a provider with an empty
- * allowlist, so Sibnet and premium frames cannot send progress — and the player
- * says so rather than inventing a position (see §7 of the integration brief).
+ * allowlist, so a Sibnet frame cannot send progress — and the player says so
+ * rather than inventing a position (see §7 of the integration brief).
  * Permitting an origin is only justified once that provider has been OBSERVED
  * emitting a well-formed position; adding it now on the assumption that it
  * "probably" sends `timeupdate` would widen trust on a guess. This constant
  * records the origin so that wiring it up later is a one-line, reviewable act.
+ *
+ * REMOVED: the premium (VOE / Dood) tier — PREMIUM_SERVER_NAME,
+ * PREMIUM_EMBED_HOSTS and pinPremiumEmbedUrl. Those sources came from
+ * /api/catalogue (voe_url / dood_url) and were selected ahead of every real
+ * provider. Measured on production 2026-09-20: the URLs the scraper had stored
+ * no longer resolve, so a first-time visitor's default source was a dead embed
+ * (voe.sx answered 404). VOE and Dood are not supported by the product, so the
+ * tier is gone rather than repaired — and with it the twelve `frame-src`
+ * entries that existed only to permit those two hosts.
  */
