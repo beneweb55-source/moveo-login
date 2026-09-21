@@ -112,8 +112,12 @@ describe('every provider keeps its existing URL contract', () => {
       tv: 'https://www.2embed.cc/embedtv/1396&s=1&e=1',
     },
     SmashyStream: {
-      movie: 'https://player.smashy.stream/movie/550',
-      tv: 'https://player.smashy.stream/tv/1396?s=1&e=1',
+      // Host moved 2026-09-21. The grammar is the provider's own translation of
+      // the paths this entry used to build — see lib/providers.ts:
+      //   GET https://player.smashystream.com/tv/1396?s=1&e=1
+      //     -> 301 -> https://anyembed.xyz/embed/tmdb-tv-1396-1-1
+      movie: 'https://anyembed.xyz/embed/tmdb-movie-550',
+      tv: 'https://anyembed.xyz/embed/tmdb-tv-1396-1-1',
     },
     VidLink: {
       movie: 'https://vidlink.pro/movie/550',

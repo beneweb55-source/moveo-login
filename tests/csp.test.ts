@@ -192,7 +192,9 @@ describe('frame-src is narrower than what it replaced', () => {
       'https://vidsrc.to',
       'https://vidsrc.me',
       'https://www.2embed.cc',
-      'https://player.smashy.stream',
+      // SmashyStream's current host (moved 2026-09-21). The origin it replaced,
+      // player.smashy.stream, was a TLS hostname mismatch and could not load.
+      'https://anyembed.xyz',
       'https://vidlink.pro',
       'https://video.sibnet.ru',
       'https://youtube.com',

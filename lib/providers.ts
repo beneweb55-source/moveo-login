@@ -181,16 +181,55 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
   {
     name: "SmashyStream",
     group: "Alternative",
-    // UNVERIFIED from our network on 2026-09-20 (connection timeout), so no
-    // redirect target can be declared. If this provider is revived, re-measure
-    // the chain before trusting this single entry.
-    frameOrigins: ["https://player.smashy.stream"],
+    // HOST MOVED — re-measured 2026-09-21. The provider did not die, it moved.
+    //
+    // The old embed host is dead: `player.smashy.stream` presents a TLS
+    // certificate whose subject is `CN=tools.anyembed.xyz` — a hostname
+    // mismatch, so no standards-compliant client can load it (curl:
+    // http_code=000; Chrome: chrome-error://chromewebdata/). Two independent
+    // clients agreed, so it was reproducible rather than a vantage artifact.
+    //
+    // The successor was established by MEASUREMENT, not from a listing:
+    //   GET https://player.smashystream.com/movie/550
+    //     -> 301 -> https://anyembed.xyz/embed/tmdb-movie-550
+    //   GET https://embed.smashystream.com/movie/550
+    //     -> 301 -> https://anyembed.xyz/embed/tmdb-movie-550
+    //   GET https://player.smashystream.com/tv/1396?s=1&e=1
+    //     -> 301 -> https://anyembed.xyz/embed/tmdb-tv-1396-1-1
+    // The redirector translates EXACTLY the two path shapes this entry used to
+    // build, which is what identifies it as the same service rather than a
+    // namesake. The hop is then deliberately SKIPPED, the way frembed.work's is:
+    // we frame the measured final target directly, so one origin suffices.
+    //
+    // The grammar below is the provider's own translation of those requests:
+    //   movie -> /embed/tmdb-movie-{id}
+    //   tv    -> /embed/tmdb-tv-{id}-{s}-{e}
+    // The final target answers 200 with no X-Frame-Options, no frame-ancestors
+    // and no CSP, i.e. it is frameable.
+    //
+    // PLAYBACK OBSERVED 2026-09-21 — measured on the media element itself, not
+    // read off the provider's own progress labels:
+    //   /embed/tmdb-movie-550   -> "Fight Club",           duration 8348.4s
+    //     (= 2:19:08, the film's real runtime), readyState 4, paused=false,
+    //     1280x534 decoded
+    //   /embed/tmdb-tv-1396-1-1 -> "Breaking Bad - Pilot", duration 3479.9s
+    //     (= 57:59, the episode's real runtime), readyState 4, paused=false,
+    //     1280x720 decoded
+    // Both the correct TITLE and the correct EPISODE resolved, and the video
+    // dimensions are non-zero, which only happens when frames are decoded. The
+    // source is a `blob:` MSE object, which is why a page-level network log
+    // shows no media request for this provider.
+    //
+    // STILL NOT CLAIMED: subtitles/language support, mobile behaviour and
+    // per-season depth are unmeasured here. An absent claim is a gap in the
+    // review, not a "no".
+    frameOrigins: ["https://anyembed.xyz"],
     messageOrigins: [],
     buildUrl: ({type, id, season, episode}) => {
       const safeId = encodeId(id);
       return type === "movie"
-        ? `https://player.smashy.stream/movie/${safeId}`
-        : `https://player.smashy.stream/tv/${safeId}?s=${toPositiveInt(season, 1)}&e=${toPositiveInt(episode, 1)}`;
+        ? `https://anyembed.xyz/embed/tmdb-movie-${safeId}`
+        : `https://anyembed.xyz/embed/tmdb-tv-${safeId}-${toPositiveInt(season, 1)}-${toPositiveInt(episode, 1)}`;
     },
   },
   {

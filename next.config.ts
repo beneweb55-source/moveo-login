@@ -75,7 +75,18 @@ const VIDEO_FRAME_DOMAINS = [
   // deliberately, both origins are permitted so the frame works either way.
   'https://vidsrc.sh',
   'https://www.2embed.cc',
-  'https://player.smashy.stream',
+  // SmashyStream's CURRENT host, measured 2026-09-21. The previous entry,
+  // `https://player.smashy.stream`, was removed rather than kept alongside: that
+  // host presents a certificate whose subject is `CN=tools.anyembed.xyz`, so a
+  // hostname mismatch made it unloadable by any standards-compliant client
+  // (curl http_code=000, Chrome chrome-error://chromewebdata/). Keeping a dead
+  // origin would be permission nothing can use — the same standard applied to
+  // every other removal above. The provider itself is unchanged and still
+  // works; only the host it lives on moved:
+  //   GET https://player.smashystream.com/movie/550 -> 301 -> anyembed.xyz/embed/tmdb-movie-550
+  // Because we frame the measured final target directly, this single entry is
+  // the whole chain — no redirect hop needs its own origin here.
+  'https://anyembed.xyz',
   'https://vidlink.pro',
   // Sibnet — origin of the embed returned by /api/sibnet
   'https://video.sibnet.ru',
