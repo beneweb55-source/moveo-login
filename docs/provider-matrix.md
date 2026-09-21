@@ -874,3 +874,83 @@ Both are recorded with their limits, because neither is conclusive on its own:
 The second row is the shape of result that is easiest to over-read: two 200s and a
 plausible path. It is recorded as inconclusive because the two responses were
 indistinguishable, which is the whole point of measuring rather than assuming.
+
+---
+
+## Public error-message disclosure — audited as a class, and its scope is narrower than it looked
+
+The `{ error: error.message }` pattern was audited across all of `app/api/**` rather than
+only at the one instance fixed in `app/api/admin/sections`, because the question there was
+whether it was a pattern. It was — 26 return sites over 14 files. But the *severity* of
+almost all of them turned out to be much lower than the sections one, and establishing
+that was the point of the pass.
+
+**Scope, measured rather than assumed.** Every `app/api/admin/**` route calls
+`checkAdminAccess(...)` **before** its `try` block. Their `error.message` returns therefore
+reach a caller who already holds the specific admin permission — not public disclosure, and
+rewriting ~20 call sites would be churn for no security gain. They are deliberately left
+alone.
+
+**`middleware.ts` is a ban check, not an access gate.** It never denies a request; it only
+redirects a banned user to `/banned`. Its matcher also excludes `api/auth/` outright. So
+"public" below means genuinely anonymous-reachable, which is the condition that made the
+sections leak matter and the reason most of the others do not.
+
+Four public routes did return the internal message. All four are fixed in `5eaaad6`:
+
+| Route | Auth | What the returned string actually carried | Who reads it |
+|---|---|---|---|
+| `GET /api/settings` | none | Postgres driver error — table, column, constraint detail | **no caller in the repository** |
+| `POST /api/ping` | none; anonymous sessions are the design | Postgres driver error | `components/PingTracker.tsx:12` — awaits the response and never parses the body |
+| `POST /api/ai/semantic-search` | none, and no rate limit | Gemini SDK error | **no caller in the repository** |
+| `GET /api/auth/google/callback` | none by necessity; it is Google's redirect target, and the middleware matcher excludes it | OAuth / network error detail | the browser, as a redirect target |
+
+Each now logs the real message server-side and answers a generic
+`{"error":"Internal Server Error"}`. Nothing depended on the old strings, so no behaviour
+changed on any success path.
+
+For contrast, `POST /api/ai-search` — the AI route that **is** live, called from
+`components/Header.tsx:158` — already returned a generic `"AI Search Failed"` and logged the
+real error. It was not touched. The leak existed only in its dead sibling.
+
+**Recorded, deliberately not changed:**
+
+- **The repo carries three different JWT fallback literals**, not one: `'fallback_secret'`
+  in most routes, `'fallback_secret_key_for_development_only'` in
+  `app/api/film-request/route.ts:7`, and `'your-secret-key'` in `app/api/ping/route.ts:7`.
+  While `JWT_SECRET` is set — as it is in production — all three resolve to the real secret
+  and the divergence is latent. If it were ever unset, `film-request` would reject **every**
+  token the login route issues, i.e. the request CTA would 401 for every signed-in user.
+  This is a correctness inconsistency, not merely the "known weakness" the older note called
+  it, and it is cheap to make consistent.
+- **`app/api/tmdb-proxy/route.ts:238`** returns `error.message` on the busiest public route,
+  but for an axios failure that string is `"Request failed with status code 401"` — no
+  secret, no schema, no internal hostname. P3, left as-is rather than churned.
+
+**Dead code, now with a chain rather than a lone file.** `app/api/ai/semantic-search/route.ts`
+has no caller anywhere. Combined with the already-recorded fact that
+`hooks/useAIRecommendation.ts` has no importer and that its only callee is
+`app/api/ai-recommend/route.ts`, **both AI routes are dead**. `app/ai-test/page.tsx` exists
+and is publicly reachable by URL but is linked from nowhere in the app.
+`app/api/settings/route.ts` likewise has no caller, and production answers it with
+`{"hero_movie":null}` — a single null-valued key, duplicating the admin-gated
+`app/api/admin/content/route.ts:19`, which reads the same table.
+
+Removal is a **candidate but is not taken here.** Unlike `/api/catalogue`, there is no
+evidence that the *feature* is dead — only that no file in this repository calls it, and a
+settings endpoint is exactly the kind of surface an external client could hold. The defect
+that mattered (the leak) is fixed; the deletion decision is left to the owner with the
+evidence above.
+
+**Verification for `5eaaad6`, and its limit.** Remote SHA
+`5eaaad6b6d8552b41420e0f98ffdc01a18596ff5` verified equal to local; deployment
+`dpl_8fD5rWYtvJbRwJZoKjk4p8LTmZg1` observed on production; `GET /api/settings` → **200**
+`{"hero_movie":null}`; `POST /api/ping` → **200** `{"success":true}`; home page → **200**
+with all six pinned sections rendered, 87 posters and no error boundary; console shows only
+the expected logged-out `401`, and no `500`.
+
+**The limit, stated plainly:** a database failure cannot be induced on demand, so the
+*error branch itself was not observed in production*. What is verified is that the four
+success paths are unchanged. The new error branch rests on the diff, the typecheck
+(`tsc --noEmit`, exit 0), the build and the full suite (145 tests, 0 failures) — it is
+**not** claimed as an observed `500`.
