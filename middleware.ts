@@ -6,10 +6,17 @@ export async function middleware(request: NextRequest) {
 
   if (token) {
     try {
+      // Bounded: this self-fetch is a network hop plus a database query, and it
+      // runs on every matched request for a signed-in user. Without a timeout, a
+      // slow /api/auth/me stalls every page and every API response in the site.
+      // On timeout we land in the catch below and continue, exactly as for any
+      // other failure here: a ban check that cannot answer must not be able to
+      // take the whole site down with it.
       const res = await fetch(`${request.nextUrl.origin}/api/auth/me`, {
         headers: {
           Cookie: `auth_token=${token}`
-        }
+        },
+        signal: AbortSignal.timeout(3000),
       });
       
       if (res.status === 403) {

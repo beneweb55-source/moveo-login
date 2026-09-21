@@ -243,7 +243,9 @@ const Films = () => {
               </InfiniteScroll>
             ) : (
               <div className="flex flex-col items-center justify-center py-40 text-center">
-                <span className="text-xl text-white/40 font-medium">Aucun résultat trouvé</span>
+                {/* Was a hardcoded French string, which stayed French in English
+                    mode. /animes and /explore already use the translated one. */}
+                <span className="text-xl text-white/40 font-medium">{t.explore.noResults}</span>
               </div>
             )}
           </>
