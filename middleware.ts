@@ -12,12 +12,23 @@ export async function middleware(request: NextRequest) {
       // On timeout we land in the catch below and continue, exactly as for any
       // other failure here: a ban check that cannot answer must not be able to
       // take the whole site down with it.
-      const res = await fetch(`${request.nextUrl.origin}/api/auth/me`, {
-        headers: {
-          Cookie: `auth_token=${token}`
-        },
-        signal: AbortSignal.timeout(3000),
-      });
+      //
+      // AbortController rather than AbortSignal.timeout: if a helper were missing
+      // in the edge runtime, the throw would land in that same catch and quietly
+      // turn the ban check off on every request with no visible symptom.
+      const banCheck = new AbortController();
+      const banCheckTimer = setTimeout(() => banCheck.abort(), 3000);
+      let res;
+      try {
+        res = await fetch(`${request.nextUrl.origin}/api/auth/me`, {
+          headers: {
+            Cookie: `auth_token=${token}`
+          },
+          signal: banCheck.signal,
+        });
+      } finally {
+        clearTimeout(banCheckTimer);
+      }
       
       if (res.status === 403) {
         const data = await res.json();
