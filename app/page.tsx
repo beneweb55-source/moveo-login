@@ -30,7 +30,14 @@ export default function Home() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await fetch('/api/admin/content');
+        // /api/settings, not /api/admin/content. Both read content_settings, but
+        // the admin route is guarded by checkAdminAccess('access_admin_panel'),
+        // so it answered 401 to every visitor without that permission and
+        // `res.ok` was false: the hero an admin saved never reached the
+        // storefront at all, making the "edit the hero" feature write-only.
+        // /api/settings is the public reader for the same table, restricted to
+        // the keys the storefront needs.
+        const res = await fetch('/api/settings');
         if (res.ok) {
           const data = await res.json();
           if (data.hero_movie) {
