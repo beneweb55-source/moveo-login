@@ -95,8 +95,19 @@ export const translations = {
       changeServer: "Changer de source",
       playerNotResponding: "Le lecteur ne répond pas",
       playerNotRespondingDesc: "Le lecteur n'a pas pu être chargé. Réessaie, ou choisis une autre source ci-dessous.",
-      playbackUnverified: "Lecture non confirmée",
-      playbackUnverifiedDesc: "Le lecteur est chargé mais ne confirme pas la lecture. S'il reste noir, choisis une autre source.",
+      /*
+        Advisory, never a verdict. Measured 2026-09-21: on SmashyStream (anime
+        movie) and on VidLink (Korean series) playback was observed advancing
+        while this notice was on screen. A cross-origin frame that emits no
+        accepted message can never be confirmed by us, so the old wording
+        ("lecture non confirmée") was a guaranteed false negative on every
+        load. It now states our own limitation, and offers the action that
+        actually unblocks a stalled player: press Play inside the player.
+      */
+      playbackUnverified: "La vidéo ne démarre pas ?",
+      playbackUnverifiedDesc:
+        "Moveo ne peut pas vérifier la lecture à l'intérieur de ce lecteur externe. Si l'image reste noire, appuie sur Lecture dans le lecteur, puis choisis une autre source si besoin.",
+      closeNotice: "Fermer le message",
       sourceUnavailable: "Source indisponible",
       sourceUnavailableDesc: "Cette source n'a pas pu être résolue. Choisis une autre source ci-dessous.",
     },
@@ -484,8 +495,11 @@ export const translations = {
       changeServer: "Change source",
       playerNotResponding: "The player is not responding",
       playerNotRespondingDesc: "The player could not be loaded. Try again, or choose another source below.",
-      playbackUnverified: "Playback not confirmed",
-      playbackUnverifiedDesc: "The player loaded but is not confirming playback. If it stays black, choose another source.",
+      /* See the French entry above: advisory wording, not a status claim. */
+      playbackUnverified: "Video not starting?",
+      playbackUnverifiedDesc:
+        "Moveo cannot verify playback inside this external player. If the picture stays black, press Play in the player, then choose another source if needed.",
+      closeNotice: "Close message",
       sourceUnavailable: "Source unavailable",
       sourceUnavailableDesc: "This source could not be resolved. Choose another source below.",
     },

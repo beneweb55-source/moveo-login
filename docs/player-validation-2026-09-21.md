@@ -829,9 +829,288 @@ What the measurements did settle:
 6. **The CAPTCHA removal still holds**, verified against production, and the CSRF gate
    works — with its documented `api/auth/` residual confirmed rather than assumed.
 
-What remains unmeasured, and is not claimed anywhere: **Frembed in any class**; French
-audio for any provider; any second episode; any special; all mobile behaviour on real
-hardware; and the §3 fallback sub-cases of "FALLBACK #1 fails" and "FALLBACK #2 succeeds",
-which additionally cannot be run as the brief writes them because **there is no automatic
-fallback path** — the player shows a failure panel and offers the next source instead, and
-that guided-manual behaviour is what was tested.
+What remains unmeasured after this revision: French **audio** for any provider; any special
+(season 0); mobile behaviour on real hardware; and the §3 fallback sub-cases "FALLBACK #1
+fails" / "FALLBACK #2 succeeds", which still cannot be run as the brief writes them because
+**there is no automatic fallback path** — the player shows a failure panel and offers the
+next source instead, and that guided-manual behaviour is what was tested.
+
+Two items from the previous list are now discharged and are recorded below: **Frembed in a
+real journey** (§20) and **a second episode** (§22). Mobile was measured under emulation
+only (§21), which is not real hardware.
+
+---
+
+## 17. Correction to §10 — the 20 000 ms budget is confirmed adequate, and §10's conclusion was wrong
+
+§10 called `IFRAME_LOAD_TIMEOUT_MS = 20000` "our own defect" and asked for a load-time
+distribution to set the constant from. That distribution now exists, and it says the
+opposite.
+
+`probe-loadtime.html` (a standalone harness, kept outside the worktree) mounts a fresh
+cross-origin iframe per attempt and records the time to its `load` event. Thirty provider
+samples plus two controls:
+
+| Target | Runs | `load` fired | Median | Max |
+|---|---|---|---|---|
+| `anyembed.xyz/embed/tmdb-movie-550` | 10 | 10/10 | 261 ms | 476 ms |
+| `vidlink.pro/movie/550` | 10 | 10/10 | 284 ms | 815 ms |
+| `frembed.surf/embed/movie/550?id=550` | 10 | 10/10 | 408 ms | 848 ms |
+| CONTROL `…does-not-exist-moveo.invalid` (DNS failure) | 3 | 3/3 | 112 / 40 / 57 ms | — |
+| CONTROL `https://127.0.0.1:9/x` (connection refused) | 3 | 3/3 | 32 / 13 / 15 ms | — |
+
+**0 of 30 provider loads exceeded 20 000 ms.** The slowest successful load is 848 ms, so the
+budget is roughly **23×** the worst case observed. There is no measured case of a *reachable*
+provider needing more than 20 s.
+
+The two controls are the more important result, and they are why §10's conclusion cannot
+stand:
+
+- **`onLoad` fires even when navigation fails completely** — DNS failure and connection
+  refused both produced a `load` event in 6/6 runs, because Chrome commits an error page.
+  An `onLoad` is therefore **not** evidence that a document was served, and a fallback keyed
+  on it would be wrong. §15 forbids exactly that construction.
+
+**What §10 measured was almost certainly unreachability, not slowness.** Its "never committed
+within 20 s" attempt is the same symptom this revision reproduced and then diagnosed at the
+TCP level (§18): a top-level navigation to the same host returned
+`net::ERR_CONNECTION_TIMED_OUT`. A connection that never completes is not a timeout that is
+too short; **no value of `IFRAME_LOAD_TIMEOUT_MS` would have rescued it.** The single genuine
+slowness sample §10 had — `onLoad` at 15.0–16.5 s — is *below* the budget and therefore
+survived it.
+
+**Decision: `IFRAME_LOAD_TIMEOUT_MS` stays at 20 000 ms.** §5 of the brief forbids changing
+it without data; the data now says it is not the binding constraint. §10 is superseded here
+rather than deleted, so the reasoning that produced it stays auditable.
+
+---
+
+## 18. A recurring connectivity event, and the exclusion rule it forces
+
+Today's sessions hit the same class of event §9 recorded, on two hosts at once:
+
+| Probe | Result |
+|---|---|
+| Chrome, top-level → `https://anyembed.xyz/embed/tmdb-tv-1396-1-1` | `net::ERR_CONNECTION_TIMED_OUT` |
+| Chrome, top-level → `https://vidlink.pro/tv/1429/1/1` | `net::ERR_CONNECTION_TIMED_OUT` |
+| `https://www.moveo.blog/tv/1396` | loads normally |
+| `image.tmdb.org` artwork inside those pages | loads normally |
+
+General egress is fine — `moveo.blog` and the TMDB image CDN both served. So this is
+host-specific, and it is the same reading §9 drew for VidLink: a brief outage window.
+
+**The rule, applied to this revision's data:** a session that fails while its provider host
+is unreachable at the network level is **inconclusive** and is excluded from every provider
+score below. It is not a strike against the provider and not a point for a competing one.
+
+Excluded on this basis:
+
+| Session | Class | Would have looked like | Actually |
+|---|---|---|---|
+| W2 Western TV `/tv/1396` | western-tv | "SmashyStream fails on Western TV" | provider host unreachable; class unaffected — W1 (§14) already played it |
+| A3 anime series `/tv/1429` | anime-series | "VidLink hangs on anime series" | same unreachability; §6.2 already measured both providers playing it |
+
+Without the top-level control both readings would have entered the dataset as if they were
+provider-quality results. This is the second time the trap has appeared in this project.
+
+---
+
+## 19. Our own defect, proven and fixed: the advisory notice asserted a status we cannot observe
+
+This is the §11 item the brief names in as many words — *"affichage 'Lecture non confirmée'
+alors que la vidéo fonctionne"* — now proven, root-caused and corrected.
+
+**Root cause is structural, not intermittent.** `messageOrigins` is `[]` for SmashyStream,
+VidLink and Sibnet (`lib/providers.ts`), so `parsePlaybackProgress` rejects every message
+(`lib/playerMessages.ts:96` returns `null` when the allowlist is empty), so
+`playbackObserved` can never become `true`, so `PLAYBACK_VERIFY_TIMEOUT_MS` fires on **100 %
+of sessions**. The notice was a guaranteed false negative.
+
+**Observed while playback advanced on screen — three classes, two providers:**
+
+| # | Class | Title | Provider | Instrument | Reading |
+|---|---|---|---|---|---|
+| 1 | movie | Fight Club `/movie/550` | SmashyStream | provider timecode | `0:25 → 0:52 / 2:19:08`, control read **Pause** |
+| 2 | korean | Squid Game `/tv/93405` | VidLink | provider timecode | `0:00 → 0:03`, control read **Pause**, decoded frame with Korean text |
+| 3 | anime-movie | Le Voyage de Chihiro `/movie/129` | SmashyStream | provider seek slider | `0:18.29 → 0:43.05 / 7472.30 s`, control read **Pause** |
+
+Every reading was taken with `StaticText "Lecture non confirmée"` present in the same
+accessibility tree. Case 3 is a two-point monotonic advance (Δ ≈ 24.8 s of media over ~13 s
+wall clock) on the provider that is PRIMARY for three of five classes, and the provider's own
+metadata corroborated the content: heading `"Spirited Away"`, `"2h 5m"`, clock `2:04:32`.
+
+There is a second, sharper harm: for VidLink the action that starts playback is **pressing
+Play inside the player**, yet the notice's primary action was *"Changer de source"* — it
+misdirected the user away from a stream one click from working.
+
+**The fix.** The reducer flag `playbackUnverified` is an honest internal descriptor and is
+unchanged, as are its tests. What changed is the *user-facing verdict*:
+
+- `lib/translations.ts` (FR + EN): the status claim becomes a conditional offer stating our
+  own limitation — *"La vidéo ne démarre pas ?" / "Moveo ne peut pas vérifier la lecture à
+  l'intérieur de ce lecteur externe…"* — naming pressing Play first.
+- A new localised `closeNotice` key replaces the hard-coded French `aria-label`.
+- `components/VideoPlayer.tsx`: layout corrected (§21).
+- `tests/playerNotice.test.ts`: a guard that fails on the four forbidden phrases, verified to
+  **trip** against the old copy in both locales before being accepted.
+
+---
+
+## 20. Frembed in a real journey — resolves, does not play, and opens an adult affiliate tab
+
+Frembed had never been tested in a real journey. It now has been, and this is the most
+serious single finding in this revision.
+
+On Korean `/tv/93405` (Squid Game S1E1), selected manually:
+
+- **Resolution works.** The frame remounted on the correct grammar
+  `frembed.surf/embed/serie/93405?id=93405&sa=1&epi=1`, and Frembed resolved the correct
+  content on its own side: *"Squid Game / Saison 1 · Épisode 1"* with a VF badge.
+- **Playback did not occur** across two Play presses; the player stayed at its own landing
+  gate.
+- **There is no instrument to confirm it either way:** it nests a second iframe and exposes
+  no media element, no seek slider and no timecode. Frembed's playback is not merely
+  unobserved — it is **unobservable** from our side.
+
+The popup measurement (§9 of the brief), taken with `window.open` wrapped to **record rather
+than suppress**:
+
+| Provider | Interaction | Popups recorded by our page | Tabs that appeared | Playback |
+|---|---|---|---|---|
+| Frembed | Play ×2 | `[]` (the frame opened them) | **3** | none |
+| VidLink | Play ×2 | `[]` | 0 | yes |
+| SmashyStream | 10 loads | `[]` | 0 | yes |
+
+The three tabs were `sexymeet.tv` — titled *"Sexymeettv - Live Random Video Chat"*, carrying
+`utm_source=trackdesk`, `affS1=`, `tenantId=`, `inst_id=`, i.e. an **adult affiliate landing
+page** — plus `filter.ezmob.com/filter?q=ads…` and `v2006.com/afu.php?zoneid=…`
+("Redirect"). Thirty harness loads of `frembed.surf` with no click produced 0 tabs, which
+isolates the behaviour to Frembed's **Play interaction**.
+
+**This is the same class of behaviour that got SuperEmbed removed** — an adult webcam landing
+page reached through affiliate redirectors — while Frembed holds `SECONDARY_FALLBACK` in all
+five class orders. §15 forbids reintroducing SuperEmbed; it does not say what to do about a
+provider that now behaves like it.
+
+**Not applied, deliberately.** §14 forbids acting on one session: DISABLE needs reproducible
+failure **on several titles** plus dangerous behaviour, and Frembed has **one** journey. The
+correct status is a recorded escalation: **Frembed is not a safe fallback at
+`SECONDARY_FALLBACK`, and one more reproducing journey on a second title would justify
+demoting or removing it.** That measurement is owed, not skipped.
+
+---
+
+## 21. Mobile — emulation only, and it found a second defect in the same notice
+
+**EMULATED MOBILE, not a real device.** Pixel 8 user agent, 390×844, `touch`, Slow 4G.
+
+| Check | Result |
+|---|---|
+| iframe mount | **774 ms** (desktop 148 ms) — throttling, still 26× under budget |
+| popups / console errors | 0 / 0 |
+| horizontal overflow | none (`scrollWidth` 390 = viewport 390) |
+| iframe box | 322×180, below the 844-tall fold at `y=1174` |
+| **playback on mobile** | **NOT verified — no interaction attempted, so this is not a result** |
+
+The notice, however, was measured precisely, and it is broken at phone width:
+
+| Element | Geometry (CSS px) | Verdict |
+|---|---|---|
+| notice card | `x=47 w=296` | content is **360 px wide** → **66 px of overflow** (`scrollWidth` 360 vs `clientWidth` 294) |
+| "Réessayer" | `x=159 w=91` → right edge 250 | fits |
+| "Changer de source" | `x=256 w=117` → right edge **373** | past the card's own 343 edge |
+| "✕" dismiss | `x=379 w=29` → right edge **408** | **18 of its 29 px outside the 390 px viewport** |
+
+So on a phone the user got a false message, wrapped to one or two words per line, that they
+**could not properly dismiss**. The card was a `flex` row with a `shrink-0` action group that
+had nowhere to go. Fixed with the copy change: it stacks below `sm:`, the icon is dropped on
+narrow widths, the text block gets `min-w-0 flex-1`, and the action group wraps. Recorded
+because the geometry is the evidence, not an impression.
+
+---
+
+## 22. Two distinct failure modes, and an episode change that works
+
+The controls in §17 proved `onLoad` fires on a failed navigation. The tempting next
+inference — that `LOAD_FAILED` is therefore unreachable — is **wrong**, and today's sessions
+show why:
+
+| Mode | What happens | Phase reached | What the user sees |
+|---|---|---|---|
+| Network-level failure (DNS, refused) | Chrome commits an error page → **`load` fires** | `IFRAME_LOADED_PLAYBACK_UNKNOWN` | the advisory notice, iframe mounted |
+| Host accepts the connection, never commits | no `load` | **`LOAD_FAILED`** after the 20 s watchdog | *"Le lecteur ne répond pas"*, **iframe unmounted** |
+
+The second mode is not theory: it fired in production today on Western TV `/tv/1396`, as
+`role="alert"` / `aria-live="assertive"` with *"Le lecteur ne répond pas"*, an unmounted
+frame, and `Réessayer` / `Changer de source`. That is **correct behaviour**: with no document
+after 20 s the state is truthful and a recovery action is offered. It is also the case §11
+worried about — *"affichage d'un failure panel alors que le provider est seulement lent"* —
+and on this evidence the two cannot be distinguished from inside the page. Recorded as a real
+limitation, not a bug.
+
+**Retry was verified working.** `Réessayer` returned the phase to LOADING, remounted the
+frame, and — the host still being unreachable — re-entered `LOAD_FAILED` 20 s later.
+
+**Episode switching works, and the manual choice survives it.** On `/tv/93405`, `Épisode
+Suivant` advanced the framed URL to `epi=2`; the manually chosen Frembed followed across the
+change (the manual-authority invariant holds), and 0 popups were opened by our page.
+
+**A measurement error of mine, corrected.** My first probe used a `MutationObserver` and
+reported only one frame insertion while frames were demonstrably mounting and unmounting
+several times. The cause is mine, not the product's: a MutationObserver reports only
+**directly** added nodes, so a frame added inside a newly added wrapper is invisible. On
+first load the parent chain already existed, which is why that one *was* caught. Replaced
+with an interval scan plus node-identity tagging (`__t`). **One earlier reading rests on the
+old probe and is downgraded:** a double iframe insertion on episode change (`/tv/93405`,
+`epi=2`, 15 ms apart) is retained only as *"observed, mechanism unpinned"*.
+
+With the corrected instrument the double mount **did** reproduce on a clean page load — anime
+series `/tv/1429`, two **distinct** nodes (`wbl8l` at 381 ms, `ufuu5` at 481 ms) with the
+identical `vidlink.pro/tv/1429/1/1` URL and only one surviving. Two document requests for one
+embed is a real defect worth a fix; recorded rather than patched, because its trigger has not
+been isolated.
+
+---
+
+## 23. Watch history (§12 of the brief) — still not written
+
+`saveWatchHistory` has exactly **one** caller: the `postMessage` handler in
+`components/VideoPlayer.tsx`, gated by `parsePlaybackProgress` with
+`allowedOrigins: getMessageOrigins(serverRef.current)`. Since that allowlist is empty for
+every provider except Frembed (§19), **no position is persisted for any provider.**
+
+So §12 is satisfied in the negative direction and violated in the positive one: there is **no
+artificial write on iframe load** — the trap the brief forbids is absent — but there is also
+no progress recording for movie, TV, anime or Korean. This matches the open P1 already in
+`docs/provider-matrix.md:1261-1282` (*"Minutes watched measures time on the page, not time
+watching"*), which needs the product decision that entry calls for, not a patch here.
+
+---
+
+## 24. Coverage after this revision, and the honest verdict
+
+| Class | Provider order (§1, unchanged) | Real playback observed? |
+|---|---|---|
+| movie | SmashyStream → VidLink → Frembed | **yes** — SmashyStream, `/movie/550` |
+| korean | VidLink → SmashyStream → Frembed | **yes** — VidLink, `/tv/93405`, incl. a second episode |
+| anime-movie | SmashyStream → VidLink → Frembed | **yes** — SmashyStream, `/movie/129` |
+| western-tv | SmashyStream → VidLink → Frembed | **yes** — §14 (W1); today's W2 excluded as an outage |
+| anime-series | VidLink → SmashyStream → Frembed | **yes** — §6.2; today's A3 excluded as an outage |
+
+**No order was changed.** §1 forbids reordering on a slow provider or one isolated failure,
+and nothing measured today met the bar — both failures were the provider hosts being
+unreachable, which is exactly the evidence §1 and §14 say must not drive a decision.
+
+**Language (§6) remains the weakest area.** The only language evidence in this revision is
+*availability*, which §6 explicitly refuses to count: SmashyStream's own menu offers an
+English track and a **French track** for `/movie/129`. Selecting the French track produced
+**no visible French subtitle text** in the frame, so **FR SUCCESS is not established**, and
+FR/EN **audio** is unmeasured for every provider. Nothing here should be read as a language
+result.
+
+**Verdict: STRATEGY PROVISIONAL — NOT ENOUGH REAL VIEWING SESSIONS.** All five classes have a
+confirmed playback, but on one or two titles each; there is no second-episode coverage for
+anime or Korean beyond one switch; no special has been tested; mobile is emulated only; FR/EN
+audio is unmeasured; and Frembed — `SECONDARY_FALLBACK` everywhere — has one journey, which
+showed it does not play and opens an adult affiliate tab. That is a positive signal set with a
+known dangerous hole, which §14 calls the case for KEEP PROVISIONAL, not for promotion.

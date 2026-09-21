@@ -810,24 +810,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               )}
 
               {/*
-                Advisory only, and deliberately not blocking: the document loaded,
-                we simply cannot observe playback inside a cross-origin frame. The
-                iframe stays mounted underneath.
+                Advisory only, never a verdict, and deliberately not blocking: the
+                document loaded, we simply cannot observe playback inside a
+                cross-origin frame that emits no message we accept. The iframe
+                stays mounted underneath.
+
+                Layout is measured, not guessed. At a 390px viewport the previous
+                single-row card overflowed itself by 66px (scrollWidth 360 vs
+                clientWidth 294): the description wrapped to one or two words per
+                line, "Changer de source" ran past the card edge, and the dismiss
+                button occupied x=379..408 — 18 of its 29px outside a 390px
+                viewport, so on a phone the notice could not be dismissed at all.
+                Stacking below `sm:` and letting the actions wrap removes it.
               */}
               {player.playbackUnverified && !playbackObserved && !noticeDismissed && (
                 <div
                   role="status"
                   aria-live="polite"
-                  className="absolute top-3 left-1/2 -translate-x-1/2 z-30 max-w-[92%] flex items-center gap-3 px-4 py-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-white"
+                  className="absolute top-3 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 rounded-xl bg-black/80 backdrop-blur-md border border-white/10 text-white"
                 >
-                  <AlertCircle className="w-4 h-4 text-white/50 shrink-0" />
-                  <div className="text-left">
+                  <AlertCircle className="hidden sm:block w-4 h-4 text-white/50 shrink-0" />
+                  <div className="min-w-0 flex-1 text-left">
                     <p className="text-xs font-medium">
-                      {t.details.playbackUnverified || "Lecture non confirmée"}
+                      {t.details.playbackUnverified || "La vidéo ne démarre pas ?"}
                     </p>
                     <p className="text-[11px] text-white/40">
                       {t.details.playbackUnverifiedDesc ||
-                        "Si l'image reste noire, choisis une autre source."}
+                        "Moveo ne peut pas vérifier la lecture dans ce lecteur externe."}
                     </p>
                   </div>
                   {/*
@@ -839,7 +848,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     Without Retry here, that user would have no way to re-attempt
                     the same source.
                   */}
-                  <div className="shrink-0 flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                     <button
                       onClick={() => {
                         resetPlaybackObservation();
@@ -864,7 +873,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     */}
                     <button
                       onClick={() => setNoticeDismissed(true)}
-                      aria-label="Fermer le message"
+                      aria-label={t.details.closeNotice || "Fermer le message"}
                       className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-medium transition-all"
                     >
                       ✕
