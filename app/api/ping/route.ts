@@ -1,23 +1,39 @@
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
+import { jwtVerify } from 'jose';
 import { v4 as uuidv4 } from 'uuid';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// Verified with `jose`, the library every other authenticated route in this app
+// uses — including the two that verify this same `auth_token` cookie, so
+// compatibility is not assumed here, it is already exercised in production.
+//
+// This route used to import `jsonwebtoken`, which is not declared in
+// package.json: `npm ls jsonwebtoken --depth=0` is empty, and the package
+// resolved only through `firebase-tools`, a devDependency. It was therefore
+// present in a local install and absent from a production build, where the
+// import would fail at module load. Its fallback literal also diverged from the
+// app's 'fallback_secret', so an unset JWT_SECRET would have made this route
+// reject tokens that every other route accepts.
+const SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
 
 export async function POST(req: Request) {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('auth_token')?.value;
-    let userId = null;
+    let userId: number | null = null;
 
     if (token) {
       try {
-        const decoded = jwt.verify(token, JWT_SECRET) as any;
-        userId = decoded.userId;
+        const { payload } = await jwtVerify(token, SECRET);
+        // The same guard as lib/adminAuth.ts and /api/auth/me: a claim that is
+        // not an integer identifies no user, so the request continues as the
+        // anonymous session it would have been without a token at all. This
+        // also stops a malformed claim from reaching the INSERT below.
+        const claimed = Number(payload.userId);
+        userId = Number.isInteger(claimed) ? claimed : null;
       } catch (e) {
-        // Invalid token
+        // Invalid token — continues as an anonymous session.
       }
     }
 
