@@ -617,6 +617,14 @@ SmashyStream where they previously got VidLink, while anime series still hand ov
 context with no stored `preferredServer`, so the class default applied rather than a
 remembered choice.
 
+**And the limit of that method, stated rather than glossed.** The two commits that followed
+(`605666e` and the one carrying this note) change **only Markdown**, so they alter no
+served asset: production still serves the same `1255-74831f9a89d22673.js`, and every route
+answers 200. A documentation-only deployment is therefore **not distinguishable from
+production**, and no claim is made that Vercel built and shipped those commits. What is
+verified is `461f357`, the commit that changed behaviour. Reaching for a green checkmark
+here would be exactly the "deployment succeeded because Git says so" inference §15 forbids.
+
 ### 14.2 The session
 
 | Field | Value |
