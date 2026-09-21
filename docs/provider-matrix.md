@@ -1178,6 +1178,43 @@ ignored, and a missing API exclusion.
 
 **Partial.** Per-title metadata is *not* fixed — see the deferral below.
 
+### 8. A title containing a slash made the search route 404 — P2
+
+**Root cause.** `router.push(`/search/${query}`)` put the query into the path unencoded, and
+`/search/[query]` has no catch-all, so a slash in a title was read as a second segment and matched
+nothing.
+
+**Evidence.** Measured on production, exactly as a user's search produces it: `GET /search/Face/Off`
+→ **404**, while `/search/Face%2FOff` → **200** rendering `Face/Off`. So searching for the film
+*Face/Off* returned a 404 instead of *Volte/Face*.
+
+**Fix.** `lib/searchPath.ts` — `buildSearchPath()` — called from the one navigation site,
+`Header.tsx`'s `handleSearchSubmit`, which a repo-wide search confirmed is the only path to that
+route.
+
+**What was NOT changed, and why that mattered.** The destination looked wrong in the same way and
+was not: `app/search/[query]/page.tsx` calls `decodeURIComponent` on the value `useParams()` returns,
+which reads like a redundant second decode. It is the *only* decode, because `useParams()` returns
+the segment still **encoded**. Confirmed client-side rather than from a status line — the page is a
+client component, so a render-time throw never reaches the HTTP status, and the `200` from
+`/search/100%25` was therefore evidence of nothing. Driving it in the browser: `/search/100%25`
+renders `Résultats pour '100%'` with 20 correct results including `アキラ100%` and *Mob Psycho 100*,
+and no `URIError` in the console. Removing that decode would have printed `a%20b` for a query of
+`a b`; adding a second would have thrown on a query containing a bare `%`. See the corrections list
+at the end of this document — it is *not* one of the numbered corrections 1–3 above.
+
+**Validation.** Driven end-to-end on the deployed revision, not asserted from source: `Face/Off`
+typed into the real search box and submitted through the real form → URL
+`/search/Face%2FOff` (one segment), heading `Résultats pour 'Face/Off'`, 20 results, first is
+**Volte/Face (1997)** — the correct film. `tests/searchPath.test.ts` pins the two properties the
+router and the page actually depend on — one segment, and one decode returning the query unchanged —
+over 14 real titles including `Face/Off`, `100% Wolf`, `M*A*S*H` and `アキラ100%`. Asserting "it calls
+`encodeURIComponent`" would have proved nothing.
+
+**Incidental confirmation from the same session.** The header rendered `Accueil · Films · Séries ·
+Animes · K-Dramas` as real links in production, which is finding 6 above working as intended rather
+than merely compiling.
+
 ## Confirmed open — needs a product decision, not a patch
 
 ### "Minutes watched" measures time on the page, not time watching — P1
@@ -1233,8 +1270,7 @@ section in a permanent skeleton (`app/page.tsx:61` uses `Promise.all`, not `allS
 `/trending/all/day` seed can produce duplicate React keys because movie and TV ids are separate
 namespaces; recommendations treat watchlist/favourite items as watched because the watched-id set is
 built without `?list_type=watched` and without a media-type prefix; the search dropdown has no
-fallback to plain search when the AI route 500s; the search query is encoded for the API but not for
-`router.push`, and the destination decodes outside its `try`; the header fetches profile stats it
+fallback to plain search when the AI route 500s; the header fetches profile stats it
 never renders; saved positions are stored but never used to resume; anonymous history is never
 merged and never cleared on logout; de-duplication ignores media type; season 0 is handled correctly
 in one place and wrongly in two.
@@ -1268,3 +1304,191 @@ fallback makes `login`'s `if (!secret)` "skipping hCaptcha verification" branch 
 - `app/api/ai-recommend` had **no** relative-URL bug of its own.
 - The JWT fallback divergence was **three-way** (`'your-secret-key'`, `'fallback_secret'`, and an
   unset-var path), not two-way; the `ping` port above removes one of them.
+- The search page's `decodeURIComponent` was **not** a defect, and this one nearly became a bad fix.
+  It reads as a redundant second decode of a `useParams()` value that Next has already decoded, so
+  the plan was to remove it. It is the *only* decode — `useParams()` returns the segment still
+  encoded — and removing it would have made every query containing an encoded character render
+  literally (`a%20b` for `a b`). The error was inferring client behaviour from an HTTP status: the
+  page is a client component, so `/search/100%25` returning 200 could not show whether a render-time
+  `URIError` was happening in the browser. Driving it showed the heading rendering `100%` correctly
+  with no error. Recorded because the near-miss is more instructive than the fix: a source reading
+  that looks self-evidently wrong still has to be measured before it is changed.
+
+---
+
+# Final provider deliverable — the complete table (2026-09-21)
+
+The 17 requested columns, as three tables that together contain every one of them. They are split
+for legibility — a single 17-column table is unreadable — **not** because any column was dropped.
+Table A is coverage, Table B is playback and quality, Table C is the verdict and its reason.
+
+**Legend.** **PASS** = observed to work, by the method named in the cell. **FAIL** = observed not to
+work, or observed behaviour that is disqualifying. **PARTIAL** = worked with a material
+qualification, or observed once and not reproduced. **NOT VERIFIED** = not measured.
+
+**NOT VERIFIED is never promoted to PASS.** Every `NOT VERIFIED` below is a gap in this review, not
+a finding of absence — and the grid's own limits section explains why the gap is usually the honest
+answer: these players fetch media inside MSE/`blob:` sources and Web Workers, so a provider that
+shows no media request may still be playing. Only a direct media-element read justifies PASS on
+playback, and two of seven providers permit it.
+
+**One caveat applies to every PASS and every PARTIAL in Table B, and it is not a formality:**
+Frembed's playback was observed once and then **failed to reproduce an hour later** (correction 3).
+Every other playback claim rests on a single session taken the same day, so *none* of them has been
+shown to be stable over time. That is why no provider is marked PASS on **Reliability** — the
+column cannot be answered from one session, and answering it anyway is exactly the error this
+document exists to prevent.
+
+## Table A — coverage (8 columns)
+
+| Provider | Movies | Western TV | Korean | Anime movies | Anime series | Subtitles | Episode support |
+|---|---|---|---|---|---|---|---|
+| **Frembed** | PASS | PASS | PASS | PASS | PASS | PARTIAL | PASS |
+| **SuperEmbed** | NOT VERIFIED | NOT VERIFIED | FAIL | NOT VERIFIED | NOT VERIFIED | NOT VERIFIED | NOT VERIFIED |
+| **VidSrc.to** | NOT VERIFIED | NOT VERIFIED | PARTIAL | NOT VERIFIED | NOT VERIFIED | NOT VERIFIED | PARTIAL |
+| **VidSrc.me** | NOT VERIFIED | NOT VERIFIED | PARTIAL | NOT VERIFIED | NOT VERIFIED | NOT VERIFIED | PARTIAL |
+| **2Embed** | NOT VERIFIED | NOT VERIFIED | PARTIAL | NOT VERIFIED | NOT VERIFIED | NOT VERIFIED | PARTIAL |
+| **SmashyStream** | PASS | PASS | PASS | NOT VERIFIED | PASS | NOT VERIFIED | PASS |
+| **VidLink** | PASS | PASS | PASS | FAIL | PASS | PASS | PASS |
+
+Reading the non-obvious cells:
+
+- **Frembed subtitles PARTIAL** — no subtitle *menu* exists, but a French track
+  (`jamesbornmain.com/vtt/{id}_fr.srt`, 200) is fetched from inside the player for Korean `93405`.
+  `version` is the only language signal anywhere in this review and it is a per-item property, so
+  nothing here justifies labelling a source with a language it was not shown to carry (§9).
+- **VidLink anime movies FAIL** — the provider's own frame renders *"We Couldn't Find This
+  Content ."* A self-declared negative is the strongest available form of negative evidence, which
+  is why this is FAIL and not NOT VERIFIED.
+- **SuperEmbed Korean FAIL** — what its frame renders is an adult landing page, not a player.
+- **VidSrc.to / .me / 2Embed Korean PARTIAL** — each resolves and renders the correct title *and
+  episode* (`Squid Game 2021 · S01 E01`; `Squid Game (2021) (S01E01)`), and then nothing plays. The
+  addressing works; the playback does not.
+- **SmashyStream anime movies NOT VERIFIED** — the one content class it was never probed on.
+- **Frembed anime series PASS** — resolves *and* renders `L'Attaque des Titans` S1E1 with a `VF`
+  badge; 104 of its enumerable anime titles are series. Its **playback** for anime series was never
+  reached, which is a Table B fact, not a coverage one.
+- **Season 0 is a separate, narrower finding than Episode support.** Season support is PASS for
+  Frembed and SmashyStream and PARTIAL for the three that address episodes without playing them.
+  **Specials (season 0) were measured on exactly one provider** — SmashyStream, where the correct
+  special resolves — so `capabilities.specials` is `"yes"` only there and `"unknown"` for the other
+  six. The season-0 fix in `lib/providers.ts` nevertheless applies the truthful value to all seven,
+  because it was our own normaliser rewriting `0` → `1`, not a provider behaviour.
+
+## Table B — playback and quality (9 columns)
+
+| Provider | Actual playback observed | Mobile | Desktop | Redirects | Ads / interstitials | Popups | Reliability | Integration status |
+|---|---|---|---|---|---|---|---|---|
+| **Frembed** | PARTIAL | PARTIAL | PARTIAL | PASS | FAIL | FAIL | PARTIAL | INTEGRATED — **default** |
+| **SuperEmbed** | FAIL | NOT VERIFIED | FAIL | PASS | FAIL | FAIL | FAIL | INTEGRATED — **must not be used as-is** |
+| **VidSrc.to** | FAIL | NOT VERIFIED | FAIL | PASS | NOT VERIFIED | NOT VERIFIED | NOT VERIFIED | INTEGRATED — unproven |
+| **VidSrc.me** | FAIL | NOT VERIFIED | FAIL | PASS | NOT VERIFIED | NOT VERIFIED | NOT VERIFIED | INTEGRATED — unproven |
+| **2Embed** | FAIL | NOT VERIFIED | FAIL | FAIL | FAIL | NOT VERIFIED | FAIL | INTEGRATED — unproven |
+| **SmashyStream** | PASS | PASS | PASS | PASS | NOT VERIFIED | NOT VERIFIED | PARTIAL | INTEGRATED — strongest evidence |
+| **VidLink** | PASS | PASS | PASS | PASS | PARTIAL | FAIL | PARTIAL | INTEGRATED — with subtitles |
+
+**What each PASS rests on — the method, not the impression:**
+
+| Provider | Method behind its playback PASS |
+|---|---|
+| **SmashyStream** | Direct media-element read: *Fight Club* `duration 8348.4 s` (= 2:19:08, the film's real runtime), `readyState 4`, `paused=false`, `1280×534` **decoded**; *Breaking Bad* S1E1 `3479.9 s`. Korean and anime series the same way. |
+| **VidLink** | DASH manifest → `init-stream*.m4s` → **14 sequential `chunk-stream*-000NN.m4s`** over ~13 s, plus a subtitle `.srt` for Korean *and* anime, 3 audio streams in the manifest. |
+
+**Frembed's PARTIAL is the single most important cell in this table, and it is why the default
+provider's status is not settled.** It played — Korean `93405` S1E1, `master.m3u8` → variant
+playlist → `seg-1`…`seg-7` `.ts` all 200, two screenshots 8 s apart showing different frames — on
+**desktop and emulated mobile**. Re-measured an hour later from a fresh context at the direct embed
+URL (so Moveo was not in the path), the player mounted, resolved the correct asset — subtitle track,
+storyboard, JW Player entitlement all 200 — and then **fetched no manifest at all**. The cause is
+undetermined. Its `video` element is cross-origin (`jamesbornmain.com`), so the element-level
+evidence used for the other two is unavailable on *any* viewport, and the registry therefore records
+`playbackObserved: "unknown"` for it while recording `"yes"` for the two that were measured
+properly. **The default provider is the one without media-element evidence.**
+
+Reading the quality cells:
+
+- **Ads / interstitials FAIL (Frembed)** — an in-player interstitial (`DÉPÊCHE-TOI !` / `GET BONUS`)
+  with a stuck `0:00` countdown, `console.clear()` called repeatedly (7, 8, 15 and 13 times in one
+  session), and **Adscore** bot detection active. Nothing here is something we should defeat; it is
+  recorded because it is what a user meets.
+- **Ads / interstitials FAIL (SuperEmbed)** — adult advertising inside our own player. Encoded as
+  `capabilities.adultAdvertising: "yes"`, and this is a product-safety fact independent of whether
+  playback ever succeeds.
+- **Popups FAIL (Frembed)** — four in one session (`worldofseabattle.com` CPA game offer, a
+  `youtube.com/watch` page, a `.cyou` domain, `displayendpointstarring.com` VAST), plus a `mega.nz`
+  tab in the first pass. Every one follows a click, but the opener was never captured, so the
+  mechanism remains an observation rather than a proven attribution.
+- **Popups FAIL (VidLink)** — a `sexymeet.tv` adult-dating tab via a `trackdesk` affiliate, plus an
+  AliExpress affiliate, in a context where only VidLink was loaded. Same class as SuperEmbed's.
+- **Redirects FAIL (2Embed)** — its player area is an `about:blank` iframe plus a redirect layer to
+  `interlinecustomroofingllc.com`, an unrelated commercial domain.
+- **Redirects PASS** on the other six, but for two different reasons worth keeping distinct:
+  SuperEmbed's `302` and VidSrc.me's `301` are **HTTP redirects of a frame we create**, which is why
+  `streamingnow.mov` needs a `frame-src` entry (Chrome re-checks the policy against the redirect
+  target). VidSrc.to's `vsembed.ru` and `cloudorchestranova.com` are **nested frames created by the
+  provider's own document**, which is why they are *not* in `frame-src` and still render.
+- **Reliability is PARTIAL at best everywhere** and NOT VERIFIED where a provider never played. No
+  provider has been observed over time.
+
+## Table C — why (the 17th column, given its own table because it is prose)
+
+| Provider | Verdict | Why integrated / why it should not be relied on |
+|---|---|---|
+| **Frembed** | Integrated — **default**, status open | The only provider measured to resolve **all four** content classes including Korean *and* anime, and the only one with a structured public API — its complete JSON API was enumerated this pass (146 anime titles; 22 *Squid Game* episodes with `sa`/`epi`/`VF`), and its `link` values use our exact URL grammar, which independently corroborates `buildUrl()`. Against that: playback did not reproduce, four popunders, Adscore, `console.clear()`, and **its own server list offers `Voe` and `Dood`** — the two providers removed from Moveo. They are removed from *our registry* and that stands; they remain live *inside* the default. |
+| **SuperEmbed** | Integrated — **must not be used as-is** | No documentation, and the one thing measured is disqualifying: framing it displays **adult advertising inside our player**. Its own Cloudflare Turnstile gate was also erroring in a retry loop (`Error: 600010`). We do not bypass anti-bot challenges, so this is the provider's gate failing, not a defect to route around. |
+| **VidSrc.to** | Integrated — unproven | Same upstream player as VidSrc.me (`cloudorchestranova.com`). Resolves the right title and episode; **no media in ~14 s after its own `Play` was clicked**. Reported **[D]** to deny anime support publicly and to appear in the MPA's 2 Oct 2024 USTR filing — both unverified. A probe of `/embed/tv/1429/1/1` answered 200, but that is the same shape we build for *any* series, so it is **not** evidence of anime support. |
+| **VidSrc.me** | Integrated — unproven | Mirrors VidSrc.to rather than re-deriving its capabilities, because it is measurably the same backend. `301` → `vidsrc.sh`, then the same nested frames; no media after `Play`. |
+| **2Embed** | Integrated — unproven | Its odd `embedtv/{id}&s=&e=` shape **is** the provider's own working format — it renders `Squid Game (2021)` `(S01E01)`, which closes an earlier open question about `buildUrl()`. Playback never happens: an `about:blank` iframe behind a redirect layer to an unrelated domain. 4/5 HTTP probes succeeded, with one western-TV timeout that passed on retry. |
+| **SmashyStream** | Integrated — **strongest evidence; keep** | Was never dead — it **moved**, and the old host failed a TLS hostname mismatch (`CN=tools.anyembed.xyz`). We do not bypass TLS verification, so there was no client-side fix; the move was established by the redirector translating *our exact path grammar*, which is what identifies the same service rather than a namesake. The only provider with media-element-verified playback across movie, TV, Korean **and** anime series, plus the only measured season 0. Provider **name** deliberately unchanged so a stored `preferredServer` keeps working with no migration. |
+| **VidLink** | Integrated — with subtitles | The only provider measured to play Korean *and* anime, with a subtitle track fetched and three audio streams in the manifest. Its player is also the most accessible of the three (labelled `region`, named controls, real ARIA seek slider). Against it: an **adult-dating popunder**, an AliExpress affiliate, a fingerprinting module (`fu.wasm`), and ad-exchange monetisation. One honest caveat: under emulated input its on-screen `Play` buttons did not start playback even though `elementFromPoint` at the video's centre returns the `VIDEO` element, so click-interception is ruled out and **the cause is undetermined**. |
+
+## Sibnet — a different integration shape, and therefore not in the tables above
+
+Sibnet is not a `ProviderDefinition`, and that is correct rather than a gap: the seven above are
+third-party iframes addressed by TMDB id, whereas Sibnet is a **title scrape through our own
+`/api/sibnet`**, returning `video.sibnet.ru/shell.php?videoid=…`. It is still owned by the registry
+module — `SBNET_FRAME_ORIGIN`, `SBNET_SERVER_NAMES`, `isSibnetServer()` — and both its language
+variants are in `STORABLE_SERVERS`, so provider identity and allowed origins remain in one place.
+
+| Dimension | Sibnet VF / VOSTFR |
+|---|---|
+| Integration | Two storable servers, one origin, declared in `lib/providers.ts` |
+| Korean / anime resolution | `/api/sibnet` returns 200 for both — and the UI still labels both entries **`(Indisponible)`** rather than implying availability |
+| Address shape | By **title** (`?title=&type=&season=&episode=&lang=`), not by TMDB id — hence the separate shape |
+| Actual playback | **NOT VERIFIED** — never measured |
+| Reliability | Both upstream requests are now bounded by a timeout; they were previously unbounded |
+| Verdict | Integrated, **honestly labelled**, playback unmeasured |
+
+## The picture this paints — read this instead of the table
+
+Of seven registry providers, **two have media-element-verified playback** (SmashyStream, VidLink),
+**one** — the default — **played once and did not reproduce** (Frembed), and **four have never
+produced media in any test** (SuperEmbed, VidSrc.to, VidSrc.me, 2Embed). Three of seven have been
+measured on mobile, all by emulation. Zero of seven has been observed over time.
+
+Three things follow, and none of them is a provider count:
+
+1. **The default provider is the open risk, not the solved one.** Frembed is the broadest resolver —
+   the only one covering all four classes — and the only provider whose playback is *unreproduced*.
+   Distinguishing an ad-auction timing failure from a bot gate from a genuine provider-side change
+   needs a real, human-driven browser session, the one thing this method cannot supply. It remains
+   the highest-value open item in this document.
+2. **Aggressive, sometimes adult advertising is the norm across this class, not a SuperEmbed
+   peculiarity.** SuperEmbed's frame was an adult landing page outright; VidLink's context produced
+   an adult-dating tab; Frembed opened four popunders and runs Adscore. All of it originates inside
+   the provider's own document, and it is the reason `adultAdvertising` is a capability field and a
+   provider-level warning exists rather than a footnote.
+3. **No provider here is licensable in the sense the brief means.** Every one is a third-party
+   aggregator whose licensing position is unclear, and none publishes the terms a licensed
+   integration would require. VidLink and Frembed publish an embed grammar or an API; the other five
+   publish nothing at all. **No provider in this review publishes any K-drama claim**, so Korean
+   coverage is measured-only for us — and the mutual corroboration that makes that measurement
+   trustworthy is three implementations independently reporting **3582 s** for `93405` S1E1, which
+   is why three of them are agreed to be serving the real episode rather than a placeholder.
+
+**VOE and Dood are not in this table and must not be.** They are removed from Moveo — not
+supported, not to be restored, and not to be re-added by giving the scraper database a URL. They
+appear above exactly once, as a fact about Frembed's internals: **the default provider's own server
+list offers them.** That is an open product question — whether it is acceptable for the default
+source to reach them as its own internals — recorded as a decision for the owner, **not** as a
+defect and **not** as a reason to restore anything.
