@@ -8,28 +8,6 @@ const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build'
 
 const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 
-async function verifyHCaptchaToken(token: string) {
-  const secret = process.env.HCAPTCHA_SECRET || 'ES_8ca47c0d4e43453491a3c18d81c5f9af';
-  if (!secret) {
-    console.warn("HCAPTCHA_SECRET is not set. Skipping hCaptcha verification.");
-    return true;
-  }
-
-  const res = await fetch('https://hcaptcha.com/siteverify', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      secret,
-      response: token,
-    }).toString(),
-  });
-
-  const data = await res.json();
-  return data.success;
-}
-
 /**
  * Sends a verification link and THROWS if it could not be sent.
  *
@@ -74,16 +52,10 @@ async function issueVerificationToken(userId: string | number) {
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name, captchaToken } = await req.json();
+    const { email, password, name } = await req.json();
 
     if (!email || !password || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    // Verify hCaptcha token
-    const isHuman = await verifyHCaptchaToken(captchaToken || '');
-    if (!isHuman) {
-      return NextResponse.json({ error: 'Invalid captcha. Please try again.' }, { status: 403 });
     }
 
     // Check if user already exists

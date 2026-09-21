@@ -24,8 +24,11 @@
  * declared `text/plain` — a CORS-safelisted type, i.e. a simple request with no
  * preflight — is decoded exactly like application/json. Measured against
  * production on 2026-09-21: identical credentials sent as text/plain and as
- * application/json both reached the same handler branch ("Invalid captcha"),
- * which means the JSON was parsed either way. A cross-site
+ * application/json both reached the same handler branch, which means the JSON was
+ * parsed either way. (At measurement time that shared branch was login's captcha
+ * rejection. It has since been removed along with the captcha, and the
+ * observation survives it: a body that had failed to parse would have returned
+ * 400 "Missing email or password" instead of reaching that branch at all.) A cross-site
  * `fetch(url, {method:'POST', mode:'no-cors', credentials:'include', body:
  * JSON.stringify({...})})` therefore arrives with the cookie and a readable body.
  *
