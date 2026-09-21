@@ -65,16 +65,77 @@ describe('Frembed — verified embed URLs', () => {
     assert.ok(!String(url).includes('undefined'));
   });
 
-  it('coerces invalid season/episode numbers to 1', () => {
-    for (const bad of [0, -3, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+  it('carries TMDB season 0 (specials) through instead of rewriting it to season 1', () => {
+    // Regression, measured 2026-09-21. Season and episode shared ONE normaliser
+    // that required `n > 0`, so season 0 — which is how TMDB represents SPECIALS —
+    // was silently rewritten to season 1. A user who picked "Hors-série → E1" on
+    // the TV page was served S1E1: the wrong episode, but a plausible-looking one,
+    // so nothing in the UI signalled the substitution.
+    //
+    // The season-0 grammar is real, not hypothetical. Against the SmashyStream
+    // successor, measured on Breaking Bad (TMDB 1396):
+    //   /embed/tmdb-tv-1396-1-1 -> "Breaking Bad - Pilot"
+    //   /embed/tmdb-tv-1396-0-1 -> "Breaking Bad - Good Cop / Bad Cop"
+    // and "Good Cop / Bad Cop" IS that show's season-0 episode 1, so the provider
+    // understood 0 and resolved the correct special.
+    assert.equal(
+      buildProviderUrl('Frembed', {type: 'tv', id: '1396', season: 0, episode: 1}),
+      'https://frembed.surf/embed/serie/1396?id=1396&sa=0&epi=1',
+    );
+  });
+
+  it('does not collapse season 0 onto season 1 for ANY provider', () => {
+    // Asserted as a difference rather than by pattern-matching a "0" in the URL:
+    // each provider spells season differently (`sa=`, `s=`, `/0/`, `-0-`), and a
+    // regex over the whole URL could match an unrelated digit and pass for the
+    // wrong reason. Two URLs that differ can only differ because the season
+    // survived.
+    for (const provider of PROVIDERS) {
+      const specials = buildProviderUrl(provider.name, {
+        type: 'tv',
+        id: '1396',
+        season: 0,
+        episode: 1,
+      });
+      const firstSeason = buildProviderUrl(provider.name, {
+        type: 'tv',
+        id: '1396',
+        season: 1,
+        episode: 1,
+      });
+      assert.ok(specials, `${provider.name} produced no specials URL`);
+      assert.notEqual(
+        specials,
+        firstSeason,
+        `${provider.name} rewrote season 0 as season 1: ${specials}`,
+      );
+    }
+  });
+
+  it('still coerces a genuinely invalid season to 1', () => {
+    // The fallback still has to work — the point of the fix is that 0 is a VALID
+    // season number, not that validation was dropped.
+    for (const bad of [-3, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       const url = buildProviderUrl('Frembed', {
         type: 'tv',
         id: '1396',
         season: bad as number,
-        episode: bad as number,
+        episode: 1,
       });
       assert.equal(url, 'https://frembed.surf/embed/serie/1396?id=1396&sa=1&epi=1');
     }
+  });
+
+  it('coerces episode 0 to 1, because episodes are 1-based', () => {
+    // Episodes are NOT seasons: 0 is not a valid episode number in TMDB, so the
+    // two must not share a normaliser.
+    const url = buildProviderUrl('Frembed', {
+      type: 'tv',
+      id: '1396',
+      season: 1,
+      episode: 0,
+    });
+    assert.equal(url, 'https://frembed.surf/embed/serie/1396?id=1396&sa=1&epi=1');
   });
 
   it('never emits the strings undefined, null or NaN', () => {
@@ -268,6 +329,55 @@ describe('provider list validation', () => {
   it('has unique provider names', () => {
     const names = PROVIDERS.map((p) => p.name);
     assert.equal(new Set(names).size, names.length);
+  });
+
+  it('declares an icon key the UI can resolve, for every provider', () => {
+    // Provider identity must live in the registry, not in a second map inside the
+    // component keyed by display name — which is where it used to live, and where
+    // a renamed provider kept a stale icon with nothing to detect it.
+    for (const provider of PROVIDERS) {
+      assert.ok(
+        ['globe', 'server', 'zap'].includes(provider.iconKey),
+        `${provider.name} declares an unresolvable iconKey: ${provider.iconKey}`,
+      );
+    }
+  });
+
+  it('states every capability dimension explicitly, measured or unknown', () => {
+    // The values are the point: "unknown" is a legitimate answer, and a MISSING
+    // key is not, because an absent key reads as "no" and would turn a gap in the
+    // review into a false claim about the provider.
+    const dimensions = [
+      'playbackObserved',
+      'specials',
+      'subtitles',
+      'adultAdvertising',
+      'mobile',
+    ] as const;
+    for (const provider of PROVIDERS) {
+      for (const dimension of dimensions) {
+        assert.ok(
+          ['yes', 'no', 'unknown'].includes(provider.capabilities[dimension]),
+          `${provider.name}.capabilities.${dimension} is not a measured value`,
+        );
+      }
+    }
+  });
+
+  it('claims observed playback only where it was measured on the media element', () => {
+    // Guards the honesty rule rather than the code: a provider may only claim
+    // playback where a media element was read directly (readyState 4, advancing
+    // currentTime, non-zero video dimensions). Everything else must stay
+    // "unknown" — these players fetch through MSE, so a missing media request in
+    // the network log is NOT evidence of absence.
+    const confirmed = PROVIDERS.filter((p) => p.capabilities.playbackObserved === 'yes').map(
+      (p) => p.name,
+    );
+    assert.deepEqual(
+      confirmed.sort(),
+      ['SmashyStream', 'VidLink'],
+      'playback may only be claimed for providers measured on the media element',
+    );
   });
 });
 

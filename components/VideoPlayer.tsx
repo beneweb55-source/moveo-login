@@ -28,6 +28,7 @@ import {
   buildProviderUrl,
   getMessageOrigins,
   isStorableServer,
+  type ProviderIconKey,
 } from "@/lib/providers";
 import {
   createInitialPlayerState,
@@ -53,14 +54,23 @@ interface VideoPlayerProps {
   onPrev?: () => void;
 }
 
-const PROVIDER_ICONS: Record<string, React.ElementType> = {
-  Frembed: Globe,
-  SuperEmbed: Server,
-  "VidSrc.to": Server,
-  "VidSrc.me": Globe,
-  "2Embed": Globe,
-  SmashyStream: Zap,
-  VidLink: Server,
+/**
+ * Resolves a provider's icon IDENTITY — declared in lib/providers.ts, one place
+ * per provider — to a concrete icon component.
+ *
+ * This replaced a `Record<string, React.ElementType>` keyed by DISPLAY NAME. That
+ * version could not fail loudly: renaming a provider in the registry left this map
+ * pointing at the old name, the lookup returned undefined, and the `?? Server`
+ * fallback hid it. Worse, identity lived in two places — the registry and this
+ * component — so the two could disagree with nothing to detect it. The key type
+ * is now `ProviderIconKey` and the Record is exhaustive, so a provider whose
+ * iconKey is missing from this map is a COMPILE ERROR on the line below rather
+ * than a silently wrong icon at runtime.
+ */
+const PROVIDER_ICON_COMPONENTS: Record<ProviderIconKey, React.ElementType> = {
+  globe: Globe,
+  server: Server,
+  zap: Zap,
 };
 
 /**
@@ -257,13 +267,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     Promise.all([
       fetch(
-        `/api/sibnet?title=${encodeURIComponent(searchTitle)}${originalTitleParam}&type=${type}&season=${season || 1}&episode=${episode || 1}&lang=VF`,
+        `/api/sibnet?title=${encodeURIComponent(searchTitle)}${originalTitleParam}&type=${type}&season=${season ?? 1}&episode=${episode || 1}&lang=VF`,
         { signal: controller.signal },
       )
         .then((r) => r.json())
         .catch(() => ({ found: false })),
       fetch(
-        `/api/sibnet?title=${encodeURIComponent(searchTitle)}${originalTitleParam}&type=${type}&season=${season || 1}&episode=${episode || 1}&lang=VOSTFR`,
+        `/api/sibnet?title=${encodeURIComponent(searchTitle)}${originalTitleParam}&type=${type}&season=${season ?? 1}&episode=${episode || 1}&lang=VOSTFR`,
         { signal: controller.signal },
       )
         .then((r) => r.json())
@@ -881,7 +891,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           {PROVIDERS.map((provider) => {
             const isActive = player.server === provider.name;
-            const Icon = PROVIDER_ICONS[provider.name] ?? Server;
+            // Exhaustive by type: no fallback needed, and none is wanted — a
+            // fallback is what let the old name-keyed map drift unnoticed.
+            const Icon = PROVIDER_ICON_COMPONENTS[provider.iconKey];
             return (
               <button
                 key={provider.name}
