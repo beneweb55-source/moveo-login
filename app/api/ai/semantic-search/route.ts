@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error("Semantic Search Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Generic on the wire. This route has no authentication and the SDK's error
+    // text can carry request and account detail.
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

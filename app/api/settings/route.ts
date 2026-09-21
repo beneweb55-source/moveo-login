@@ -10,6 +10,9 @@ export async function GET() {
     }, {});
     return NextResponse.json(settings);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // The message stays in the server log. This endpoint has no authentication,
+    // and a Postgres error string carries table, column and constraint detail.
+    console.error('[settings] GET failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

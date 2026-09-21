@@ -90,6 +90,9 @@ export async function POST(req: Request) {
     return response;
   } catch (error: any) {
     console.error('Error in /api/ping:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Generic on the wire. This route accepts anonymous callers by design, and
+    // the driver's message carries table and column detail. Its only in-repo
+    // caller (PingTracker) ignores the response body, so nothing reads this.
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

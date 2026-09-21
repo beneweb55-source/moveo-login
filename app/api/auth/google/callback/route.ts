@@ -173,6 +173,9 @@ export async function GET(req: NextRequest) {
 
   } catch (error: any) {
     console.error('Google auth error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // Generic on the wire. This callback is unauthenticated by necessity — it is
+    // the redirect target Google returns to — and an OAuth or network error
+    // string can carry request detail. The log keeps the real message.
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
