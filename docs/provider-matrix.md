@@ -807,6 +807,39 @@ is a conclusion; each is work outstanding.
   link, and **showed** it for titles that play on the live providers, for a reason that had
   nothing to do with playability.
 
+  Captured from production on 2026-09-21, minutes before the deploy that removed the
+  route, with `?cb=<ts>` to defeat the CDN — four mainstream, definitely playable
+  movies, every one of them reporting `found: true` on the strength of a VOE link:
+
+  | Request | Response |
+  |---|---|
+  | `?tmdb_id=129` (*Spirited Away*) | `found:true`, `voe_url:"https://voe.sx/e/fdit6qn9rzbb"`, `dood_url:"https://dsvplay.com/e/9fnsm4helhxo"`, `lang:"VF"` |
+  | `?tmdb_id=1184918` (*The Wild Robot*) | `found:true`, `voe_url:"https://voe.sx/e/tfh9pzt7nzr2"`, `dood_url:null`, `lang:"VF"` |
+  | `?tmdb_id=693134` (*Dune: Part Two*) | `found:true`, `voe_url:"https://voe.sx/e/ofdl0snt5aib"`, `dood_url:null`, `lang:"VF"` |
+  | `?tmdb_id=872585` (*Oppenheimer*) | `found:true`, `voe_url:"https://voe.sx/e/wiylqdnahfql"`, `dood_url:null`, `lang:"VF"` |
+
+  So the movie-page request button was hidden for **every one of them** — the hide
+  direction, 4 of 4, on the strength of a dead `voe.sx` URL. Two further readings from
+  the same probe: the TV shape (`?tmdb_id=1399&season=1&episode=1`) answered
+  **500 `{"error":"Internal Server Error"}`**, so that arm was already broken and is now
+  moot; and the `dood_url` host is `dsvplay.com`, a domain that was not even among the
+  twelve `frame-src` entries removed with the tier — the stored hosts had drifted past
+  the list the CSP had been narrowed to.
+
+  Verified **after** the deploy: `GET /api/catalogue?tmdb_id=129` → **404**; the movie
+  page's XHR/fetch list contains no `/api/catalogue` call at all (26 requests, none of
+  them it), where one fired on every mount before; its action row is now just
+  `REGARDER · BANDE-ANNONCE` with no gap. The preserved half was exercised rather than
+  assumed: with `preferredServer = "Sibnet VF"` stored on a title Sibnet cannot resolve,
+  the player reaches `UNAVAILABLE` and renders its request CTA — *"Source indisponible /
+  Cette source n'a pas pu être résolue"* alongside *"Demander ce contenu"* (the
+  `t.details.requestEncoding` label; the English fallback reads "Demander l'encodage
+  prioritaire") and *"Changer de source"*. On the same page the live default provider was
+  serving the title correctly (`frembed.surf/api/films?id=129` → 200; the embed showing
+  *Le Voyage de Chihiro* in **VF, HD**), which is the playability that `found: true` was
+  standing in for. Console after the deploy: the two expected logged-out `401`s and no
+  CSP violations.
+
   The same columns backed a worse defect in `POST /api/film-request`: it answered
   `already_available` from those dead links and returned early, so the request was **never
   queued** while the user was told the content was already there — a lost request
