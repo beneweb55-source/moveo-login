@@ -92,6 +92,13 @@ const Series = () => {
         setData(res);
         pageRef.current = 4;
         setPageNum(4);
+      }).catch((error) => {
+        // fetchDataFromApi re-throws (utils/api.ts:16), so any failed or hung TMDB
+        // response rejects this promise. Without a handler the rejection was
+        // unhandled AND setLoading(false) never ran, because it sat inside the
+        // .then — so the page showed skeletons forever, with no error and no retry.
+        console.error("[series] failed to load the initial catalogue:", error);
+      }).finally(() => {
         setLoading(false);
       });
     };
