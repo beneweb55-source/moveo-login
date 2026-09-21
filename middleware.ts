@@ -1,7 +1,22 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+import { isCrossSiteRequest } from '@/lib/csrf';
+
 export async function middleware(request: NextRequest) {
+  // Cross-site forgery gate, run before anything else: a request made by another
+  // site must not even reach the ban-check self-fetch below. The rule, and the
+  // production measurement that justified it, live in lib/csrf.ts.
+  if (
+    isCrossSiteRequest({
+      method: request.method,
+      origin: request.headers.get('origin'),
+      selfOrigin: request.nextUrl.origin,
+    })
+  ) {
+    return NextResponse.json({ error: 'Cross-origin request rejected' }, { status: 403 });
+  }
+
   const token = request.cookies.get('auth_token')?.value;
 
   if (token) {
@@ -29,7 +44,7 @@ export async function middleware(request: NextRequest) {
       } finally {
         clearTimeout(banCheckTimer);
       }
-      
+
       if (res.status === 403) {
         const data = await res.json();
         if (data.banned) {
