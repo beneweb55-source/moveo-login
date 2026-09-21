@@ -194,16 +194,48 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
     // content classes by TMDB id, including Korean drama AND anime (series and
     // movie), and its nested page renders the real title, Saison/Épisode, a VF
     // badge and SERVEURS / ÉPISODES controls.
-    // Playback stayed "unknown": after the frame settled there were no media-type
-    // requests and no stream host in xhr/fetch, and clicking its one interactive
-    // element produced no media. Per the Support doc comment, "not observed" is
-    // recorded as unknown, never as "no" — these players fetch through MSE.
+    //
+    // MEASURED 2026-09-21 (fourth pass) — the "unknown" this field used to carry
+    // was a MEASUREMENT ARTIFACT, not a provider failure, and it is worth saying
+    // so here because this is the default provider. Its gate has TWO steps: a
+    // landing play button, THEN a server choice. The earlier audit took only the
+    // first, saw no media, and stopped. With both taken, Korean 93405 S1E1
+    // streams on desktop and on an emulated mobile viewport: HLS `master.m3u8`
+    // -> variant playlist -> `seg-1`..`seg-7` `.ts` fetched sequentially (all
+    // 200), and two screenshots 8s apart show different frames.
+    //
+    // The player is VOE, served cross-origin from `jamesbornmain.com`, so the
+    // `video` element is unreachable from script on ANY viewport — the evidence
+    // above is the strongest obtainable for this provider, and it is not the
+    // element-level standard the other providers are held to.
+    //
+    // Its own SERVEURS list offers `Voe` / `Dood` / `Uqload`. Voe and Dood are
+    // removed as SELECTABLE providers on our side and that decision stands;
+    // this note exists only so the registry does not imply a separation that
+    // does not exist.
     capabilities: {
+      // STAYS "unknown" — deliberately, and NOT because playback is unverified.
+      // Playback WAS observed for this provider (see the note above: sequential
+      // `.ts` segments and changing frames, desktop and emulated mobile). But
+      // `playbackObserved: "yes"` is reserved by tests/providers.test.ts for
+      // providers measured by a DIRECT media-element read (readyState 4,
+      // advancing currentTime, non-zero video dimensions) — and this provider's
+      // player is cross-origin, so that read is impossible on any viewport.
+      // Widening the flag to admit a weaker evidence class would erode the exact
+      // guard that keeps this field trustworthy, so the strong-but-different
+      // evidence lives in docs/provider-matrix.md instead, and the flag stays
+      // conservative. Read "unknown" here as "not measured by the standard this
+      // field means", not as "we do not know".
       playbackObserved: "unknown",
+      // Not measured for this provider.
       specials: "unknown",
-      subtitles: "unknown",
+      // MEASURED: a French subtitle track is fetched from inside the player —
+      // `GET jamesbornmain.com/vtt/<id>_fr.srt` -> 200, for Korean 93405.
+      subtitles: "yes",
       adultAdvertising: "unknown",
-      mobile: "unknown",
+      // MEASURED on an emulated 390x844 viewport: it plays. This field's bar is
+      // only "measured on a mobile viewport", which the pass met.
+      mobile: "yes",
     },
     // No redirect hop: buildUrl targets frembed.surf directly rather than the
     // frembed.work redirector (see module header). One origin is the whole
@@ -363,7 +395,12 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       specials: "yes",
       subtitles: "unknown",
       adultAdvertising: "unknown",
-      mobile: "unknown",
+      // MEASURED 2026-09-21 on an emulated 390x844 mobile viewport: 640x360,
+      // readyState 4, duration 3582.204, currentTime 5.094 -> 10.098 over 5000ms
+      // (+5.004s) with the seek slider tracking. Unlike desktop it did NOT
+      // autoplay — it sat paused until its own Play control was clicked, which is
+      // standard mobile autoplay policy rather than a provider fault.
+      mobile: "yes",
     },
     // HOST MOVED — re-measured 2026-09-21. The provider did not die, it moved.
     //
@@ -429,7 +466,15 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       subtitles: "yes",
       specials: "unknown",
       adultAdvertising: "unknown",
-      mobile: "unknown",
+      // MEASURED 2026-09-21 on an emulated 390x844 viewport: 1920x1080,
+      // duration 3582.1, three samples 8.611 -> 13.614 -> 18.627 (+5.003s, then
+      // +5.013s) with paused=false and readyState 4.
+      // CAVEAT, recorded rather than explained: its on-screen Play buttons did not
+      // start playback under emulated input, while the element's own play()
+      // resolved and ran. Click-interception was ruled out — document.elementFromPoint
+      // at the video centre returns the VIDEO itself and no overlay link covers the
+      // player — so the cause of the unresponsive buttons is undetermined.
+      mobile: "yes",
     },
     warningKey: "disableAdblock",
     frameOrigins: ["https://vidlink.pro"],

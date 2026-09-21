@@ -34,6 +34,32 @@ response bodies were parsed. Two consequences worth stating plainly:
 No `capabilities` cell was promoted on the strength of this pass. The API evidences
 *resolution and availability*, never *playback*, and those are different claims.
 
+**Revision note (2026-09-21, fourth pass).** Two things happened this pass, and the
+first is the most consequential correction in the document's history because it concerns
+**the default provider**.
+
+- **Frembed's `Playback: ✘` was wrong, and the cause was our own method.** Its gate has
+  **two** steps (a landing play button, *then* a server choice) and the first pass took
+  only one. With both taken, Korean `93405` S1E1 streams on desktop *and* emulated
+  mobile. The ✘ was a **measurement artifact**, not a provider failure — see correction
+  3. This is the same class of error as the two already recorded, which is why it is
+  recorded the same way rather than quietly overwritten.
+- **Mobile behaviour was measured for the first time**, for three of the seven providers,
+  on an **emulated** `390×844` viewport. All three played. The emulation caveat is real
+  and is stated in the Method and Limits sections, because an emulated viewport is not a
+  phone.
+- This pass *does* evidence playback, so — unlike the third pass — it **can** promote a
+  capability. `mobile` moves from `"unknown"` to `"yes"` for Frembed, SmashyStream and
+  VidLink in `lib/providers.ts`; everything else stays `"unknown"`, because four
+  providers were still not measured on mobile at all.
+- **Frembed's `playbackObserved` stays `"unknown"` even though it was observed to play.**
+  That is deliberate, not an oversight: the flag is contractually reserved for a direct
+  media-element read, and Frembed's cross-origin player makes that impossible. The
+  evidence lives in this document instead of loosening the guard — see correction 3.
+- **One product question is left open rather than answered.** Frembed's own server list
+  offers `Voe`, `Dood` and `Uqload`. The first two are the providers removed from Moveo.
+  See the Pending list; it needs a human decision, not more measurement.
+
 ## How to read this
 
 | Mark | Meaning |
@@ -67,6 +93,19 @@ as "does not work" — see the measurement limits below, which are real and mate
   advancing `currentTime`, `duration`, and **`videoWidth`/`videoHeight`**, which are
   non-zero only once frames are actually decoded. This is stronger than any HTTP signal
   and stronger than a network log, which misses MSE/`blob:` sources entirely.
+- **Cross-origin players** — where the player sits on a **different origin from the
+  frame we create** (Frembed's is on `jamesbornmain.com`), the `video` element cannot be
+  reached from script at all, on any viewport. For those the evidence is instead:
+  (a) the **accessibility tree**, which does cross the boundary; (b) the **network log
+  for the segment sequence**; and (c) **two screenshots seconds apart**, compared for
+  frame change. Cells measured this way say so, rather than implying an element read
+  that was not possible.
+- **Mobile layer** (new this pass) — a **390×844 viewport at device-pixel-ratio 3 with
+  `mobile`+`touch` enabled, plus an Android 14 / Chrome 122 user agent**, applied by
+  DevTools emulation and then **reloaded** so load-time device gates re-run. This is an
+  *emulated* viewport, **not a real device**: it changes layout and what the provider
+  chooses to serve, but not the radio, the OS media stack, or the real touch pipeline.
+  Every mobile cell below is therefore "emulated mobile", and is labelled as such.
 - **TLS** — `openssl s_client` to read the presented certificate.
 
 Date of measurement: **2026-09-21**. Vantage point: a single desktop network in one
@@ -96,23 +135,24 @@ anime series coverage · anime movie coverage · mobile behaviour · stability`
 | **Frameability** | ✅ no `X-Frame-Options`, no `frame-ancestors` seen | ✅ same | ✅ same | ✅ same | ✅ same | ✅ **same, at the new host** | ✅ same |
 | **Redirect chain** | 200 → nested **same-origin frame** `frembed.surf/series?id=…` (200) | **302** `multiembed.mov` → `streamingnow.mov/?play=<base64>` (200) | 200 → nested frames `vsembed.ru` (200) → `cloudorchestranova.com` (200) | **301** `vidsrc.me` → `vidsrc.sh` (200); then nested `cloudorchestranova.com` | 200, no redirect | **301** `player.smashystream.com` → `anyembed.xyz/embed/…`; hop deliberately **skipped** (we frame the final target) | 200, no redirect |
 | **Browser frame load** | ✅ Korean, anime series, anime movie | ✅ loads — but see Playback | ✅ Korean | ✅ Korean | ✅ Korean | ✅ **movie, TV, and season 0** | ✅ Korean, anime series, anime movie |
-| **Playback observed** | ✘ **not observed** (Korean & anime series). No media-type request; no stream host in `xhr`/`fetch`; clicking its player surface produced no media. *Not* evidence it cannot play — see Limits | ✘ **not observed**. Renders an ad landing page, not a player | ✘ not observed in ~14 s (its own `Play` clicked) | ✘ not observed | ✘ not observed (ad layer) | ✅ **movie AND TV, measured on the media element**: `/embed/tmdb-movie-550` → *Fight Club*, duration **8348.4 s** (= 2:19:08, the film's real runtime), `readyState 4`, `paused=false`, **1280×534 decoded**; `/embed/tmdb-tv-1396-1-1` → *Breaking Bad - Pilot*, **3479.9 s** (= 57:59), `1280×720` | ✅ **Korean 93405 S1E1 and anime series 1429 S1E1** — DASH manifest + init segments + 14 sequential media chunks, streaming progressively |
+| **Playback observed** | ✅ **observed — desktop AND emulated mobile** (Korean `93405` S1E1). **Corrected this pass; the previous ✘ was a measurement artifact — see correction 3.** Needs a **two-step gate**: click the landing play button, *then* choose a server (`Voe` / `Dood` / `Uqload`); the first pass stopped after step one. Then HLS `master.m3u8` → variant playlist → **`seg-1…seg-7` `.ts` fetched sequentially, all 200**, and two screenshots 8 s apart show different frames. The player is **cross-origin** (`jamesbornmain.com`), so no element read was possible. Anime series still not observed | ✘ **not observed**. Renders an ad landing page, not a player | ✘ not observed in ~14 s (its own `Play` clicked) | ✘ not observed | ✘ not observed (ad layer) | ✅ **movie AND TV, measured on the media element**: `/embed/tmdb-movie-550` → *Fight Club*, duration **8348.4 s** (= 2:19:08, the film's real runtime), `readyState 4`, `paused=false`, **1280×534 decoded**; `/embed/tmdb-tv-1396-1-1` → *Breaking Bad - Pilot*, **3479.9 s** (= 57:59), `1280×720` | ✅ **Korean 93405 S1E1 and anime series 1429 S1E1** — DASH manifest + init segments + 14 sequential media chunks, streaming progressively |
 | **Season / episode** | ✅ renders `Saison` / `Épisode` + `S1 E2` next-episode + `ÉPISODES` / `SERVEURS` | — | ✅ provider frame titled `Squid Game 2021 · S01 E01` | ✅ same upstream, same title | ✅ renders `Squid Game (2021) (S01E01)` | ✅ renders the episode list; **season 0 resolves to the correct special** (see below) | ✅ `region "Video Player - Attack on Titan- S1 E1"` |
-| **Subtitles & language** | renders a `VF` dub badge on series; no subtitle menu seen | — | — | — | — | — (not measured) | ✅ **subtitle track fetched** (`.srt`) for Korean *and* anime; 3 audio streams in the DASH manifest |
+| **Subtitles & language** | renders a `VF` dub badge on series; no subtitle *menu* seen — **but a French subtitle track is fetched from inside the player** (`jamesbornmain.com/vtt/{id}_fr.srt`, 200) for Korean `93405`, found this pass. `version` remains the only language signal, and it is a per-item property | — | — | — | — | — (not measured) | ✅ **subtitle track fetched** (`.srt`) for Korean *and* anime; 3 audio streams in the DASH manifest |
 | **Movie coverage** | ✅ resolves (`/api/films?id=129&idType=tmdb` 200; rendered title) | — | — | — | — | ✅ **resolves AND plays** (*Fight Club*) | ✅ resolves; anime movies ✘ (below) |
 | **Western TV** | ✅ 200 | — | — | — | — | ✅ **resolves AND plays** (*Breaking Bad* S1E1) | ✅ 200 |
 | **Korean drama** | ✅ resolves + renders `Squid Game` S1E1 (`/api/series?id=93405…` 200); **22 episodes enumerated** with `sa`/`epi`/`VF` via `/api/public/v1/tv/93405` | ✘ no player (ad page) | ✅ resolves | ✅ resolves | ✅ resolves | — (not measured) | ✅ resolves **and plays** |
 | **Anime series** | ✅ resolves + renders `L'Attaque des Titans` S1E1 + `VF`; **104 of its enumerable anime titles are series** | — | — | — | — | — (not measured) | ✅ resolves **and plays** (+ subtitles) |
 | **Anime movie** | ✅ resolves + renders `Le Voyage de Chihiro` (`/api/films?id=129`); **42 anime films enumerated** | — | — | — | — | — (not measured) | ✘ provider self-declares `"We Couldn't Find This Content ."` |
-| **Mobile behaviour** | — | — | — | — | — | — | — |
+| **Mobile behaviour** | ✅ **plays on emulated mobile** — `seg-1…seg-11` sequential `.ts` 200s + frame change. But the experience is ad-hostile: an **in-player interstitial** (`DÉPÊCHE-TOI !` / `GET BONUS`) with a stuck `0:00` countdown, **4 popunder tabs** opened during the session, `console.clear()` called repeatedly, and **Adscore bot detection** active | — (not measured) | — (not measured) | — (not measured) | — (not measured) | ✅ **plays — full element evidence**: `readyState 4`, `paused=false`, `640×360`, `5.094 → 10.098` over 5000 ms (**+5.004 s**), seek slider tracking. Required a click; the desktop pass autoplayed | ✅ **plays — full element evidence**: `1920×1080`, `3582.1 s`, three samples `8.611 → 13.614 → 18.627` (**+5.003 s**, **+5.013 s**). Caveat: the **on-screen `Play` buttons did not start it** under emulated input; the element's own `play()` resolved and ran. A **popunder to an adult-dating site** (`sexymeet.tv`) opened in the same context |
 | **Stability** | intermittent: 7/8 curl attempts 200, 1 connect timeout; one duplicate `ERR_ABORTED` frame request on first mount | poor: Cloudflare Turnstile (`Error: 600010`) retry-looping inside the frame | — | — | one curl timeout (western TV), 200 on retry | ✅ **stable across movie, TV and specials probes**; not yet observed over time | ✅ stable across two titles; not yet observed over time |
 
 ---
 
-## The two corrections to the first pass
+## Corrections to the first pass
 
-Both were failures recorded in the first pass that, on re-measurement, were **readings
-of the wrong thing** — which is exactly the error this document exists to catch.
+The first two were failures recorded in the first pass that, on re-measurement, were
+**readings of the wrong thing** — which is exactly the error this document exists to
+catch. The third is the same class of error found this pass, on the default provider.
 
 ### 1. SmashyStream was never a dead provider. It moved.
 
@@ -174,6 +214,63 @@ Note the shape of this finding: a **provider capability** was withheld from user
 bug on our side, and the honest reading of "season 0 does not work" would have been
 wrong. The `capabilities` record in `lib/providers.ts` encodes this as
 `specials: "yes"` for SmashyStream — measured, not assumed.
+
+### 3. Frembed's desktop ✘ was a measurement artifact — its gate has two steps
+
+The first pass recorded Frembed — **our current default** — as "resolves but playback not
+observed", and the notes above said the click on its player surface "produced no media".
+Re-measured this pass, **Frembed plays**, on both desktop and mobile. The earlier reading
+was wrong, and the reason is worth recording because it is the failure mode this
+document exists to catch.
+
+**The gate has two steps, not one.** After the frame settles there is a landing poster
+with a large unnamed play `button`. Clicking it does **not** start a player; it opens the
+provider's own `SERVEURS` list. Only after a server is chosen does a player mount. The
+first pass stopped after step one — it clicked, saw no media, and concluded "not
+observed". The evidence that resolves it:
+
+| Step | Observation |
+|---|---|
+| 1. Click the landing play button | `SERVEURS` panel opens, listing **`Voe`**, **`Dood`**, **`Uqload`** for `93405` S1E1 |
+| 2. Select `Voe` | Frame `jamesbornmain.com/e/n1cybk52mxzz` mounts, titled `Watch Squid.Game.S01E01.FRENCH.720p.WEB.x264-LAZARUS.mkv - VOE` |
+| Metadata | The player announces `59 minutes, 42 seconds` (= 3582 s) — matching the duration SmashyStream and VidLink independently report for the same episode |
+| Media | HLS: `master.m3u8` → `index-v1-a1.m3u8` → **`seg-1` … `seg-7` `.ts` fetched sequentially, all 200**, from `*.cloudwindow-route.com` |
+| Frames | Two screenshots 8 s apart show **different frames of the same scene** (the playground sequence), i.e. decoding and advancing |
+
+Two independent readings agree, so this is settled for that title. The `video` element
+itself is **not** readable here — the player is cross-origin (`jamesbornmain.com`), so
+the element-level evidence used for SmashyStream and VidLink is unavailable. The
+screenshot-pair plus segment-sequence method is what replaces it, and the grid cell now
+says which was used rather than implying the stronger one.
+
+**Consequence for the document, and for the product.** The sentence that stood in the
+per-provider notes — *"Because Frembed is the default source, 'resolves but playback not
+observed' remains the single most important open question in this document"* — is now
+**closed, and closed in the provider's favour**. The default provider works.
+
+**A second finding, which is a product fact rather than a measurement.** The server list
+Frembed itself offers for this episode is **`Voe`**, **`Dood`**, **`Uqload`**. VOE and
+Dood were removed from Moveo as *selectable providers*; they are nonetheless live as
+*servers inside Frembed*, which is the default. So the removal is a decision about our
+own registry and UI, **not** a claim that users never reach that infrastructure. Nothing
+here argues for restoring them — the brief is explicit that they stay removed — but the
+document should not imply a separation that does not exist.
+
+**Why the registry still says `playbackObserved: "unknown"` for Frembed.** This is the
+one place where the document and `lib/providers.ts` deliberately disagree, so it is
+spelled out here rather than left to look like an oversight.
+`tests/providers.test.ts` reserves `playbackObserved: "yes"` for providers measured by a
+**direct media-element read** — `readyState 4`, advancing `currentTime`, non-zero video
+dimensions — and asserts that only SmashyStream and VidLink may claim it. Frembed
+*cannot* meet that bar, because its player is cross-origin and the element is unreachable
+from script on any viewport. The evidence above is strong but it is a **different class**,
+and the honest options were to widen the flag or to leave it alone.
+
+**It was left alone.** Relaxing a guard so that a new result fits is the failure mode
+this document exists to catch, and the flag means what its test says it means. The
+finding is therefore recorded here, in full, and the machine-readable field stays
+conservative. Read that `"unknown"` as *"not measured by the standard this field
+denotes"* — **not** as *"we do not know whether it plays"*. We do know.
 
 ---
 
@@ -318,8 +415,11 @@ that exists independently of whether the embeds work.
 | **VidLink** | ✅ Publishes an embed URL grammar, including a reported `/anime/{MALid}/{number}/{subOrDub}` **[D]** — not independently verified. | Third-party aggregator, unclear licensing. The only provider where we measured playback for **Korean and anime**, with subtitles **[M]**. Loads a fingerprinting module (`fu.wasm`) and monetises via ad exchanges **[M]**. |
 
 **No provider in this review publishes any K-drama claim at all**, in either column.
-Korean coverage is therefore **measured-only** for us, and the only provider we have
-measured to *play* Korean content is VidLink.
+Korean coverage is therefore **measured-only** for us. Three providers have now been
+measured to actually *play* Korean content — **Frembed**, **SmashyStream** and
+**VidLink** — and all three independently report the same **3582 s** runtime for
+`93405` S1E1, which is mutual corroboration that each is serving the same real episode
+rather than a placeholder.
 
 ---
 
@@ -341,14 +441,33 @@ measured to *play* Korean content is VidLink.
   not been shown to carry.
 - Its nested film/series page renders the real title, `Saison`/`Épisode`, a `VF` badge,
   and `SERVEURS` / `ÉPISODES` / `S1 E2` controls.
-- **Playback was not observed.** After the frame settled there were no media-type
-  requests and no stream host in `xhr`/`fetch`; clicking the one interactive element in
-  its player area (a `button` with no accessible name) produced no media.
-- That same click opened a **new tab to a `mega.nz` file URL**. The popup appeared
-  immediately after the click, but its exact origin was not proven, so this is recorded
-  as an observation, not an attribution.
-- Because Frembed is the default source, "resolves but playback not observed" remains
-  the single most important open question in this document. **It is still open.**
+- ~~**Playback was not observed.**~~ **Corrected this pass — Frembed plays.** The first
+  pass clicked the landing play button, saw no media, and stopped; the gate is **two
+  steps** (play button → choose a server). With both steps taken, Korean `93405` S1E1
+  streams on **desktop and emulated mobile**. Full evidence in correction 3 above.
+- **Its own server list is `Voe`, `Dood`, `Uqload`.** The first two are the providers
+  removed from Moveo. They are removed from *our registry*, and that stands — but they
+  remain live as servers *inside Frembed*, which is our default. The document should not
+  imply a separation that does not exist.
+- **It plays inside a VOE player on a rotating third-party host.** The frame is
+  `jamesbornmain.com/e/<id>`, titled `Watch Squid.Game.S01E01.FRENCH.720p.WEB.x264-LAZARUS.mkv - VOE`.
+  A **French subtitle track** (`/vtt/<id>_fr.srt`) and a storyboard sprite
+  (`/engine/storyboard/<id>`, `/cache/<id>_storyboard_L2.jpg`) are fetched from there.
+  Segments come from `*.cloudwindow-route.com` — note the **CDN host differs per session**
+  (`…n3kwtioe2pixndjhqm…` on the mobile run, `…n3llbaa8r4vvm8ea9r…` on the desktop run),
+  so no host from this chain can be pinned in a CSP.
+- **Popunders are real and reproducible.** The first pass saw a `mega.nz` tab after a
+  click; this pass opened **four more** — `worldofseabattle.com` (a CPA game offer), a
+  `youtube.com/watch` page, a `.cyou` domain that failed to load, and
+  `displayendpointstarring.com` (a VAST endpoint). The click precedes the popup in every
+  case, but the opener was not captured, so **the mechanism is still an observation, not
+  a proven attribution**.
+- **It actively clears its own console** — `console.clear()` was called repeatedly (7, 8,
+  15 and 13 times in the same session), and **Adscore** ("Bot and proxy detection by
+  Adscore.com") runs on the page. Neither is anything we should try to defeat; both are
+  recorded because they explain why this provider is harder to measure than the others.
+- Because Frembed is the default source, its playback status mattered more than any other
+  cell in this document. It is now **closed, in the provider's favour.**
 
 ### SuperEmbed (`multiembed.mov`)
 
@@ -407,8 +526,23 @@ measured to *play* Korean content is VidLink.
   media request** for this provider. That is a property of the measurement, not of the
   provider — and it is the reason no other provider is marked ✘ on playback.
 - **Season 0 resolves correctly** — see the section above.
-- Subtitles/language support, Korean coverage, anime coverage and mobile behaviour are
-  **not measured** for this provider. An absent claim is a gap in the review, not a "no".
+- **Korean and anime series both resolve *and* play** (measured after the grid's first
+  pass had them blank). On the media element, same standard as above:
+  - Korean `93405` S1E1 → title `Squid Game - Red Light, Green Light | AnyEmbed`,
+    `readyState 4`, `640×360`, `duration 3582.204`, `paused=false`, `currentTime`
+    advancing **+4.003 s over 4000 ms**.
+  - Anime series `1429` S1E1 → title `Attack on Titan - To You, in 2000 Years: The Fall
+    of Shiganshina (1) | AnyEmbed`, `readyState 4`, `1280×720`, `duration 1541`,
+    `paused=false`, **+4.001 s over 4000 ms**.
+  Both announced the correct episode in their own titles, which is the provider
+  confirming the season/episode grammar rather than us inferring it.
+- **Mobile: it plays.** `390×844` emulated viewport, `640×360`, `readyState 4`,
+  `duration 3582.204` — the same runtime the other two providers report for this episode
+  — with `currentTime` `5.094 → 10.098` (**+5.004 s over 5000 ms**) and the seek slider
+  tracking. Unlike desktop, it did **not** autoplay: it sat `paused` until its `Play`
+  control was clicked, which is standard mobile autoplay policy and not a provider fault.
+- Subtitles/language support is still **not measured** for this provider — the one
+  `— (not measured)` left in its row. An absent claim is a gap in the review, not a "no".
 
 ### VidLink — playback observed, with subtitles
 
@@ -423,6 +557,26 @@ measured to *play* Korean content is VidLink.
   `"We Couldn't Find This Content ."` / `"Please check back another time."` This is a
   self-declared negative, the strongest available form of negative evidence, and it is
   why the anime-movie row is ✘ rather than "unmeasured".
+- **Mobile: it plays, at the highest quality of the three measured.** Same emulated
+  `390×844` viewport: `1920×1080`, `duration 3582.1`, three samples
+  `8.611 → 13.614 → 18.627` (**+5.003 s** then **+5.013 s** over consecutive 5000 ms
+  waits), `paused=false`, `readyState 4`. Its player is also the most accessible of the
+  three — a labelled `region` (`Video Player - Squid Game- S1 E1`), named controls with
+  `k`/`m`/`i`/`f` shortcuts, and a real ARIA seek slider.
+- **One honest caveat on that mobile run.** The on-screen `Play` buttons — both of them —
+  did **not** start playback under emulated input. The element's own
+  `HTMLMediaElement.play()` *did* resolve (so user activation was present and no autoplay
+  policy blocked it) and the position then advanced in real time. I checked whether an ad
+  layer was swallowing the clicks: `document.elementFromPoint` at the centre of the video
+  returns the `VIDEO` element itself, and no large overlay link exists over the player.
+  **So click-interception is ruled out, and the cause of the unresponsive buttons is
+  undetermined** — recorded as such rather than guessed at.
+- **An adult-dating popunder opened in this provider's context.** A tab to
+  `sexymeet.tv` ("Live Random Video Chat") via a `trackdesk` affiliate link, plus an
+  AliExpress affiliate, appeared in the isolated context where only VidLink was loaded.
+  That is the **same class of advertising** already recorded for SuperEmbed and is the
+  single strongest product-safety concern in this document after SuperEmbed's. As before,
+  the opener was not captured, so the attribution is an observation.
 - Loads a fingerprinting module (`vidlink.pro/fu.wasm`) and is monetised via
   `adexchangerapid.com` / `adsco.re`.
 
@@ -437,9 +591,12 @@ measured to *play* Korean content is VidLink.
    network log that other providers show, while the media element was demonstrably
    decoding frames. This is the single largest caveat in this document, and it is why
    most providers are marked "unknown" rather than ✘.
-2. **A click is required.** VidLink only began fetching after its `Play` control was
-   activated. Other providers may behave the same way. Their ✘ therefore means
-   "no media after load, and in some cases after a click", not "no media ever".
+2. **A click is required — and for one provider, two of them.** VidLink only began
+   fetching after its `Play` control was activated, and Frembed only mounts a player
+   after *two* steps (its landing play button, then a server choice). This is the
+   documented reason the first pass got Frembed wrong: a single click was treated as the
+   whole gate. Any remaining ✘ therefore means "no media after load, and after the
+   interactions described", not "no media ever".
 3. **One vantage point.** Single network, single country, single browser profile with
    extensions present. Geo-variance and ISP-level differences are invisible here.
 4. **Narrow sample.** Browser-level tests cover: Korean `93405` S1E1, anime series `1429`
@@ -449,7 +606,14 @@ measured to *play* Korean content is VidLink.
    **one** provider only. The season-0 fix in `lib/providers.ts` therefore applies the
    truthful value to all seven, but `capabilities.specials` is `"yes"` only for the one
    measured — the rest are `"unknown"`, which is the honest encoding.
-5. **Mobile behaviour is entirely unmeasured** — every cell above is blank for it.
+5. **Mobile is now measured for three providers out of seven — and only by emulation.**
+   The largest gap in this document has shrunk but has not closed: **Frembed**,
+   **SmashyStream** and **VidLink** were each driven on an emulated `390×844` viewport
+   with a mobile UA, and all three played. The other four remain `—`. And an emulated
+   viewport is not a phone: it does not exercise the real media stack, the radio, or a
+   real touch pipeline, and providers that fingerprint the device (Frembed runs Adscore;
+   VidLink loads `fu.wasm`) may behave differently on real hardware. **Treat these cells
+   as "here is what an emulated mobile client gets", not as device certification.**
 6. **Unmeasured ≠ absent.** Every `—` cell is a gap in this review, not a claim.
 
 ## Cross-cutting observations made during the same sessions
@@ -475,6 +639,28 @@ recording where they can be acted on:
 - **Provider frames pull heavy third-party ad/telemetry traffic** (`adsco.re`,
   `adexchangerapid.com`, `swiwetduchan.shop`, `*.qpon`, `crwdcntrl.net`, `clarity.ms`,
   `yandex`). It originates inside the provider's own document, not from our origin.
+- **Three providers report the *same* runtime for the same episode.** `93405` S1E1 came
+  back as `3582.204 s` (SmashyStream), `3582.1 s` (VidLink) and `59 minutes, 42 seconds`
+  (Frembed's player, and the same again on mobile). Three independent implementations
+  agreeing on a non-round number is much stronger evidence that all of them serve the
+  real episode than any one of them alone — and it is the cheapest cross-check available
+  for "is this actually the right content".
+- **A media-element read is not always available, and the document should say when it
+  was not used.** Frembed's player is cross-origin, so `video` is unreachable from script
+  on *any* viewport. SmashyStream and VidLink expose it. Cells therefore name the method
+  they rest on rather than all claiming the same standard.
+- **Console wiping and bot detection are part of the measurement environment.** Frembed
+  calls `console.clear()` repeatedly and runs **Adscore**; both are why its earlier ✘ was
+  hard to interpret. **Neither should be defeated** — the brief forbids bypassing anti-bot
+  systems, and the honest move is to record that the gate exists and what it costs.
+- **Ad-tab spawning is common to the ad-monetised providers, and is not a defect in our
+  integration.** Frembed opened four popunders in one session
+  (`worldofseabattle.com`, a `youtube.com/watch` page, a `.cyou` domain, and
+  `displayendpointstarring.com`); VidLink's context produced `sexymeet.tv` (adult dating)
+  and an AliExpress affiliate; SuperEmbed's frame was an adult landing page outright.
+  All of it originates **inside the provider's own document**. We do not proxy it, filter
+  it, or hide it — but it is the reason a provider-level warning exists at all, and the
+  reason `adultAdvertising` is a capability field rather than a footnote.
 - **A provider capability can be withheld by a bug on our side.** The season-0 defect was
   found only because the season/episode dimension was measured per provider; the HTTP
   layer had shown nothing. This is the argument for measuring the remaining `—` cells
@@ -507,14 +693,33 @@ is a conclusion; each is work outstanding.
   separate decision and is not taken here.
 - **Public reports of adult/malicious advertising** for the providers that surfaced them
   here, to determine whether the SuperEmbed observation is typical or an outlier.
+  **Partly answered by direct observation this pass, and the answer is "not an
+  outlier"** — but this item was about *reported* behaviour and that half is still open.
+  What was observed first-hand: Frembed spawned 4 popunders in one session, VidLink's
+  context produced an adult-dating tab (`sexymeet.tv`) and an affiliate, and
+  `displayendpointstarring.com` (VAST) appeared. The brief asked whether SuperEmbed was
+  typical; on this evidence, **aggressive and sometimes adult ad delivery is the norm
+  across this whole class of provider**, not a SuperEmbed peculiarity. That strengthens
+  the case for the provider-level warning rather than weakening it.
 - ~~**Korean and anime coverage claims** from provider documentation.~~ **Partly
   closed:** Frembed publishes documentation and an API, and its anime catalogue is now
   enumerated. VidLink publishes an embed grammar but no catalogue. The other five
   publish nothing, so **there is still not a single published K-drama claim to compare
   against** — that half stays open, and it is the reason Korean coverage remains
   measured-only for us.
-- **Mobile behaviour** for every provider — still entirely unmeasured. This is now the
-  largest single gap in the document.
+- ~~**Mobile behaviour** for every provider — still entirely unmeasured.~~ **CLOSED for
+  three of seven, narrowed overall.** Frembed, SmashyStream and VidLink were all driven
+  on an emulated `390×844` mobile viewport and **all three played**; full evidence is in
+  the grid and the per-provider notes. Still open: SuperEmbed, VidSrc.to, VidSrc.me and
+  2Embed — and the emulation caveat above applies to every cell, because none of this was
+  run on real hardware.
+- **A product question this pass surfaced, needing a decision rather than more
+  measuring.** Frembed's own server list offers `Voe` and `Dood` — the two providers
+  removed from Moveo. They are still reachable *through our default provider*. The brief
+  is unambiguous that they are **not** to be restored as selectable providers, and
+  nothing here suggests otherwise; but somebody should decide whether it is acceptable
+  for the default source to reach them as its own internals, or whether the default
+  should be re-examined. Recorded as an open product question, **not** as a defect.
 - **Per-season / per-episode depth** — later seasons, episode numbering past E1, and
   season 0 on the other six providers. Partly de-risked for Korean: Frembed's
   `/api/public/v1/tv/93405` enumerates 22 episodes across its seasons, so the provider
