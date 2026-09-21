@@ -388,7 +388,20 @@ export default function TvDetails() {
                                     }}
                                     className="flex items-center justify-between bg-[#1a1a1a] hover:bg-[#252525] border border-white/10 text-white pl-5 pr-4 py-3 rounded-xl outline-none cursor-pointer font-medium transition-all focus:border-[#E50914] min-w-[160px]"
                                 >
-                                    <span>{t.details.season} {selectedSeason}</span>
+                                    {/*
+                                      Season 0 must read "Hors-série" here, exactly as the
+                                      dropdown option that selected it does (below). It previously
+                                      rendered a bare "Saison 0" while the option the user clicked
+                                      was labelled "Hors-série" — two names for one choice, and the
+                                      closed state was the one showing the less meaningful of them.
+                                      This only became reachable once season 0 stopped being
+                                      rewritten to season 1 in lib/providers.ts.
+                                    */}
+                                    <span>
+                                      {selectedSeason === 0
+                                        ? (t.details.specials || "Hors-série")
+                                        : `${t.details.season} ${selectedSeason}`}
+                                    </span>
                                     <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${isSeasonDropdownOpen ? 'rotate-180' : ''}`} />
                                 </button>
 
