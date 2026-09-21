@@ -1114,3 +1114,61 @@ anime or Korean beyond one switch; no special has been tested; mobile is emulate
 audio is unmeasured; and Frembed — `SECONDARY_FALLBACK` everywhere — has one journey, which
 showed it does not play and opens an adult affiliate tab. That is a positive signal set with a
 known dangerous hole, which §14 calls the case for KEEP PROVISIONAL, not for promotion.
+
+---
+
+## 25. DEFECT B — the hard-failure panels were unreachable on a phone
+
+Reported by the user after §22: *"problème de responsive adaptabilité téléphone sur le fait du
+rechargement du lecteur, c'est pas adapté pour tel, ça cache tout l'iframe."* Reported against
+the LOAD_FAILED panel, which is the state a user actually reaches when a provider hangs (§22).
+
+**Root cause, not symptom.** The player wrapper is `aspect-video` **with `overflow-clip`**, and
+both hard-failure panels are `absolute inset-0` — so the panel's available height *is* the box
+height, and on a phone that height is derived from the width. The panel's content, meanwhile,
+was sized for a desktop box. Nothing here was a styling preference: the content simply could
+not fit, and `overflow-clip` made the excess not merely ugly but **unreachable**.
+
+Measured at a 390px viewport (EMULATED MOBILE, Pixel 8 UA, DPR 3, touch):
+
+| | Before | After |
+|---|---|---|
+| Player box | 324 × 182 | 324 × **272** |
+| Panel content needs | 230px | 270px |
+| Available | 180px | 270px |
+| Overflow | **+50px, clipped** | **none** |
+| "Ouvrir dans un nouvel onglet" | top **189** → bottom **231** | 196 → 230 |
+| Buttons out of reach | **1** | **0** |
+
+The third button sat entirely below the 182px edge — not scrolled-past, since the parent clips
+rather than scrolls. On a phone it could not be seen, reached or clicked.
+
+**Fix.** Three parts, each addressing a different half of the cause:
+1. A hard failure gets room on small screens (`min-h-[17rem] sm:min-h-0`). Conditional, because
+   the ratio must stay intact while a player is mounted — stretching the box during playback
+   would letterbox the video.
+2. The panels are compacted below `sm:`, every compaction behind an `sm:` override that
+   reinstates the original value.
+3. **Safe centering.** The panels scroll from the *top* (`min-h-full` + `justify-center` on an
+   inner wrapper) instead of centring the scroll container. This is not defensive styling: the
+   measured fit is **270px of content in 270px of space — zero slack**, so the first longer
+   translation crosses that line. `justify-center` on the scroll container puts centred
+   overflow above the scrollable origin, where no amount of scrolling reaches it. Verified both
+   ways: short content centres (icon at 61px, last button ending at 211px of 272px), and with
+   the description tripled the container overflows to 338px while the first child stays at
+   **+17px at `scrollTop: 0`** — reachable, where the naive pattern would have been negative.
+
+**Verification, and its limits.** The panel markup was replicated at the real box geometry
+rather than driven into the LOAD_FAILED state, because that state needs a host that accepts
+the connection and never commits a document — it cannot be forced on demand. So this is a
+measurement of the CSS box, not of the app's own state machine; the connection between them is
+that one predicate (`isHardFailure(player.phase)`) gates both the `min-h` and the panel, so the
+box cannot take the height without the panel being there. All 15 classes the fix depends on
+were then confirmed **present in the built stylesheet**, and the build, `tsc` and the full
+suite (230 tests / 49 suites) pass. The `sm:` values that could not be probed against the
+previously deployed bundle — it predates them — are the same mechanism as the four that were
+measured applying correctly (`sm:p-6` → 24px, `sm:text-lg` → 18px, `sm:text-sm` → 14px,
+`sm:gap-3` → 12px), so desktop is unchanged: the compaction is entirely behind `sm:`.
+
+**Still unverified:** no real device. This is EMULATED MOBILE only, and §10's rule applies
+unchanged — an emulated phone is not a phone.

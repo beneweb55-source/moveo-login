@@ -621,7 +621,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div className="w-full max-w-6xl mx-auto mt-8 mb-16 px-4 md:px-0">
       {/* --- MOVEO PLAYER WRAPPER (DARK LUXURY) --- */}
-      <div className="relative w-full aspect-video bg-black rounded-2xl overflow-clip shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 ring-1 ring-white/5 mb-6 group">
+      {/*
+        The failure panels are `absolute inset-0` inside this box, so their
+        available height IS the box height — and on a phone that height is small
+        because `aspect-video` derives it from the width. Measured at a 390px
+        viewport (EMULATED MOBILE): the box is 324x182, while the LOAD_FAILED
+        panel's content needs 230px. The parent is `overflow-clip`, so the extra
+        50px is not scrollable, it is unreachable: "Ouvrir dans un nouvel onglet"
+        sat at top 189 -> bottom 231, i.e. entirely below the 182px edge and not
+        clickable at all.
+
+        So a hard failure is given room on small screens (`min-h`) and the panels
+        are compacted below `sm:`. Desktop is untouched — `sm:min-h-0` restores
+        the aspect ratio exactly, and every compaction is behind an `sm:`
+        override that reinstates the original value. Conditional because the
+        ratio must stay intact while a player is mounted: stretching the box
+        during playback would letterbox the video.
+      */}
+      <div
+        className={`relative w-full aspect-video bg-black rounded-2xl overflow-clip shadow-[0_30px_60px_-15px_rgba(0,0,0,0.9)] border border-white/10 ring-1 ring-white/5 mb-6 group ${
+          isHardFailure(player.phase) ? "min-h-[17rem] sm:min-h-0" : ""
+        }`}
+      >
         {/* Background Poster Blur (Subtle Luxury Effect) */}
         {posterPath && (
           <div className="absolute inset-0 z-0 pointer-events-none opacity-20 mix-blend-luminosity">
@@ -644,81 +665,84 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl text-white p-6 text-center"
+                className="absolute inset-0 z-20 overflow-y-auto bg-black/80 backdrop-blur-xl text-white text-center"
               >
-                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6">
-                  <AlertCircle className="w-6 h-6 text-white/50" />
-                </div>
-                <h3 className="text-lg font-light tracking-tight text-white mb-2">
-                  {t.details.sourceUnavailable || "Source indisponible"}
-                </h3>
-                <p className="text-sm text-white/40 max-w-md mb-6 leading-relaxed">
-                  {t.details.sourceUnavailableDesc ||
-                    "Aucun flux n'a pu être résolu pour cette source. Choisis-en une autre ci-dessous."}
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    onClick={() => handleServerChange(nextServerName)}
-                    className="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-sm font-medium transition-all duration-300"
-                  >
-                    {t.details.changeServer || "Changer de source"}
-                  </button>
-                  {/*
-                    Relocated from the removed premium panel, where this button
-                    was the only way to ask for an encode. That panel was the
-                    wrong home for it: it claimed "contenu en cours d'encodage"
-                    for any title whose premium URL was missing — an explanation
-                    the player itself documented as false — and it only appeared
-                    for that one server. Requesting an encode belongs here, where
-                    the honest condition is simply "no source resolved".
-                    The same request is also offered by the movie page itself.
-                  */}
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={handleRequestFilm}
-                    disabled={requestStatus !== "idle"}
-                    className={`px-5 py-2.5 rounded-xl flex items-center gap-2 text-sm font-medium transition-all duration-300 ${
-                      requestStatus === "success"
-                        ? "bg-white/10 text-white border border-white/20"
-                        : requestStatus === "already_requested"
-                          ? "bg-white/10 text-white/70 border border-white/20"
-                          : requestStatus === "error"
-                            ? "bg-red-500/10 text-red-400 border border-red-500/20"
-                            : "bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10"
-                    }`}
-                  >
-                    {requestStatus === "idle" && (
-                      <>
-                        <Database className="w-4 h-4" />{" "}
-                        {t.details.requestEncoding || "Demander l'encodage prioritaire"}
-                      </>
-                    )}
-                    {requestStatus === "loading" && (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />{" "}
-                        {t.details.sending || "Envoi en cours..."}
-                      </>
-                    )}
-                    {requestStatus === "success" && (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />{" "}
-                        {t.details.requestSent || "Demande envoyée avec succès"}
-                      </>
-                    )}
-                    {requestStatus === "already_requested" && (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />{" "}
-                        {t.details.requestAlready || "Déjà dans la file d'attente"}
-                      </>
-                    )}
-                    {requestStatus === "error" && (
-                      <>
-                        <AlertCircle className="w-4 h-4" />{" "}
-                        {t.details.error || "Une erreur est survenue"}
-                      </>
-                    )}
-                  </motion.button>
+                {/* Same safe-centering pattern as the load-failed panel: the note there explains why. */}
+                <div className="flex min-h-full flex-col items-center justify-center p-4 sm:p-6">
+                  <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3 sm:mb-6 shrink-0">
+                    <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white/50" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-light tracking-tight text-white mb-1.5 sm:mb-2">
+                    {t.details.sourceUnavailable || "Source indisponible"}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-white/40 max-w-md mb-4 sm:mb-6 leading-relaxed">
+                    {t.details.sourceUnavailableDesc ||
+                      "Aucun flux n'a pu être résolu pour cette source. Choisis-en une autre ci-dessous."}
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                    <button
+                      onClick={() => handleServerChange(nextServerName)}
+                      className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs sm:text-sm font-medium transition-all duration-300"
+                    >
+                      {t.details.changeServer || "Changer de source"}
+                    </button>
+                    {/*
+                      Relocated from the removed premium panel, where this button
+                      was the only way to ask for an encode. That panel was the
+                      wrong home for it: it claimed "contenu en cours d'encodage"
+                      for any title whose premium URL was missing — an explanation
+                      the player itself documented as false — and it only appeared
+                      for that one server. Requesting an encode belongs here, where
+                      the honest condition is simply "no source resolved".
+                      The same request is also offered by the movie page itself.
+                    */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleRequestFilm}
+                      disabled={requestStatus !== "idle"}
+                      className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl flex items-center gap-2 text-xs sm:text-sm font-medium transition-all duration-300 ${
+                        requestStatus === "success"
+                          ? "bg-white/10 text-white border border-white/20"
+                          : requestStatus === "already_requested"
+                            ? "bg-white/10 text-white/70 border border-white/20"
+                            : requestStatus === "error"
+                              ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                              : "bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10"
+                      }`}
+                    >
+                      {requestStatus === "idle" && (
+                        <>
+                          <Database className="w-4 h-4" />{" "}
+                          {t.details.requestEncoding || "Demander l'encodage prioritaire"}
+                        </>
+                      )}
+                      {requestStatus === "loading" && (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />{" "}
+                          {t.details.sending || "Envoi en cours..."}
+                        </>
+                      )}
+                      {requestStatus === "success" && (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />{" "}
+                          {t.details.requestSent || "Demande envoyée avec succès"}
+                        </>
+                      )}
+                      {requestStatus === "already_requested" && (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />{" "}
+                          {t.details.requestAlready || "Déjà dans la file d'attente"}
+                        </>
+                      )}
+                      {requestStatus === "error" && (
+                        <>
+                          <AlertCircle className="w-4 h-4" />{" "}
+                          {t.details.error || "Une erreur est survenue"}
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
                 </div>
               </motion.div>
             ) : (
@@ -728,46 +752,58 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-xl text-white p-6 text-center"
+                className="absolute inset-0 z-20 overflow-y-auto bg-black/80 backdrop-blur-xl text-white text-center"
               >
-                <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-6">
-                  <AlertCircle className="w-6 h-6 text-white/50" />
-                </div>
-                <h3 className="text-lg font-light tracking-tight text-white mb-2">
-                  {t.details.playerNotResponding || "Le lecteur ne répond pas"}
-                </h3>
-                <p className="text-sm text-white/40 max-w-md mb-6 leading-relaxed">
-                  {t.details.playerNotRespondingDesc ||
-                    "Le lecteur n'a pas pu être chargé. Réessaie, ou choisis une autre source."}
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-3">
-                  <button
-                    onClick={() => {
-                      resetPlaybackObservation();
-                      dispatch({ type: "RETRY" });
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-sm font-medium transition-all duration-300 flex items-center gap-2"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    {t.details.retry || "Réessayer"}
-                  </button>
-                  <button
-                    onClick={() => handleServerChange(nextServerName)}
-                    className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 text-sm font-medium transition-all duration-300"
-                  >
-                    {t.details.changeServer || "Changer de source"}
-                  </button>
-                  {videoUrl && (
-                    <a
-                      href={videoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 text-sm font-medium transition-all duration-300 flex items-center gap-2"
+                {/*
+                  Safe centering: the column is centred while it fits, and this
+                  container scrolls from the TOP when it does not. `justify-center`
+                  on the scroll container itself does the opposite — centred
+                  overflow lifts the first line above the scrollable origin, where
+                  no amount of scrolling reaches it. The distinction is not
+                  theoretical here: measured at a 390px viewport, this panel's
+                  content is exactly 270px inside a 270px box, so the first longer
+                  translation crosses that line.
+                */}
+                <div className="flex min-h-full flex-col items-center justify-center p-4 sm:p-6">
+                  <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3 sm:mb-6 shrink-0">
+                    <AlertCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white/50" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-light tracking-tight text-white mb-1.5 sm:mb-2">
+                    {t.details.playerNotResponding || "Le lecteur ne répond pas"}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-white/40 max-w-md mb-4 sm:mb-6 leading-relaxed">
+                    {t.details.playerNotRespondingDesc ||
+                      "Le lecteur n'a pas pu être chargé. Réessaie, ou choisis une autre source."}
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                    <button
+                      onClick={() => {
+                        resetPlaybackObservation();
+                        dispatch({ type: "RETRY" });
+                      }}
+                      className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white text-black hover:bg-zinc-200 text-xs sm:text-sm font-medium transition-all duration-300 flex items-center gap-2"
                     >
-                      {t.details.openInNewTab || "Ouvrir dans un nouvel onglet"}
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
+                      <RefreshCw className="w-4 h-4" />
+                      {t.details.retry || "Réessayer"}
+                    </button>
+                    <button
+                      onClick={() => handleServerChange(nextServerName)}
+                      className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 text-xs sm:text-sm font-medium transition-all duration-300"
+                    >
+                      {t.details.changeServer || "Changer de source"}
+                    </button>
+                    {videoUrl && (
+                      <a
+                        href={videoUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 text-xs sm:text-sm font-medium transition-all duration-300 flex items-center gap-2"
+                      >
+                        {t.details.openInNewTab || "Ouvrir dans un nouvel onglet"}
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )
