@@ -65,8 +65,12 @@ const WatchTimer = ({ mediaType, mediaId, title, posterPath, season, episode }: 
         session_id: sessionIdRef.current,
         title: title || null,
         poster_path: posterPath || null,
-        season: season || null,
-        episode: episode || null,
+        // `??` and not `||`: season 0 is TMDB's SPECIALS season and must survive
+        // as 0. Currently unreachable from either mount site (neither passes
+        // season/episode), but the `||` here was the same trap that silently
+        // rewrote specials to season 1 in the URL builders.
+        season: season ?? null,
+        episode: episode ?? null,
       });
 
       if (isUnmount && navigator.sendBeacon) {

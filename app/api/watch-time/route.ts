@@ -24,7 +24,18 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { media_type, media_id, minutes, session_id, title, poster_path, current_time, total_duration, season, episode } = body;
 
-    if (!media_type || !media_id || !minutes) {
+    // `minutes` may legitimately be 0. historyManager sends a progression-only
+    // update — `minutes: 0, // Progression update only, no time increment` — and
+    // `!minutes` is `!0` is `true`, so every one of those calls was answered with
+    // 400 and progression (current_time / season / episode) was never persisted.
+    // The intent is "no time increment", not "malformed": validate the TYPE and
+    // the SIGN, never the magnitude. Absent, null, NaN, Infinity and negatives
+    // are still rejected.
+    const minutesProvided =
+      typeof minutes === 'number' || (typeof minutes === 'string' && minutes.trim() !== '');
+    const minutesValue = minutesProvided ? Number(minutes) : Number.NaN;
+
+    if (!media_type || !media_id || !minutesProvided || !Number.isFinite(minutesValue) || minutesValue < 0) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
@@ -47,7 +58,12 @@ export async function POST(req: Request) {
            season = COALESCE($9, watch_history.season),
            episode = COALESCE($10, watch_history.episode),
            last_updated = CURRENT_TIMESTAMP`,
-        [user.userId, media_type, media_id, minutes, title || null, poster_path || null, current_time || null, total_duration || null, season || null, episode || null]
+        // `??` and not `||` for the numeric fields: 0 is a real value for every one
+        // of them. Season 0 is how TMDB spells SPECIALS, and a position of 0 is the
+        // start of the video — `||` turned both into "no value", so COALESCE kept
+        // the stale value instead of storing what was sent. The string fields keep
+        // `||`, where an empty string genuinely means "nothing to store".
+        [user.userId, media_type, media_id, minutesValue, title || null, poster_path || null, current_time ?? null, total_duration ?? null, season ?? null, episode ?? null]
       );
     } else if (session_id) {
       // Upsert watch time for anonymous user
@@ -58,7 +74,7 @@ export async function POST(req: Request) {
          DO UPDATE SET 
            minutes_watched = anonymous_watch_history.minutes_watched + $4,
            last_updated = CURRENT_TIMESTAMP`,
-        [session_id, media_type, media_id, minutes]
+        [session_id, media_type, media_id, minutesValue]
       );
     }
 

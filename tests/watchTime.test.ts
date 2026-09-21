@@ -1,0 +1,142 @@
+/**
+ * The write contract of POST /api/watch-time: what the guard accepts and rejects.
+ *
+ * Regression pinned here, measured against production on 2026-09-21:
+ *
+ *   POST https://www.moveo.blog/api/watch-time
+ *   {"media_type":"movie","media_id":550,"minutes":0}
+ *     -> 400 {"error":"Missing required fields"}
+ *
+ * `minutes: 0` is not a malformed request. It is exactly what historyManager
+ * sends for a progression-only update — `minutes: 0, // Progression update only,
+ * no time increment` — and `!minutes` is `!0` is `true`, so the guard rejected
+ * every one of those calls. current_time, total_duration, season and episode were
+ * therefore never persisted for logged-in users, and cross-device resume could
+ * not exist. The same request with `minutes: 5` answered 401 instead, which is
+ * what proved the guard (not the auth branch) was the thing rejecting it.
+ *
+ * The guard is asserted through the real handler rather than against a copy of
+ * its logic. Every case below returns BEFORE the auth check and before any
+ * database access, so this suite needs neither a cookie nor a database:
+ *
+ *   guard fails           -> 400
+ *   guard passes, no auth -> 401   <- the "accepted" signal used below
+ *
+ * Run: node --import tsx --test tests/watchTime.test.ts
+ */
+
+import assert from 'node:assert/strict';
+import {describe, it} from 'node:test';
+
+import {POST} from '../app/api/watch-time/route';
+
+const ENDPOINT = 'http://localhost/api/watch-time';
+
+/** POST a JSON body to the real handler and read back status + parsed body. */
+const post = async (body: unknown): Promise<{status: number; body: any}> => {
+  const res = await POST(
+    new Request(ENDPOINT, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: typeof body === 'string' ? body : JSON.stringify(body),
+    }),
+  );
+  return {status: res.status, body: await res.json()};
+};
+
+describe('POST /api/watch-time — a progression-only update is accepted', () => {
+  it('accepts minutes: 0, the value the progress sync actually sends', async () => {
+    // The regression. 400 here means progression is silently never saved — the
+    // client would show a saved position on this device and lose it on the next,
+    // with nothing in any log saying why.
+    const {status, body} = await post({media_type: 'movie', media_id: 550, minutes: 0});
+
+    assert.notEqual(status, 400, 'minutes: 0 was rejected as a malformed payload');
+    assert.equal(status, 401, 'expected the guard to pass and the auth check to answer');
+    assert.equal(body.error, 'Unauthorized');
+  });
+
+  it('accepts minutes: 0 together with the progression fields it accompanies', async () => {
+    // The exact shape historyManager sends, including season 0 (TMDB specials)
+    // and a position of 0 (the start of the video).
+    const {status} = await post({
+      media_type: 'tv',
+      media_id: 1396,
+      minutes: 0,
+      title: 'Breaking Bad',
+      poster_path: '/x.jpg',
+      current_time: 0,
+      total_duration: 2820,
+      season: 0,
+      episode: 1,
+    });
+
+    assert.equal(status, 401, 'a full progression update must clear the guard');
+  });
+
+  it('still accepts a real watch-time increment', async () => {
+    // WatchTimer's path: it early-returns on `minutes <= 0`, so it always sends a
+    // positive number. The fix must not have broken it.
+    for (const minutes of [5, 1, 0.5, 90]) {
+      const {status} = await post({media_type: 'movie', media_id: 550, minutes});
+      assert.equal(status, 401, `minutes: ${minutes} should pass the guard`);
+    }
+  });
+
+  it('still accepts a numeric string, because it did before', async () => {
+    // "0" was accepted by the old truthiness guard and must remain accepted: this
+    // fix removes the zero-rejection, not the tolerance for a numeric string.
+    for (const minutes of ['0', '5', '12']) {
+      const {status} = await post({media_type: 'movie', media_id: 550, minutes});
+      assert.equal(status, 401, `minutes: "${minutes}" should pass the guard`);
+    }
+  });
+});
+
+describe('POST /api/watch-time — the guard still rejects malformed input', () => {
+  it('rejects a body with no minutes at all', async () => {
+    // The whole point of the guard has to survive the fix: absent is still a
+    // missing field, it is just no longer indistinguishable from zero.
+    const absent = await post({media_type: 'movie', media_id: 550});
+    assert.equal(absent.status, 400);
+
+    const explicitNull = await post('{"media_type":"movie","media_id":550,"minutes":null}');
+    assert.equal(explicitNull.status, 400);
+  });
+
+  it('rejects values that are not a number of minutes', async () => {
+    // NaN and Infinity cannot be expressed in JSON, so they are exercised through
+    // the raw-body form below, which reaches the same check.
+    const nonNumeric = await post('{"media_type":"movie","media_id":550,"minutes":"abc"}');
+    assert.equal(nonNumeric.status, 400);
+
+    for (const body of [
+      '{"media_type":"movie","media_id":550,"minutes":""}',
+      '{"media_type":"movie","media_id":550,"minutes":"   "}',
+      '{"media_type":"movie","media_id":550,"minutes":{}}',
+      '{"media_type":"movie","media_id":550,"minutes":[]}',
+      '{"media_type":"movie","media_id":550,"minutes":true}',
+    ]) {
+      const {status} = await post(body);
+      assert.equal(status, 400, `must be rejected: ${body}`);
+    }
+  });
+
+  it('rejects a negative number of minutes', async () => {
+    for (const minutes of [-1, -0.5, -90]) {
+      const {status} = await post({media_type: 'movie', media_id: 550, minutes});
+      assert.equal(status, 400, `minutes: ${minutes} must be rejected`);
+    }
+  });
+
+  it('rejects a missing media_type or media_id', async () => {
+    const noType = await post({media_id: 550, minutes: 0});
+    assert.equal(noType.status, 400);
+
+    const noId = await post({media_type: 'movie', minutes: 0});
+    assert.equal(noId.status, 400);
+
+    const emptyId = await post({media_type: 'movie', media_id: '', minutes: 0});
+    assert.equal(emptyId.status, 400);
+  });
+});
