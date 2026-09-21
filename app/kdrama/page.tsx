@@ -32,6 +32,13 @@ const KDramaPage = () => {
   const [genres, setGenres] = useState<any[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string>("");
   const pageRef = useRef(1);
+  // Pagination failure handling — same retry-storm defect as /films. This page
+  // already wrapped its fetch in try/catch, so the rejection was handled, but on
+  // failure pageRef still did not advance and hasMore stayed true, so the scroll
+  // observer kept calling back into the same failing page with nothing to stop it.
+  const [loadMoreFailed, setLoadMoreFailed] = useState(false);
+  const loadingMoreRef = useRef(false);
+  const failedPageRef = useRef<number | null>(null);
   const { language, t } = useLanguage();
 
   useEffect(() => {
@@ -54,6 +61,11 @@ const KDramaPage = () => {
       setLoading(true);
       pageRef.current = 1;
       setPageNum(1);
+      // A new filter/sort selection is a fresh start: clear any give-up state
+      // from a previous pagination failure, otherwise the new list paginates
+      // no further than the old one did.
+      setLoadMoreFailed(false);
+      failedPageRef.current = null;
       try {
         const sortKey = mediaType === "movie" && sortBy === "first_air_date.desc" 
           ? "primary_release_date.desc" 
@@ -124,6 +136,13 @@ const KDramaPage = () => {
   }, [mediaType, sortBy, watchedIds, language, selectedGenre]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchNextPageData = async () => {
+    // Guard 1: one in-flight request at a time. InfiniteScroll can fire `next`
+    // again before the first response lands, which double-appends a page.
+    if (loadingMoreRef.current) return;
+    // Guard 2: do not auto-retry a page that just failed — see the catch below.
+    if (failedPageRef.current === pageRef.current) return;
+    loadingMoreRef.current = true;
+
     try {
       const sortKey = mediaType === "movie" && sortBy === "first_air_date.desc" 
         ? "primary_release_date.desc" 
@@ -186,8 +205,24 @@ const KDramaPage = () => {
       pageRef.current += 2;
       setPageNum(pageRef.current);
     } catch (error) {
-      console.error("Error fetching next page:", error);
+      // fetchDataFromApi re-throws (utils/api.ts:16), so any failed or hung TMDB
+      // response lands here. Because pageRef did not advance, the scroll observer
+      // kept re-firing `next` at the same failing page. Stop the loader and offer
+      // a deliberate retry instead.
+      console.error("[kdrama] failed to load more of the catalogue:", error);
+      failedPageRef.current = pageRef.current;
+      setLoadMoreFailed(true);
+    } finally {
+      loadingMoreRef.current = false;
     }
+  };
+
+  // Clearing the failure lets fetchNextPageData try the same page again — this
+  // is the only path that does, so a retry is always a deliberate user action.
+  const retryNextPage = () => {
+    failedPageRef.current = null;
+    setLoadMoreFailed(false);
+    fetchNextPageData();
   };
 
   return (
@@ -265,7 +300,12 @@ const KDramaPage = () => {
                 <InfiniteScroll
                   dataLength={data?.results?.length || 0}
                   next={fetchNextPageData}
-                  hasMore={data && pageNum <= data.total_pages && data.total_pages > 0}
+                  // hasMore must also go false when a page failed, otherwise the
+                  // observer keeps calling `next` — the guards in fetchNextPageData
+                  // would each return early, but the loader skeleton would stay on
+                  // screen forever, which reads as "still loading" rather than
+                  // "stopped, retry available".
+                  hasMore={data && pageNum <= data.total_pages && data.total_pages > 0 && !loadMoreFailed}
                   loader={
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6 mt-6 w-full">
                       {[...Array(5)].map((_, i) => (
@@ -294,6 +334,20 @@ const KDramaPage = () => {
                       );
                     })}
                   </div>
+                  {/* Only reachable after fetchNextPageData actually failed, so
+                      this is the one deliberate path that retries the same page. */}
+                  {loadMoreFailed && (
+                    <div className="flex flex-col items-center gap-4 mt-12">
+                      <p className="text-sm text-white/40 text-center">{t.explore.loadMoreFailed}</p>
+                      <button
+                        type="button"
+                        onClick={retryNextPage}
+                        className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition-all duration-300 hover:bg-zinc-800 hover:border-[#E50914]"
+                      >
+                        {t.explore.retry}
+                      </button>
+                    </div>
+                  )}
                 </InfiniteScroll>
               ) : (
                 <div className="text-center text-white/50 py-20">

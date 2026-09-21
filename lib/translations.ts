@@ -117,6 +117,8 @@ export const translations = {
       exploreTv: "Explorer les Séries",
       noResults: "Désolé, aucun résultat trouvé !",
       tryAdjustingFilters: "Essayez de modifier vos filtres pour voir plus de résultats.",
+      loadMoreFailed: "Impossible de charger la suite. Vérifie ta connexion et réessaie.",
+      retry: "Réessayer",
       allGenres: "Tous les genres",
       sortOptions: {
         popularity: "Popularité",
@@ -504,6 +506,8 @@ export const translations = {
       exploreTv: "Explore TV Shows",
       noResults: "Sorry, no results found!",
       tryAdjustingFilters: "Try adjusting your filters to see more results.",
+      loadMoreFailed: "Could not load more. Check your connection and try again.",
+      retry: "Retry",
       allGenres: "All genres",
       sortOptions: {
         popularity: "Popularity",
