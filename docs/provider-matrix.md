@@ -40,10 +40,20 @@ first is the most consequential correction in the document's history because it 
 
 - **Frembed's `Playback: ✘` was wrong, and the cause was our own method.** Its gate has
   **two** steps (a landing play button, *then* a server choice) and the first pass took
-  only one. With both taken, Korean `93405` S1E1 streams on desktop *and* emulated
+  only one. With both taken, Korean `93405` S1E1 streamed on desktop *and* emulated
   mobile. The ✘ was a **measurement artifact**, not a provider failure — see correction
   3. This is the same class of error as the two already recorded, which is why it is
   recorded the same way rather than quietly overwritten.
+- **⚠️ …and then it did not reproduce, which qualifies the bullet above.** Re-measured
+  from a fresh context at the *direct* embed URL an hour later (so nesting is not the
+  variable), the same gate reached the same player and the same asset — subtitle track,
+  storyboard and JW Player entitlement all `200` — but **no HLS manifest was ever
+  fetched**, with an ad stack the earlier run had not shown in that volume (**Connatix +
+  Google IMA**) running into hundreds of requests. **Cause undetermined.** So the
+  playback above is a **single-session observation, not a property**, and the honest
+  summary of the default provider is *resolution verified twice, playback observed once,
+  reproducibility unproven*. Full detail in correction 3; this is the one claim in this
+  document that was committed and then narrowed by its own re-measurement.
 - **Mobile behaviour was measured for the first time**, for three of the seven providers,
   on an **emulated** `390×844` viewport. All three played. The emulation caveat is real
   and is stated in the Method and Limits sections, because an emulated viewport is not a
@@ -135,7 +145,7 @@ anime series coverage · anime movie coverage · mobile behaviour · stability`
 | **Frameability** | ✅ no `X-Frame-Options`, no `frame-ancestors` seen | ✅ same | ✅ same | ✅ same | ✅ same | ✅ **same, at the new host** | ✅ same |
 | **Redirect chain** | 200 → nested **same-origin frame** `frembed.surf/series?id=…` (200) | **302** `multiembed.mov` → `streamingnow.mov/?play=<base64>` (200) | 200 → nested frames `vsembed.ru` (200) → `cloudorchestranova.com` (200) | **301** `vidsrc.me` → `vidsrc.sh` (200); then nested `cloudorchestranova.com` | 200, no redirect | **301** `player.smashystream.com` → `anyembed.xyz/embed/…`; hop deliberately **skipped** (we frame the final target) | 200, no redirect |
 | **Browser frame load** | ✅ Korean, anime series, anime movie | ✅ loads — but see Playback | ✅ Korean | ✅ Korean | ✅ Korean | ✅ **movie, TV, and season 0** | ✅ Korean, anime series, anime movie |
-| **Playback observed** | ✅ **observed — desktop AND emulated mobile** (Korean `93405` S1E1). **Corrected this pass; the previous ✘ was a measurement artifact — see correction 3.** Needs a **two-step gate**: click the landing play button, *then* choose a server (`Voe` / `Dood` / `Uqload`); the first pass stopped after step one. Then HLS `master.m3u8` → variant playlist → **`seg-1…seg-7` `.ts` fetched sequentially, all 200**, and two screenshots 8 s apart show different frames. The player is **cross-origin** (`jamesbornmain.com`), so no element read was possible. Anime series still not observed | ✘ **not observed**. Renders an ad landing page, not a player | ✘ not observed in ~14 s (its own `Play` clicked) | ✘ not observed | ✘ not observed (ad layer) | ✅ **movie AND TV, measured on the media element**: `/embed/tmdb-movie-550` → *Fight Club*, duration **8348.4 s** (= 2:19:08, the film's real runtime), `readyState 4`, `paused=false`, **1280×534 decoded**; `/embed/tmdb-tv-1396-1-1` → *Breaking Bad - Pilot*, **3479.9 s** (= 57:59), `1280×720` | ✅ **Korean 93405 S1E1 and anime series 1429 S1E1** — DASH manifest + init segments + 14 sequential media chunks, streaming progressively |
+| **Playback observed** | ⚠️ **observed ONCE — desktop AND emulated mobile** (Korean `93405` S1E1), then **NOT reproducible an hour later**. **Corrected this pass; the previous ✘ was a measurement artifact — see correction 3.** Needs a **two-step gate**: click the landing play button, *then* choose a server (`Voe` / `Dood` / `Uqload`); the first pass stopped after step one. When it worked: HLS `master.m3u8` → variant playlist → **`seg-1…seg-7` `.ts` fetched sequentially, all 200**, and two screenshots 8 s apart show different frames. On re-measurement the player mounted, resolved the correct asset (subtitle track, storyboard, JW Player entitlement all 200) and then **fetched no manifest at all** — read this cell as a single-session observation, not a property; see correction 3. The player is **cross-origin** (`jamesbornmain.com`), so no element read was possible. Anime series still not observed | ✘ **not observed**. Renders an ad landing page, not a player | ✘ not observed in ~14 s (its own `Play` clicked) | ✘ not observed | ✘ not observed (ad layer) | ✅ **movie AND TV, measured on the media element**: `/embed/tmdb-movie-550` → *Fight Club*, duration **8348.4 s** (= 2:19:08, the film's real runtime), `readyState 4`, `paused=false`, **1280×534 decoded**; `/embed/tmdb-tv-1396-1-1` → *Breaking Bad - Pilot*, **3479.9 s** (= 57:59), `1280×720` | ✅ **Korean 93405 S1E1 and anime series 1429 S1E1** — DASH manifest + init segments + 14 sequential media chunks, streaming progressively |
 | **Season / episode** | ✅ renders `Saison` / `Épisode` + `S1 E2` next-episode + `ÉPISODES` / `SERVEURS` | — | ✅ provider frame titled `Squid Game 2021 · S01 E01` | ✅ same upstream, same title | ✅ renders `Squid Game (2021) (S01E01)` | ✅ renders the episode list; **season 0 resolves to the correct special** (see below) | ✅ `region "Video Player - Attack on Titan- S1 E1"` |
 | **Subtitles & language** | renders a `VF` dub badge on series; no subtitle *menu* seen — **but a French subtitle track is fetched from inside the player** (`jamesbornmain.com/vtt/{id}_fr.srt`, 200) for Korean `93405`, found this pass. `version` remains the only language signal, and it is a per-item property | — | — | — | — | — (not measured) | ✅ **subtitle track fetched** (`.srt`) for Korean *and* anime; 3 audio streams in the DASH manifest |
 | **Movie coverage** | ✅ resolves (`/api/films?id=129&idType=tmdb` 200; rendered title) | — | — | — | — | ✅ **resolves AND plays** (*Fight Club*) | ✅ resolves; anime movies ✘ (below) |
@@ -143,7 +153,7 @@ anime series coverage · anime movie coverage · mobile behaviour · stability`
 | **Korean drama** | ✅ resolves + renders `Squid Game` S1E1 (`/api/series?id=93405…` 200); **22 episodes enumerated** with `sa`/`epi`/`VF` via `/api/public/v1/tv/93405` | ✘ no player (ad page) | ✅ resolves | ✅ resolves | ✅ resolves | — (not measured) | ✅ resolves **and plays** |
 | **Anime series** | ✅ resolves + renders `L'Attaque des Titans` S1E1 + `VF`; **104 of its enumerable anime titles are series** | — | — | — | — | — (not measured) | ✅ resolves **and plays** (+ subtitles) |
 | **Anime movie** | ✅ resolves + renders `Le Voyage de Chihiro` (`/api/films?id=129`); **42 anime films enumerated** | — | — | — | — | — (not measured) | ✘ provider self-declares `"We Couldn't Find This Content ."` |
-| **Mobile behaviour** | ✅ **plays on emulated mobile** — `seg-1…seg-11` sequential `.ts` 200s + frame change. But the experience is ad-hostile: an **in-player interstitial** (`DÉPÊCHE-TOI !` / `GET BONUS`) with a stuck `0:00` countdown, **4 popunder tabs** opened during the session, `console.clear()` called repeatedly, and **Adscore bot detection** active | — (not measured) | — (not measured) | — (not measured) | — (not measured) | ✅ **plays — full element evidence**: `readyState 4`, `paused=false`, `640×360`, `5.094 → 10.098` over 5000 ms (**+5.004 s**), seek slider tracking. Required a click; the desktop pass autoplayed | ✅ **plays — full element evidence**: `1920×1080`, `3582.1 s`, three samples `8.611 → 13.614 → 18.627` (**+5.003 s**, **+5.013 s**). Caveat: the **on-screen `Play` buttons did not start it** under emulated input; the element's own `play()` resolved and ran. A **popunder to an adult-dating site** (`sexymeet.tv`) opened in the same context |
+| **Mobile behaviour** | ✅ **plays on emulated mobile — same single-session caveat as the playback row above** (`seg-1…seg-11` sequential `.ts` 200s + frame change). But the experience is ad-hostile: an **in-player interstitial** (`DÉPÊCHE-TOI !` / `GET BONUS`) with a stuck `0:00` countdown, **4 popunder tabs** opened during the session, `console.clear()` called repeatedly, and **Adscore bot detection** active | — (not measured) | — (not measured) | — (not measured) | — (not measured) | ✅ **plays — full element evidence**: `readyState 4`, `paused=false`, `640×360`, `5.094 → 10.098` over 5000 ms (**+5.004 s**), seek slider tracking. Required a click; the desktop pass autoplayed | ✅ **plays — full element evidence**: `1920×1080`, `3582.1 s`, three samples `8.611 → 13.614 → 18.627` (**+5.003 s**, **+5.013 s**). Caveat: the **on-screen `Play` buttons did not start it** under emulated input; the element's own `play()` resolved and ran. A **popunder to an adult-dating site** (`sexymeet.tv`) opened in the same context |
 | **Stability** | intermittent: 7/8 curl attempts 200, 1 connect timeout; one duplicate `ERR_ABORTED` frame request on first mount | poor: Cloudflare Turnstile (`Error: 600010`) retry-looping inside the frame | — | — | one curl timeout (western TV), 200 on retry | ✅ **stable across movie, TV and specials probes**; not yet observed over time | ✅ stable across two titles; not yet observed over time |
 
 ---
@@ -237,16 +247,64 @@ observed". The evidence that resolves it:
 | Media | HLS: `master.m3u8` → `index-v1-a1.m3u8` → **`seg-1` … `seg-7` `.ts` fetched sequentially, all 200**, from `*.cloudwindow-route.com` |
 | Frames | Two screenshots 8 s apart show **different frames of the same scene** (the playground sequence), i.e. decoding and advancing |
 
-Two independent readings agree, so this is settled for that title. The `video` element
-itself is **not** readable here — the player is cross-origin (`jamesbornmain.com`), so
-the element-level evidence used for SmashyStream and VidLink is unavailable. The
-screenshot-pair plus segment-sequence method is what replaces it, and the grid cell now
-says which was used rather than implying the stronger one.
+Two independent readings agree, so the *observation* is sound for that title at that
+moment. The `video` element itself is **not** readable here — the player is cross-origin
+(`jamesbornmain.com`), so the element-level evidence used for SmashyStream and VidLink is
+unavailable. The screenshot-pair plus segment-sequence method is what replaces it, and
+the grid cell now says which was used rather than implying the stronger one.
+
+#### It did not reproduce an hour later — read the claim as one session, not a property
+
+**Added after re-measurement, same day, and it qualifies the paragraph above.** The gate
+was taken again from a fresh isolated context at the **direct** embed URL
+(`frembed.surf/embed/serie/93405?id=93405&sa=1&epi=1`) — i.e. without Moveo in the path,
+so nesting is ruled out as the variable. The result was **not** playback:
+
+- The **stream resolution is live and correct**: `GET frembed.surf/api/stream?type=serie&
+  tmdb=93405&sa=1&epi=1&server=id:102954` → `302`, a redirect chain through
+  `tracylocalschool.com` → `eugenemakedraw.com` → `johnfullwonder.com` →
+  `katherineschoolphone.com`, landing on **`jamesbornmain.com/e/n1cybk52mxzz` → 200** —
+  the **same host and the same asset id** the table above records.
+- The player shell loads and **resolves the right asset**: `jwplayer.js` 8.49.5,
+  `jamesbornmain.com/vtt/n1cybk52mxzz_fr.srt` → **200** (the French subtitle track first
+  recorded in the third pass), `engine/storyboard/n1cybk52mxzz` → 200 and its
+  `_storyboard_L2.jpg` sprite, and `entitlements.jwplayer.com/…` → 200.
+- **No HLS manifest and no segment was fetched**, across a 25 s window, with
+  `/api/stream` retried **three times**. That is where it stops.
+
+What sits in that gap is an ad stack that had not previously been recorded as part of
+this player: **Connatix** (`cd.connatix.com/identity.js`, `capi.connatix.com/core/sync`)
+and the **Google IMA** SDK (`imasdk.googleapis.com/js/sdkloader/ima3.js`), i.e. a pre-roll
+auction that must settle before content. The auction's user-sync traffic ran into the
+**hundreds** of requests, against roughly 140 total on the earlier, successful run.
+
+**The cause is undetermined and is recorded as such.** The hypothesis — that the pre-roll
+auction (Connatix/IMA) never settles in a script-driven browser, so the player waits
+forever and never requests the manifest — is consistent with everything observed but is
+**not** proven. Two things observed in the same window make a bot-gate plausible and are
+worth naming without dressing them up as a conclusion: `cdn.show-sb.com/sb/notifications/
+utility/default/robot/4/index.html` carries **`robot`** in its path, and
+`spendsdetachment.com/sbar.json` receives **high-entropy client hints**
+(`architecture: x86`, `bitness: 64`, `brands: [{brand: Google Chrome, version: 153}]`) —
+a fingerprint an automated browser reports differently from a real one.
+
+**How to read the claim, therefore.** The playback in the table above is a **single-session
+observation**, not a reproducible property of the provider. It should not be cited as
+"Frembed works" without qualification, because on a second attempt an hour later it did
+not, and the reason is not known. This is the same weakness already listed under
+*Stability over time* in the limits — one session is not a trend — and it now has a
+concrete instance rather than a hypothetical one. It also means the honest summary of the
+default provider is: **resolution verified twice, playback observed once, reproducibility
+unproven.**
 
 **Consequence for the document, and for the product.** The sentence that stood in the
 per-provider notes — *"Because Frembed is the default source, 'resolves but playback not
-observed' remains the single most important open question in this document"* — is now
-**closed, and closed in the provider's favour**. The default provider works.
+observed' remains the single most important open question in this document"* — is
+**partly answered**: the provider is not broken, and it does resolve and mount a working
+player for the right asset. But the answer is **not** "the default provider works", which
+is what this paragraph said before the re-measurement below. What can be defended is
+narrower, and the sentence that follows should be read with that qualification: resolution
+verified twice, playback observed once, reproducibility unproven.
 
 **A second finding, which is a product fact rather than a measurement.** The server list
 Frembed itself offers for this episode is **`Voe`**, **`Dood`**, **`Uqload`**. VOE and
@@ -441,10 +499,13 @@ rather than a placeholder.
   not been shown to carry.
 - Its nested film/series page renders the real title, `Saison`/`Épisode`, a `VF` badge,
   and `SERVEURS` / `ÉPISODES` / `S1 E2` controls.
-- ~~**Playback was not observed.**~~ **Corrected this pass — Frembed plays.** The first
-  pass clicked the landing play button, saw no media, and stopped; the gate is **two
-  steps** (play button → choose a server). With both steps taken, Korean `93405` S1E1
-  streams on **desktop and emulated mobile**. Full evidence in correction 3 above.
+- ~~**Playback was not observed.**~~ **Corrected this pass — Frembed plays, once.** The
+  first pass clicked the landing play button, saw no media, and stopped; the gate is
+  **two steps** (play button → choose a server). With both steps taken, Korean `93405`
+  S1E1 streamed on **desktop and emulated mobile**. **But it did not reproduce on
+  re-measurement the same day** — the player mounts and resolves the right asset, then
+  fetches no manifest. Single-session observation, not a property; cause undetermined.
+  Full evidence and the qualification in correction 3 above.
 - **Its own server list is `Voe`, `Dood`, `Uqload`.** The first two are the providers
   removed from Moveo. They are removed from *our registry*, and that stands — but they
   remain live as servers *inside Frembed*, which is our default. The document should not
@@ -724,7 +785,18 @@ is a conclusion; each is work outstanding.
   season 0 on the other six providers. Partly de-risked for Korean: Frembed's
   `/api/public/v1/tv/93405` enumerates 22 episodes across its seasons, so the provider
   itself indexes beyond S1E1 even though we have not driven the player to one.
-- **Stability over time** — the current column is a single session, not a trend.
+- **Stability over time** — the current column is a single session, not a trend. This is
+  no longer hypothetical: Frembed's playback was observed once and **failed to reproduce
+  an hour later** (correction 3). Until the underlying cause is identified, *every*
+  playback claim in the grid is one observation deep, including the ones measured on the
+  media element, because those were also taken in a single session.
+- **Frembed's reproducibility** — specifically, whether the non-reproduction is the
+  pre-roll ad auction (Connatix + Google IMA) not settling in a script-driven browser, a
+  bot gate reacting to the automated environment (`show-sb.com/.../robot/…`,
+  `spendsdetachment.com` client-hint fingerprinting), or a genuine provider-side change.
+  Distinguishing these needs a real, human-driven browser session — the one thing this
+  document's method cannot supply. **This is the highest-value open item**, because it
+  decides whether the default provider works for users at all.
 - **`/api/catalogue`'s remaining purpose.** It is verified alive and correctly scoped to
   the movie-page `moveoFound` flow, but that flow should be re-checked against the
   product decision on the removed premium tier before the route is kept long-term.

@@ -200,9 +200,19 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
     // so here because this is the default provider. Its gate has TWO steps: a
     // landing play button, THEN a server choice. The earlier audit took only the
     // first, saw no media, and stopped. With both taken, Korean 93405 S1E1
-    // streams on desktop and on an emulated mobile viewport: HLS `master.m3u8`
+    // streamed on desktop and on an emulated mobile viewport: HLS `master.m3u8`
     // -> variant playlist -> `seg-1`..`seg-7` `.ts` fetched sequentially (all
     // 200), and two screenshots 8s apart show different frames.
+    //
+    // BUT IT DID NOT REPRODUCE, and the `mobile: "yes"` below rests on that same
+    // single observation, so the caveat belongs here and not only in the docs.
+    // Re-measured an hour later from a fresh context at the DIRECT embed URL
+    // (so nesting in our page is not the variable): same gate, same player, same
+    // asset — French subtitle track, storyboard and JW Player entitlement all
+    // 200 — and then NO manifest was fetched at all, with Connatix + Google IMA
+    // pre-roll traffic running into hundreds of requests. Cause undetermined.
+    // Read the playback as one session, not a property. Detail in
+    // docs/provider-matrix.md, correction 3.
     //
     // The player is VOE, served cross-origin from `jamesbornmain.com`, so the
     // `video` element is unreachable from script on ANY viewport — the evidence
@@ -229,12 +239,17 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       playbackObserved: "unknown",
       // Not measured for this provider.
       specials: "unknown",
-      // MEASURED: a French subtitle track is fetched from inside the player —
-      // `GET jamesbornmain.com/vtt/<id>_fr.srt` -> 200, for Korean 93405.
+      // MEASURED, and this one REPRODUCED on re-measurement: a French subtitle
+      // track is fetched from inside the player — `GET jamesbornmain.com/vtt/
+      // <id>_fr.srt` -> 200, for Korean 93405. Unlike the playback claim above,
+      // this was observed on both runs, so it is the more solid of the two.
       subtitles: "yes",
       adultAdvertising: "unknown",
-      // MEASURED on an emulated 390x844 viewport: it plays. This field's bar is
-      // only "measured on a mobile viewport", which the pass met.
+      // MEASURED on an emulated 390x844 viewport: it played. This field's bar is
+      // only "measured on a mobile viewport", which the pass met — but note this
+      // rests on the same single observation as the block above, which did not
+      // reproduce. Kept at "yes" because the bar is "measured once on a mobile
+      // viewport" and it was; do not read it as "verified stable".
       mobile: "yes",
     },
     // No redirect hop: buildUrl targets frembed.surf directly rather than the
