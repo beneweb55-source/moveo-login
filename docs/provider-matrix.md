@@ -954,3 +954,81 @@ the expected logged-out `401`, and no `500`.
 success paths are unchanged. The new error branch rests on the diff, the typecheck
 (`tsc --noEmit`, exit 0), the build and the full suite (145 tests, 0 failures) — it is
 **not** claimed as an observed `500`.
+
+---
+
+## Cross-site request forgery on state-changing endpoints — found, fixed, verified
+
+**Severity: P1.** Found while auditing the auth surface, not the API surface: reading
+`app/api/auth/login/route.ts` shows the session cookie is issued with
+`sameSite: 'none'` ("Required for cross-origin iframe support"), which means the browser
+attaches it to requests started by **other** sites. Everything downstream authenticates
+from that cookie alone — `lib/adminAuth.ts` reads `auth_token` and never inspects Origin,
+Referer, or a CSRF token — and there is no CSRF token anywhere in the app. So the cookie's
+own flags were the only thing standing between a hostile page and every authenticated
+mutation.
+
+**The protection that existed was accidental, and only half the surface had it.** A
+cross-site `fetch` with method DELETE or PUT is not a simple request, so the browser
+preflights it, and these routes return no `Access-Control-Allow-Origin` — the browser
+blocks the request before it is sent. That is why `DELETE /api/user/delete` and
+`PUT /api/admin/users` (the role-escalation path) were **not** exploitable, despite
+requiring nothing but the cookie. It was protection by omission, not by design.
+
+**POST was not protected at all, and that was measured rather than reasoned.** `req.json()`
+does not check Content-Type, so a body declared `text/plain` — a CORS-safelisted type,
+i.e. a *simple* request with no preflight — is decoded exactly like `application/json`.
+Against production on 2026-09-21, the same credentials sent both ways reached the identical
+handler branch (`{"error":"Invalid captcha. Please try again."}`, HTTP 403 in both cases),
+which can only mean the JSON was parsed either way. A cross-site
+`fetch(url, {method:'POST', mode:'no-cors', credentials:'include', body: JSON.stringify(…),
+headers:{'Content-Type':'text/plain'}})` therefore arrives with the cookie **and** a
+readable body. Of the 29 state-changing endpoints enumerated, the damaging POST ones are
+`POST /api/admin/system` (toggles `maintenance_mode` site-wide),
+`POST /api/admin/sections` (creates a home-page section) and `POST /api/admin/roles`.
+
+**The fix.** `lib/csrf.ts` exports a pure predicate; `middleware.ts` applies it before
+everything else, including before the ban-check self-fetch. For POST/PUT/PATCH/DELETE it
+refuses a request only when the `Origin` header is **present and does not match the
+request's own origin**. An absent header is allowed, because a browser always sends Origin
+on a non-GET request — so absence means curl or a server-to-server call, not a page that
+forgot. Comparing against the request's own origin keeps the rule environment-agnostic:
+no hardcoded domain, identical behaviour on production, preview and localhost.
+
+**Verification.** Against a local production build (`next start`), and then against
+production after `94b7b42` deployed:
+
+| Case | Local | Production |
+|---|---|---|
+| Cross-site POST `/api/ping` | 403 | **403** `Cross-origin request rejected` |
+| Same-origin POST | passes (500 = no local DB) | **200** `{"success":true}` |
+| No-Origin POST (curl) | passes | **200** `{"success":true}` |
+| Cross-site GET | passes | **200** |
+| **Cross-site POST `/api/admin/system`** (the attack) | **403** | **403 — blocked** |
+| Same-origin admin POST, unauthenticated | — | **401** (passed the gate, refused by auth) |
+
+The 403-instead-of-401 on the last row is what shows the gate runs **before** auth rather
+than at it. In the browser after deploy: `POST /api/ping [200]` — positive evidence that
+ordinary same-origin traffic still passes, not merely an absence of errors — with six
+sections rendered, 87 posters, no `403` anywhere in the console, and `/login`, `/register`,
+`/films`, `/series`, `/animes`, `/kdrama` and `/movie/129` all still serving 200.
+
+`tests/csrf.test.ts` pins the decision table (13 cases), deliberately including the two
+that are easiest to invert: an absent Origin must be **allowed**, and a present-but-matching
+Origin must be **allowed**.
+
+**Limit, stated plainly:** no admin credentials were available, so the *authenticated*
+mutation path was not exercised end-to-end in production. What is verified is the gate's
+behaviour across all three Origin cases on real deployed infrastructure, and that the
+attack request is refused before auth is consulted. The gate inspects only method and
+Origin — never the session — so its answer does not depend on who is calling.
+
+**Residual, not closed:** middleware's matcher excludes `api/auth/`, deliberately, so a
+banned user gets the login route's own JSON 403 rather than a redirect to `/banned`. The
+auth routes are therefore outside this gate. Their exposure is lower — the OAuth flow
+already carries its own signed state against login CSRF (see the `google/url` and
+`callback` comments), and a forged logout is a nuisance rather than a privilege change —
+but it is not zero, and closing it means changing that matcher, a separate change with its
+own regression risk. Also unchanged: `sameSite: 'none'` itself. It may not even be needed
+(Frembed's iframe does not read our cookie), but proving that means auditing every flow that
+depends on it, and the Origin gate removes the exploit while leaving those flows alone.
