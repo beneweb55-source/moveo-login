@@ -8,6 +8,7 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import { Logo } from "@/components/Logo";
 import { useLanguage } from "@/context/LanguageContext";
+import { buildSearchPath } from "@/lib/searchPath";
 
 const Header = () => {
   const [show, setShow] = useState("top");
@@ -203,7 +204,10 @@ const Header = () => {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      router.push(`/search/${query}`);
+      // Path construction lives in lib/searchPath.ts, with the measurements
+      // that justify encoding it — an unencoded `/` in a title made this route
+      // 404 instead of searching.
+      router.push(buildSearchPath(query));
       setShowSearchDropdown(false);
     }
   };
