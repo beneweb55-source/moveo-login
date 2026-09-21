@@ -637,6 +637,13 @@ export default function TvDetails() {
                         episode={selectedEpisode}
                         title={data?.name}
                         originalTitle={data?.original_name}
+                        /* TMDB's original language, which is what tells the player
+                           this is a Korean drama or an anime rather than a Western
+                           series. The player picks a different first source for
+                           each, on measured grounds — see lib/playerStrategy.ts.
+                           Combined with `season === 0` in the player, this also
+                           selects the specials-aware order. */
+                        originalLanguage={data?.original_language}
                         year={year ? String(year) : undefined}
                         genres={data?.genres}
                         posterPath={data?.poster_path}

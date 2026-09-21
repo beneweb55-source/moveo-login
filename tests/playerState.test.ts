@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {DEFAULT_PROVIDER_NAME, STORABLE_SERVERS} from '../lib/providers';
+import {STORABLE_SERVERS} from '../lib/providers';
 import {
   createInitialPlayerState,
   isHardFailure,
@@ -45,10 +45,17 @@ describe('initial state', () => {
 describe('THE INVARIANT — a manual choice survives a late automatic result', () => {
   it('ignores an automatic selection that arrives after a manual one', () => {
     const state = reduce(
-      createInitialPlayerState(DEFAULT_PROVIDER_NAME),
+      // Any selectable source will do: this test is about the ORDER the three
+      // actions are applied in, not about which provider is named. It used to
+      // read DEFAULT_PROVIDER_NAME, a constant removed on 2026-09-21 because the
+      // default is per content class now.
+      createInitialPlayerState(STORABLE_SERVERS[0]),
       {type: 'SELECT_AUTO', server: 'VidLink'},
       {type: 'SELECT_MANUAL', server: 'VidSrc.to'},
-      {type: 'SELECT_AUTO', server: 'SuperEmbed'},
+      // A real provider, and one that is never chosen automatically — the point
+      // is only that the name differs from the manual choice. It used to be
+      // SuperEmbed, which no longer exists.
+      {type: 'SELECT_AUTO', server: '2Embed'},
     );
     assert.equal(state.server, 'VidSrc.to');
     assert.equal(state.selection, 'manual');
@@ -254,7 +261,18 @@ describe('stored provider validation', () => {
   });
 
   it('returns a fallback that is itself in the known list', () => {
-    assert.ok(STORABLE_SERVERS.includes(DEFAULT_PROVIDER_NAME));
+    // About this function's OUTPUT, not about a named constant: whatever
+    // fallback it is handed, it must hand back something the player can select,
+    // because the caller puts that value straight into the iframe src.
+    //
+    // This used to assert that DEFAULT_PROVIDER_NAME was in STORABLE_SERVERS,
+    // which tested the constant rather than the behaviour. The constant was
+    // removed on 2026-09-21 and the per-content-class default is asserted in
+    // tests/playerStrategy.test.ts.
+    const result = resolveStoredProvider('MOVEO PREMIUM', STORABLE_SERVERS, 'Frembed');
+    assert.equal(result.server, 'Frembed');
+    assert.equal(result.invalid, true);
+    assert.ok(STORABLE_SERVERS.includes(result.server));
   });
 });
 

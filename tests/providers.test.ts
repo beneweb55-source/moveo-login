@@ -19,7 +19,6 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {
-  DEFAULT_PROVIDER_NAME,
   PROVIDERS,
   SBNET_FRAME_ORIGIN,
   SBNET_SERVER_NAMES,
@@ -156,10 +155,6 @@ describe('every provider keeps its existing URL contract', () => {
       movie: 'https://frembed.surf/embed/movie/550?id=550',
       tv: 'https://frembed.surf/embed/serie/1396?id=1396&sa=1&epi=1',
     },
-    SuperEmbed: {
-      movie: 'https://multiembed.mov/?video_id=550&tmdb=1',
-      tv: 'https://multiembed.mov/?video_id=1396&tmdb=1&s=1&e=1',
-    },
     'VidSrc.to': {
       movie: 'https://vidsrc.to/embed/movie/550',
       tv: 'https://vidsrc.to/embed/tv/1396/1/1',
@@ -192,6 +187,39 @@ describe('every provider keeps its existing URL contract', () => {
       assert.equal(buildProviderUrl(name, SERIES), want.tv);
     });
   }
+});
+
+describe('a removed provider cannot come back by name', () => {
+  it('resolves SuperEmbed to nothing, from any entry point', () => {
+    // Removed 2026-09-21 for a PRODUCT-SAFETY reason, not a quality one: framing
+    // it displayed adult advertising inside our own player. The reason is not
+    // testable; the removal is, and this is the assertion that makes it stick.
+    //
+    // The three checks cover the three ways a provider can be reached: by name
+    // through buildProviderUrl, through the registry lookup, and from a
+    // localStorage value written before the change (a name absent from
+    // STORABLE_SERVERS is discarded on load by resolveStoredProvider). The last
+    // one matters most — without it, users who had selected it would keep
+    // framing it after the deploy, which is precisely the failure mode the
+    // removal is meant to end.
+    for (const name of ['SuperEmbed', 'multiembed.mov', 'streamingnow.mov']) {
+      assert.equal(getProvider(name), undefined, `${name} is back in the registry`);
+      assert.equal(buildProviderUrl(name, MOVIE), null, `${name} produced a URL`);
+      assert.equal(isStorableServer(name), false, `${name} is selectable again`);
+    }
+  });
+
+  it('declares no origin belonging to the removed provider', () => {
+    // The policy entry and the registry entry were removed together; this half
+    // catches the case where one comes back without the other. The frame-src
+    // side is asserted in tests/csp.test.ts.
+    const declared = PROVIDERS.flatMap((provider) => provider.frameOrigins);
+    assert.equal(
+      declared.some((origin) => /multiembed|streamingnow/.test(origin)),
+      false,
+      'a provider still declares a SuperEmbed origin',
+    );
+  });
 });
 
 describe('input hardening', () => {
@@ -283,8 +311,23 @@ describe('provider list validation', () => {
     assert.equal(isSibnetServer('Frembed'), false);
   });
 
-  it('has a default provider that is genuinely selectable', () => {
-    assert.ok(STORABLE_SERVERS.includes(DEFAULT_PROVIDER_NAME));
+  it('offers no single default, and every selectable name is a real source', () => {
+    // This used to assert that DEFAULT_PROVIDER_NAME was selectable. That
+    // constant was removed on 2026-09-21 (see lib/providers.ts): one default for
+    // every kind of content was measured to hand each first-time visitor the
+    // provider that produced no playback and three popup tabs. The default is
+    // per content class now, and that is asserted for every class in
+    // tests/playerStrategy.test.ts.
+    //
+    // What remains this file's business is that the selectable list contains
+    // nothing fictitious: every name in it names either a registry provider or a
+    // Sibnet variant, so a stored preference can always be resolved back to a
+    // real source.
+    const real = new Set([...PROVIDERS.map((p) => p.name), ...SBNET_SERVER_NAMES]);
+    for (const name of STORABLE_SERVERS) {
+      assert.ok(real.has(name), `${name} is selectable but is not a real source`);
+    }
+    assert.ok(STORABLE_SERVERS.length > 0, 'nothing is selectable at all');
   });
 
   it('has one non-empty messageOrigins allowlist, and it is Frembed', () => {

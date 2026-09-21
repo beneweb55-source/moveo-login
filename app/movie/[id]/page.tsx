@@ -312,6 +312,11 @@ export default function MovieDetails() {
                         type="movie" 
                         title={data?.title}
                         originalTitle={data?.original_title}
+                        /* TMDB's original language, which is what tells the player
+                           this is a Korean film or an anime rather than a Western
+                           one. The player picks a different first source for each,
+                           on measured grounds — see lib/playerStrategy.ts. */
+                        originalLanguage={data?.original_language}
                         year={year ? String(year) : undefined}
                         genres={data?.genres}
                         posterPath={data?.poster_path}

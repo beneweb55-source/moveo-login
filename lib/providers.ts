@@ -275,43 +275,9 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       return `${FREMBED_ORIGIN}/embed/serie/${safeId}?id=${safeId}&sa=${s}&epi=${e}`;
     },
   },
-  {
-    name: "SuperEmbed",
-    group: "Alternative",
-    iconKey: "server",
-    // PRODUCT-SAFETY FINDING, measured 2026-09-21: framing this provider can
-    // display ADULT ADVERTISING inside our player. Its content for Korean 93405
-    // S1E1 was an ad/affiliate landing page (an adult webcam service) reached via
-    // redirectors, with `Error: 600010` (= a Cloudflare Turnstile challenge)
-    // retry-looping inside the frame. That last part is the provider's own gate
-    // failing; we do not bypass anti-bot challenges, so this is recorded rather
-    // than routed around. The adult-advertising fact holds regardless of whether
-    // playback ever succeeds.
-    capabilities: {
-      playbackObserved: "unknown",
-      specials: "unknown",
-      subtitles: "unknown",
-      adultAdvertising: "yes",
-      mobile: "unknown",
-    },
-    // MEASURED 2026-09-20 — this provider is a redirect chain, and unlike
-    // frembed.work the hop CANNOT be skipped:
-    //   GET /?video_id=550&tmdb=1 -> 302 -> https://streamingnow.mov/?play=<b64>
-    // The `play` payload is generated server-side, so the final URL is not
-    // reproducible from the id — the iframe must start at multiembed.mov and
-    // land on streamingnow.mov. BOTH origins must therefore be in `frame-src`,
-    // because Chrome re-checks frame-src against a redirect's target.
-    // streamingnow.mov is the same provider, not an ad domain:
-    //   GET https://streamingnow.mov/ -> 302 -> https://www.superembed.stream?c=embed
-    frameOrigins: ["https://multiembed.mov", "https://streamingnow.mov"],
-    messageOrigins: [],
-    buildUrl: ({type, id, season, episode}) => {
-      const safeId = encodeId(id);
-      return type === "movie"
-        ? `https://multiembed.mov/?video_id=${safeId}&tmdb=1`
-        : `https://multiembed.mov/?video_id=${safeId}&tmdb=1&s=${toSeasonNumber(season, 1)}&e=${toPositiveInt(episode, 1)}`;
-    },
-  },
+  // REMOVED 2026-09-21: SuperEmbed used to sit here. The removal is recorded
+  // with the rest of them at the foot of this file, so that the entries in this
+  // array stay a list of providers that EXIST and nothing else.
   {
     name: "VidSrc.to",
     group: "Alternative",
@@ -545,15 +511,36 @@ export const PREFERRED_SERVER_STORAGE_KEY = "preferredServer";
  *
  * A value previously written for the removed premium tier ("MOVEO PREMIUM") is
  * therefore discarded on next load rather than selected, which is the intended
- * migration: it resolves to DEFAULT_PROVIDER_NAME instead of stranding the user
- * on a server that no longer exists.
+ * migration: it resolves to whatever fallback its caller supplies — the content
+ * class's PRIMARY source — instead of stranding the user on a server that no
+ * longer exists.
  */
 export const STORABLE_SERVERS: readonly string[] = [
   ...PROVIDERS.map((p) => p.name),
   ...SBNET_SERVER_NAMES,
 ];
 
-export const DEFAULT_PROVIDER_NAME = "Frembed";
+/*
+ * REMOVED 2026-09-21: `DEFAULT_PROVIDER_NAME` used to sit here, holding the
+ * single source every first-time visitor was given. What it held was wrong, and
+ * measurably so: it said "Frembed" — the one provider that produced no playback
+ * in a real Moveo journey AND spawned three popup tabs — while the provider that
+ * played the same film with a correct advancing timecode and zero popups sat
+ * elsewhere in the list. That was the first defect. The second is structural: a
+ * single constant cannot express "which source, for which kind of content".
+ *
+ * The decision now lives in lib/playerStrategy.ts (`defaultProviderName`), which
+ * is the ONLY place a default is written down. `resolveStoredProvider` takes its
+ * fallback as a parameter and its sole caller passes the content class's PRIMARY,
+ * so nothing needs a provider name without content context — after the move this
+ * constant had no production caller left, and a second declaration of "the
+ * default" is precisely the duplicated source-selection logic the strategy module
+ * exists to remove.
+ *
+ * The property the constant was a proxy for — that the default for a given kind
+ * of content is a source the player can actually select — is asserted per
+ * content class in tests/playerStrategy.test.ts.
+ */
 
 export const getProvider = (name: string): ProviderDefinition | undefined =>
   PROVIDERS.find((p) => p.name === name);
@@ -599,4 +586,33 @@ export const getMessageOrigins = (serverName: string): readonly string[] =>
  * (voe.sx answered 404). VOE and Dood are not supported by the product, so the
  * tier is gone rather than repaired — and with it the twelve `frame-src`
  * entries that existed only to permit those two hosts.
+ *
+ * REMOVED 2026-09-21: SuperEmbed ("SuperEmbed", frameOrigins multiembed.mov and
+ * streamingnow.mov). WHY IT WENT, in the order the reasons matter:
+ *
+ *   1. PRODUCT SAFETY. Measured: framing it displayed ADULT ADVERTISING inside
+ *      our own player — its content for a Korean drama episode was an adult
+ *      webcam landing page reached through affiliate redirectors. A source a
+ *      user can select that puts adult content under Moveo's branding is a
+ *      defect we are not willing to ship, and no amount of playback quality
+ *      would balance it.
+ *   2. IT DID NOT PLAY. `capabilities.playbackObserved` was "unknown" — no media
+ *      was ever observed from it. It was one of four providers (with VidSrc.to,
+ *      VidSrc.me and 2Embed) that produced no media in any test.
+ *   3. ITS OWN GATE WAS FAILING. `Error: 600010` (a Cloudflare Turnstile
+ *      challenge) retry-looped inside the frame. We do not bypass anti-bot
+ *      challenges, so there was nothing to route around and nothing to fix on
+ *      our side.
+ *
+ * The removal also deleted its two origins from `frame-src`. That is the policy
+ * getting NARROWER, which is the direction that needs no justification beyond
+ * "the code can no longer reach here" — tests/csp.test.ts enforces exactly that
+ * correspondence in both directions, so these hosts cannot be re-permitted
+ * without a registry entry, and a registry entry cannot be added without
+ * reintroducing a measured product-safety defect.
+ *
+ * NOT REVIVABLE BY CONFIGURATION. There is no flag, no environment variable and
+ * no stored preference that brings it back: it is not in PROVIDERS, so it is not
+ * in STORABLE_SERVERS, so a localStorage value naming it is discarded on load by
+ * resolveStoredProvider.
  */

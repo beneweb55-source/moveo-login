@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "clean": "next clean",
-    "test": "node --import tsx --test tests/providers.test.ts tests/playerState.test.ts tests/playerMessages.test.ts tests/csp.test.ts tests/watchTime.test.ts tests/oauthState.test.ts tests/watchedIds.test.ts tests/csrf.test.ts tests/rateLimit.test.ts tests/authRateLimit.test.ts tests/seo.test.ts tests/searchPath.test.ts"
+    "test": "node --import tsx --test tests/providers.test.ts tests/playerState.test.ts tests/playerMessages.test.ts tests/csp.test.ts tests/watchTime.test.ts tests/oauthState.test.ts tests/watchedIds.test.ts tests/csrf.test.ts tests/rateLimit.test.ts tests/authRateLimit.test.ts tests/playerStrategy.test.ts tests/seo.test.ts tests/searchPath.test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

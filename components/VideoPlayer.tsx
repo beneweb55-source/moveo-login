@@ -20,18 +20,26 @@ import Image from "next/image";
 import { saveWatchHistory } from "@/utils/historyManager";
 import { useLanguage } from "@/context/LanguageContext";
 import {
-  DEFAULT_PROVIDER_NAME,
   PREFERRED_SERVER_STORAGE_KEY,
-  PROVIDERS,
   SBNET_VF_NAME,
   SBNET_VOSTFR_NAME,
   STORABLE_SERVERS,
   buildProviderUrl,
   getMessageOrigins,
+  getProvider,
   isStorableServer,
   type ProviderIconKey,
   type ProviderWarningKey,
 } from "@/lib/providers";
+import {
+  defaultProviderName,
+  deriveContentClass,
+  nextProviderName,
+  offeredProviderNames,
+  roleOf,
+  sibnetOrder,
+  type StrategyContext,
+} from "@/lib/playerStrategy";
 import {
   createInitialPlayerState,
   isHardFailure,
@@ -47,7 +55,22 @@ interface VideoPlayerProps {
   episode?: number;
   title?: string;
   originalTitle?: string;
+  /**
+   * TMDB's `original_language` for this title. Feeds
+   * lib/playerStrategy.deriveContentClass, which decides which source a viewer is
+   * given: Korean drama and anime get a different first choice from a Western
+   * film, and that difference is measured rather than assumed (see that module).
+   *
+   * Optional, and its absence is safe — a missing value falls through to the
+   * generic class for the media type rather than being guessed at.
+   */
+  originalLanguage?: string;
   year?: string;
+  /**
+   * TMDB genre ids. Only the Animation id is read, to tell anime from
+   * live-action. Both call sites already passed this; the component did not
+   * previously read it.
+   */
   genres?: { id: number; name: string }[];
   posterPath?: string;
   hasNext?: boolean;
@@ -106,14 +129,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   episode,
   title,
   originalTitle,
+  originalLanguage,
   posterPath,
   year,
+  genres,
   hasNext,
   hasPrev,
   onNext,
   onPrev,
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   /**
    * Resolves a provider's declared caveat to its user-facing text.
@@ -141,17 +166,60 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isSibnetLoading, setIsSibnetLoading] = useState(false);
 
   /**
+   * WHICH KIND OF CONTENT THIS IS, and therefore which sources are offered in
+   * which order. Derived from TMDB facts — `original_language` and the Animation
+   * genre — and never from a provider's own category labels or a "VF" title.
+   * The measurements behind each order are in lib/playerStrategy.ts.
+   *
+   * Computed from props only, so it cannot depend on anything asynchronous and
+   * the first client render cannot disagree with the server's.
+   */
+  const genreIdsKey = (genres ?? []).map((genre) => genre.id).join(",");
+
+  const contentClass = useMemo(
+    () =>
+      deriveContentClass({
+        type,
+        originalLanguage,
+        // Rebuilt from the joined key rather than read from `genres` directly, so
+        // this memo's dependency is a primitive. A parent that builds `genres`
+        // inline hands us a new array identity every render carrying the same
+        // ids; an identity-sensitive dependency would invalidate the memo, which
+        // would invalidate `strategy` below, which would re-run the resolution
+        // effect on every render — clearing the Sibnet URLs and re-arming the load
+        // timeout continuously. Comparing the ids as a string makes that
+        // impossible.
+        genreIds: genreIdsKey === "" ? [] : genreIdsKey.split(",").map(Number),
+      }),
+    [type, originalLanguage, genreIdsKey],
+  );
+
+  /**
+   * The strategy input, in one object. `specials` is TMDB season 0, where the
+   * choice of provider materially matters: one measured provider resolves a
+   * special to the CORRECT episode and the others silently substitute S1E1, and
+   * nothing in the UI would reveal the substitution.
+   */
+  const strategy = useMemo<StrategyContext>(
+    () => ({ contentClass, specials: season === 0 }),
+    [contentClass, season],
+  );
+
+  /**
    * Server selection, phase and attempt all live in one reducer, because four
    * writers used to race on them (probe result, stored preference, manual click,
    * watchdog). The reducer is the only place that decides, and it enforces:
    * a manual choice is never overwritten by an automatic one.
    *
-   * The initial value is deterministic (DEFAULT_PROVIDER_NAME) so the server and
-   * client first render agree; the stored preference is applied in an effect.
+   * The initial value is the content class's PRIMARY provider rather than one
+   * fixed name, so a first-time visitor's first frame is the source with the
+   * best measured record for THIS kind of content. It stays deterministic
+   * because it derives from props, so server and client first render agree; the
+   * stored preference is applied in an effect below.
    */
   const [player, dispatch] = useReducer(
     playerReducer,
-    DEFAULT_PROVIDER_NAME,
+    defaultProviderName(strategy),
     createInitialPlayerState,
   );
 
@@ -233,7 +301,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const { server: preferred, invalid } = resolveStoredProvider(
       stored,
       STORABLE_SERVERS,
-      DEFAULT_PROVIDER_NAME,
+      defaultProviderName(strategy),
     );
     if (invalid && typeof window !== "undefined") {
       try {
@@ -243,16 +311,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     }
 
-    // Deliberately narrow: nothing is dispatched when the user has no stored
-    // preference, because there is nothing known to apply and dispatching the
-    // default would force the server back on every episode change — the same
-    // flash of the wrong provider in the opposite direction. A manual choice
-    // therefore survives episode and title navigation.
-    if (hadStored) {
-      dispatch({ type: "SELECT_AUTO", server: preferred });
-    }
+    // ONE dispatch, and the reducer makes the rest safe.
+    //
+    // A stored choice wins outright, whatever kind of content this is: that is
+    // the manual-authority invariant, and it is why a returning user's pick
+    // follows them across every title. With nothing stored, the content class's
+    // PRIMARY provider is proposed instead.
+    //
+    // This used to be conditional — dispatch only when something was stored —
+    // because dispatching a single FIXED default would have dragged the user back
+    // to that one provider on every episode change. A class-aware default removes
+    // that hazard: `SELECT_AUTO` returns the state untouched when the proposed
+    // server is the one already playing, and untouched again when the current
+    // selection is manual. So the only time this dispatch has any effect is when
+    // the recommendation genuinely differs from what is playing, which is exactly
+    // when it should — and it still cannot displace a manual choice, on this
+    // render or any later one.
+    dispatch({
+      type: "SELECT_AUTO",
+      server: hadStored ? preferred : defaultProviderName(strategy),
+    });
 
-  }, [id, type, season, episode, resetPlaybackObservation]);
+  }, [id, type, season, episode, strategy, resetPlaybackObservation]);
 
   // ---------------------------------------------------------------------------
   // 2. Sibnet URLs (a scrape of our own API, not a third-party iframe probe).
@@ -510,13 +590,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  /** The provider offered when the current one fails. */
-  const nextServerName = useMemo(() => {
-    const names = PROVIDERS.map((p) => p.name);
-    const index = names.indexOf(player.server);
-    if (index === -1) return names[0] ?? DEFAULT_PROVIDER_NAME; // Sibnet → first provider
-    return names[(index + 1) % names.length];
-  }, [player.server]);
+  /**
+   * The provider offered when the current one fails.
+   *
+   * Walks the class's OFFERED order — the automatic sources in strategy order,
+   * then the manual-only ones — instead of the registry's array order. The
+   * previous version indexed PROVIDERS directly and wrapped with
+   * `% names.length`, which had two consequences worth naming: a Sibnet failure
+   * fell to Frembed regardless of what kind of content was playing, and the source
+   * after the last provider was the first provider again, so the sequence a user
+   * could step through bore no relation to which source was measured to work for
+   * the title in front of them.
+   *
+   * Wrapping is deliberate HERE. This is a manual action — the user pressed
+   * "change source" — and repeated presses must always land somewhere new.
+   * Nothing calls this on a timer, so there is no retry loop to bound.
+   */
+  const nextServerName = useMemo(
+    () => nextProviderName(player.server, strategy),
+    [player.server, strategy],
+  );
 
   const phaseLabel =
     player.phase === "LOADING"
@@ -858,69 +951,72 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
 
         <div className="bg-black border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
-          {sibnetVfUrl || isSibnetLoading ? (
-            <button
-              onClick={() => sibnetVfUrl && handleServerChange(SBNET_VF_NAME)}
-              disabled={!sibnetVfUrl}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
-                  player.server === SBNET_VF_NAME
-                    ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
-                    : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
-                } ${!sibnetVfUrl ? "opacity-50 cursor-wait" : ""}`}
-            >
-              {isSibnetLoading && !sibnetVfUrl ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
-              ) : (
-                <Globe
-                  className={`w-3.5 h-3.5 ${
-                      player.server === SBNET_VF_NAME ? "text-white" : "text-white/30"
-                    }`}
-                />
-              )}
-              {SBNET_VF_NAME}
-            </button>
-          ) : (
-            <button
-              disabled
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
-            >
-              <Globe className="w-3.5 h-3.5 text-white/20" />
-              {SBNET_VF_NAME} (Indisponible)
-            </button>
-          )}
+          {/*
+            The two Sibnet variants, ORDERED by the viewer's language — see
+            lib/playerStrategy.sibnetOrder. A French viewer sees VF first; everyone
+            else sees VOSTFR first, because VOSTFR preserves the original audio
+            track. Both are always offered and either is one click away.
 
-          {sibnetVostfrUrl || isSibnetLoading ? (
-            <button
-              onClick={() => sibnetVostfrUrl && handleServerChange(SBNET_VOSTFR_NAME)}
-              disabled={!sibnetVostfrUrl}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
-                  player.server === SBNET_VOSTFR_NAME
-                    ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
-                    : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
-                } ${!sibnetVostfrUrl ? "opacity-50 cursor-wait" : ""}`}
-            >
-              {isSibnetLoading && !sibnetVostfrUrl ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
-              ) : (
-                <Globe
-                  className={`w-3.5 h-3.5 ${
-                      player.server === SBNET_VOSTFR_NAME ? "text-white" : "text-white/30"
-                    }`}
-                />
-              )}
-              {SBNET_VOSTFR_NAME}
-            </button>
-          ) : (
-            <button
-              disabled
-              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
-            >
-              <Globe className="w-3.5 h-3.5 text-white/20" />
-              {SBNET_VOSTFR_NAME} (Indisponible)
-            </button>
-          )}
+            This ordering is a preference between two variants OF THE SAME SOURCE,
+            and it is deliberately NOT a claim that the VF variant carries French
+            audio for this title — the scrape decides that per title, and a variant
+            it could not resolve still renders disabled below. Nothing here counts
+            as French-language success.
 
-          {PROVIDERS.map((provider) => {
+            One map instead of two near-identical blocks, so the two buttons cannot
+            drift apart in styling or behaviour.
+          */}
+          {sibnetOrder(language).map((name) => {
+            const url = name === SBNET_VF_NAME ? sibnetVfUrl : sibnetVostfrUrl;
+            const isActive = player.server === name;
+
+            if (url || isSibnetLoading) {
+              return (
+                <button
+                  key={name}
+                  onClick={() => url && handleServerChange(name)}
+                  disabled={!url}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
+                      isActive
+                        ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
+                        : "bg-transparent text-white/40 hover:bg-white/5 hover:text-white/70"
+                    } ${!url ? "opacity-50 cursor-wait" : ""}`}
+                >
+                  {isSibnetLoading && !url ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-white/30" />
+                  ) : (
+                    <Globe
+                      className={`w-3.5 h-3.5 ${isActive ? "text-white" : "text-white/30"}`}
+                    />
+                  )}
+                  {name}
+                </button>
+              );
+            }
+
+            // The scrape resolved nothing for this variant on this title. It is
+            // shown as unavailable rather than hidden: a missing button reads as an
+            // option that was never offered, which is a different and less honest
+            // signal than "this source has nothing for this title".
+            return (
+              <button
+                key={name}
+                disabled
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
+              >
+                <Globe className="w-3.5 h-3.5 text-white/20" />
+                {name} (Indisponible)
+              </button>
+            );
+          })}
+
+          {offeredProviderNames(strategy).map((name) => {
+            const provider = getProvider(name);
+            // A name in the strategy with no registry entry could not be built
+            // into a URL, so it is skipped rather than rendered as a dead button.
+            // providerOrder already filters these out; this is the type narrowing,
+            // and a second line of defence behind it.
+            if (!provider) return null;
             const isActive = player.server === provider.name;
             // Exhaustive by type: no fallback needed, and none is wanted — a
             // fallback is what let the old name-keyed map drift unnoticed.
@@ -929,6 +1025,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <button
                 key={provider.name}
                 onClick={() => handleServerChange(provider.name)}
+                // The role is exposed for verification, not decoration: it is the
+                // same value lib/playerStrategy computes, so a browser check can
+                // confirm which sources are automatic for THIS content class
+                // without reading the source. Order alone would leave "is the
+                // fourth button a fallback or manual-only?" ambiguous.
+                data-role={roleOf(provider.name, strategy)}
                 title={
                   provider.warningKey ? providerWarningText(provider.warningKey) : undefined
                 }

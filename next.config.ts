@@ -18,12 +18,13 @@ import type {NextConfig} from 'next';
 //   frembed.work      — 302-redirects to frembed.surf, so it is never framed
 //   vidsrc.cc         — no code path references it
 //   www.2embed.to     — no code path references it (the app uses 2embed.cc)
-//   superembed.stream — no code path references it (the app uses multiembed.mov).
-//     CORRECTION (2026-09-20): the SuperEmbed family DOES still use that host —
-//     the bare root of streamingnow.mov 302s to it. It is deliberately NOT
-//     reinstated, because the embed path we actually frame
-//     (streamingnow.mov/?play=<payload>) answers 200 and does not redirect. It
-//     becomes eligible only with a measurement of OUR embed path, not the root.
+//   superembed.stream — no code path references it.
+//     CORRECTION (2026-09-20): the SuperEmbed family DID still use that host —
+//     the bare root of streamingnow.mov 302s to it. It was deliberately NOT
+//     reinstated, because the embed path we actually framed
+//     (streamingnow.mov/?play=<payload>) answered 200 and did not redirect.
+//     RESOLVED (2026-09-21): moot. SuperEmbed and both of its origins have been
+//     removed from the app entirely, so nothing reaches this host by any path.
 //   femb.in           — no code path references it
 //   vidmoly.to        — no code path references it
 //   data: / blob:     — there is no data: or blob: iframe anywhere in the app
@@ -53,18 +54,16 @@ const VIDEO_FRAME_DOMAINS = [
   "'self'",
   // Alternative servers — see PROVIDERS in lib/providers.ts
   'https://frembed.surf',
-  'https://multiembed.mov',
-  // SuperEmbed's REDIRECT TARGET, measured 2026-09-20:
-  //   GET https://multiembed.mov/?video_id=550&tmdb=1
-  //     -> 302 -> https://streamingnow.mov/?play=<base64 payload>
-  // The payload is generated server-side, so the hop cannot be skipped the way
-  // frembed.work's is — the frame starts at multiembed.mov and lands here, and
-  // Chrome re-checks frame-src against the target. Without this entry the
-  // provider was blocked by our own policy while tests/csp.test.ts stayed green,
-  // because that test only ever checked the origin WE generate.
-  // streamingnow.mov is the provider's own host, not an ad domain:
-  //   GET https://streamingnow.mov/ -> 302 -> https://www.superembed.stream?c=embed
-  'https://streamingnow.mov',
+  // REMOVED 2026-09-21 — multiembed.mov and streamingnow.mov, the SuperEmbed
+  // pair. Both existed for exactly one provider, and that provider has been
+  // removed from PROVIDERS. The reason is recorded in full there and in
+  // docs/player-strategy.md; in short, framing it displayed ADULT ADVERTISING
+  // inside our own player, it never produced observed media, and its own
+  // Cloudflare Turnstile gate was retry-looping. No code path can produce either
+  // origin now, which is the standard applied to every removal above — and
+  // because tests/csp.test.ts cross-checks this array against
+  // PROVIDER_FRAME_ORIGINS in BOTH directions, neither can come back without a
+  // registry entry.
   'https://vidsrc.to',
   'https://vidsrc.me',
   // VidSrc.me's REDIRECT TARGET, measured 2026-09-20:

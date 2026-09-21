@@ -9,6 +9,22 @@ Nothing in this file changes application behaviour. It records what was actually
 observed, on what date, with which tool, and — just as importantly — which cells were
 **not** measured.
 
+**Revision note (2026-09-21, player strategy finalized).** The provider-selection
+decision has now been taken and implemented, and it is recorded in
+**`docs/player-strategy.md`**. That document supersedes this one on exactly one
+question — **which source a viewer is given first** — and nothing else.
+
+The default is no longer a single provider. It is per content class, and the constant
+this document refers to as `DEFAULT_PROVIDER_NAME` ("Frembed") has been **removed from
+the registry entirely**. So every present-tense statement below that calls Frembed
+"*the* default" or "our current default" describes the state **before** 2026-09-21. They
+are retained deliberately, as history rather than as current fact: they are the
+measurements the new per-class order was derived from, and rewriting them would erase
+what was known at the time.
+
+Everything else here stands, including the corrections. This file remains the
+**evidence layer**; the strategy document cites it instead of restating it.
+
 **Revision note (2026-09-21, second pass).** The first pass left three things open: the
 SmashyStream domain status, the season-0/specials question, and the integration-status
 classification. All three are now resolved below, by measurement. Two cells that were
@@ -483,7 +499,7 @@ rather than a placeholder.
 
 ## Per-provider notes
 
-### Frembed — the current default (`DEFAULT_PROVIDER_NAME`)
+### Frembed — the default as at the date of this pass (the `DEFAULT_PROVIDER_NAME` constant, since removed)
 
 - Resolves **all four** content classes tested by TMDB id, including **Korean drama**
   and **anime** (series *and* movie). This is the broadest resolution observed of any

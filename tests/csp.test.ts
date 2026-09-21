@@ -148,6 +148,14 @@ describe('frame-src is narrower than what it replaced', () => {
       'https://superembed.stream',
       'https://femb.in',
       'https://vidmoly.to',
+      // Removed 2026-09-21 with the provider itself. These two are named here as
+      // well as in lib/providers.ts deliberately: the entry and the policy entry
+      // were removed together, and this is the assertion that keeps them from
+      // being re-added independently of each other. See the SuperEmbed removal
+      // note in lib/providers.ts — the reason was adult advertising inside our
+      // own player, not a playback-quality trade-off.
+      'https://multiembed.mov',
+      'https://streamingnow.mov',
     ]) {
       assert.ok(!entries.includes(dead), `${dead} is unreachable from application code`);
     }
@@ -188,7 +196,12 @@ describe('frame-src is narrower than what it replaced', () => {
     const entries = tokens(await getFrameSrc());
     for (const kept of [
       'https://frembed.surf',
-      'https://multiembed.mov',
+      // multiembed.mov was on this list until 2026-09-21, when the provider that
+      // needed it was removed. Removing an origin from this list is the one edit
+      // here that could hide a regression, so it is stated: the provider is gone
+      // from lib/providers.ts, buildProviderUrl cannot produce the origin, and the
+      // test above asserts the origin is absent. A WORKING provider losing an
+      // origin would still fail here, which is what this list is for.
       'https://vidsrc.to',
       'https://vidsrc.me',
       'https://www.2embed.cc',
@@ -240,12 +253,6 @@ describe('measured provider redirect chains stay covered', () => {
     entry: string;
     hops: readonly string[];
   }> = [
-    {
-      // GET https://multiembed.mov/?video_id=550&tmdb=1 -> 302 -> streamingnow.mov
-      provider: 'SuperEmbed',
-      entry: 'https://multiembed.mov',
-      hops: ['https://streamingnow.mov'],
-    },
     {
       // GET https://vidsrc.me/embed/movie?tmdb=550 -> 301 -> vidsrc.sh
       provider: 'VidSrc.me',
