@@ -1492,3 +1492,47 @@ appear above exactly once, as a fact about Frembed's internals: **the default pr
 list offers them.** That is an open product question — whether it is acceptable for the default
 source to reach them as its own internals — recorded as a decision for the owner, **not** as a
 defect and **not** as a reason to restore anything.
+
+---
+
+## Final production pass on the deployed revision (2026-09-21)
+
+Run against the deployment production reports, `dpl_3oNmd5oWvnTvuFWEHHtnkTyzJJqk`. **The id cannot
+be mapped to a git SHA from outside**, so it is recorded as what production says it is serving, not
+as proof of which commit that is. The behavioural evidence below is what actually establishes that
+the shipped code is live — and for the search fix, driving the real UI is stronger evidence than any
+identifier.
+
+**Verified on that deployment:**
+
+- All critical paths **200**: `/`, `/films`, `/series`, `/animes`, `/kdrama`, `/movie/550`,
+  `/tv/1396`, `/robots.txt`, `/sitemap.xml`. `/ai-test` → **404**, holding the P0 fix.
+- `robots.txt` serves the intended rules and `sitemap.xml` contains **7 `<url>` entries**, matching
+  the seven hub routes.
+- On `/movie/550`: **exactly one iframe**, `https://frembed.surf/embed/movie/550?id=550` — the
+  default provider, resolved correctly, with **no stale iframe** and the action row intact
+  (`REGARDER · BANDE-ANNONCE`), so the `/api/catalogue` removal left no gap.
+- **Zero CSP violations** in the full console log — no `Refused to frame`, no `Refused to load`.
+  This re-confirms the cross-cutting observation above on a page that actually loads a provider.
+- Expected noise only: two logged-out `401`s (documented as expected), Frembed's `console.clear()`
+  blank line, and its `Bot and proxy detection by Adscore.com` — both already recorded.
+
+### Two findings this pass added
+
+- **`document.title` is set client-side, per title** — `app/movie/[id]/page.tsx:34`,
+  `app/tv/[id]/page.tsx:57,69` (which includes the episode: `S{season}E{episode}`), and
+  `app/person/[id]/page.tsx:49`. The browser tab reads `Fight Club - Moveo` while the **served**
+  HTML still carries the layout's generic title. This qualifies finding 7 above and is worth stating
+  precisely, because the distinction is the whole problem: a title set after hydration is invisible
+  to crawlers and to every link-preview scraper, and `og:`/`twitter:` tags **cannot** be set from
+  client script at all — which is why the served-HTML gap is not closed by the client behaviour that
+  already exists. It also means finding 7's "one `<title>` for the whole site" describes what a
+  crawler receives, not what a user sees in their tab.
+- **Two lazy-loaded images have no explicit dimensions** ("Lazy-loaded images should have explicit
+  dimensions", count 2), and **one form field has no `id` or `name`** — the latter corroborating the
+  form-association finding in the a11y deferrals. Both are recorded rather than fixed: they are P3,
+  and neither was measured to affect a user-visible path.
+
+Not fixed, and named here so it is not mistaken for measured: no provider was re-driven to playback
+on this deployment. Provider behaviour is not what these commits changed, and the last full provider
+pass is the one recorded above.
