@@ -178,6 +178,8 @@ export const translations = {
       contactSupport: "Contactez le support",
       bannedRegisterMessage: "Impossible de créer un compte avec cette adresse.",
       banReason: "Raison du bannissement",
+      verificationEmailSent: "Un lien d'activation vient d'être envoyé. Vérifiez votre e-mail, puis connectez-vous.",
+      verificationEmailFailed: "Impossible d'envoyer l'e-mail de vérification. Réessayez dans un instant.",
       accountBanned: "Compte suspendu définitivement",
       permanentBan: "Cette décision est définitive.",
       signOut: "Se déconnecter"
@@ -563,6 +565,8 @@ export const translations = {
       contactSupport: "Contact support",
       bannedRegisterMessage: "Cannot create an account with this address.",
       banReason: "Ban reason",
+      verificationEmailSent: "An activation link has just been sent. Check your email, then sign in.",
+      verificationEmailFailed: "We couldn't send the verification email. Please try again in a moment.",
       accountBanned: "Account permanently suspended",
       permanentBan: "This decision is final.",
       signOut: "Sign out"

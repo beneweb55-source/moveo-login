@@ -114,7 +114,10 @@ export default function RegisterPage() {
 
       if (res.ok) {
         const data = await res.json();
-        setSuccessMessage('Registration successful. You can now sign in.');
+        // This used to read "You can now sign in", which was false: login rejects
+        // any account that has not verified its email. Both the new-account and
+        // the resend path land here, and in both a fresh link has just been sent.
+        setSuccessMessage(t.auth.verificationEmailSent);
         // Clear form
         setName('');
         setEmail('');
@@ -129,6 +132,8 @@ export default function RegisterPage() {
         const data = await res.json();
         if (data.error === 'ACCOUNT_BANNED') {
           setError(`${t.auth.bannedRegisterMessage} ${t.auth.banReason} : ${data.ban_reason}`);
+        } else if (data.error === 'VERIFICATION_EMAIL_FAILED') {
+          setError(t.auth.verificationEmailFailed);
         } else {
           setError(data.error || 'Failed to register');
         }
