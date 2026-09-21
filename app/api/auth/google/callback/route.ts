@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
+import { OAUTH_STATE_COOKIE, matchesCookie, verifyOAuthState } from '@/lib/oauthState';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,18 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code');
   const state = searchParams.get('state');
 
+  // Login-CSRF gate, and it runs BEFORE the code is exchanged: exchanging an
+  // attacker's code is precisely what would sign this browser in as them. The
+  // state must be signed by us AND be the exact value this browser was handed by
+  // /api/auth/google/url. A missing cookie is a failure, never a pass.
+  const verifiedState = verifyOAuthState(state);
+  if (!verifiedState) {
+    return NextResponse.json({ error: 'Invalid or expired OAuth state' }, { status: 400 });
+  }
+  if (!matchesCookie(state, req.cookies.get(OAUTH_STATE_COOKIE)?.value)) {
+    return NextResponse.json({ error: 'OAuth state does not belong to this browser' }, { status: 400 });
+  }
+
   if (!code) {
     return NextResponse.json({ error: 'Missing code' }, { status: 400 });
   }
@@ -16,15 +29,10 @@ export async function GET(req: NextRequest) {
   const clientId = process.env.GOOGLE_CLIENT_ID || '630042598048-to0breshebpts9pmbke6kqnt8pth3n0l.apps.googleusercontent.com';
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
   
-  // Use the origin passed in the state parameter, or fallback to request headers
-  let origin = state;
-  if (process.env.APP_URL) {
-    origin = process.env.APP_URL;
-  } else if (!origin || origin === 'undefined') {
-    const protocol = req.headers.get('x-forwarded-proto') || 'https';
-    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-    origin = host ? `${protocol}://${host}` : 'https://moveo.blog';
-  }
+  // The origin now comes from the VERIFIED state (or an explicit APP_URL), never
+  // from the raw query string — previously a client-supplied `state` was used as
+  // the redirect_uri base whenever APP_URL was unset, so it was attacker-chosen.
+  const origin = process.env.APP_URL || verifiedState.origin;
   
   const redirectUri = `${origin}/api/auth/google/callback`;
 
@@ -148,6 +156,16 @@ export async function GET(req: NextRequest) {
       secure: true, // Required for SameSite=None
       sameSite: 'none', // Required for cross-origin iframe
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
+
+    // Single-use: drop the state now that it has done its job, so a captured
+    // state cannot be replayed against a second callback.
+    response.cookies.set(OAUTH_STATE_COOKIE, '', {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      maxAge: 0,
       path: '/',
     });
 
