@@ -66,6 +66,78 @@ export const createRateLimiter = ({
   };
 };
 
+/** Options for {@link createFailureLimiter}. */
+export interface FailureLimitOptions {
+  /** Length of the counting window, in milliseconds. */
+  windowMs: number;
+  /** Failures tolerated per key per window; the next one blocks. */
+  maxFailures: number;
+  /** Above this many tracked keys, expired buckets are swept. */
+  maxKeys?: number;
+}
+
+/**
+ * A limiter that counts FAILURES rather than requests.
+ *
+ * The difference is load-bearing for authentication. Counting every attempt
+ * against an account — successes included — lets anyone who knows a victim's
+ * email spend that account's whole allowance with deliberately wrong passwords,
+ * which turns the limiter into a denial-of-service tool aimed at the very user
+ * it exists to protect. Counting only failures removes that: a legitimate
+ * session never records one, so only an actual guessing run can trip it.
+ *
+ * `isBlocked` is deliberately read-only and `recordFailure` is a separate call,
+ * because only the calling route knows whether an attempt failed.
+ *
+ * Shares the key-trust assumption documented at the top of this file.
+ */
+export interface FailureLimiter {
+  /** True when this key has already met or exceeded its failure allowance. */
+  isBlocked(key: string): boolean;
+  /** Records one failed attempt against this key. */
+  recordFailure(key: string): void;
+  /** Forgets a key, for a caller that has since succeeded. */
+  reset(key: string): void;
+}
+
+export const createFailureLimiter = ({
+  windowMs,
+  maxFailures,
+  maxKeys = 1000,
+}: FailureLimitOptions): FailureLimiter => {
+  const buckets = new Map<string, { count: number; resetAt: number }>();
+
+  return {
+    isBlocked(key: string): boolean {
+      const now = Date.now();
+
+      if (buckets.size > maxKeys) {
+        for (const [existingKey, bucket] of buckets) {
+          if (bucket.resetAt <= now) buckets.delete(existingKey);
+        }
+      }
+
+      const bucket = buckets.get(key);
+      return !!bucket && bucket.resetAt > now && bucket.count >= maxFailures;
+    },
+
+    recordFailure(key: string): void {
+      const now = Date.now();
+      const bucket = buckets.get(key);
+
+      if (!bucket || bucket.resetAt <= now) {
+        buckets.set(key, { count: 1, resetAt: now + windowMs });
+        return;
+      }
+      bucket.count += 1;
+    },
+
+    reset(key: string): void {
+      buckets.delete(key);
+    },
+  };
+};
+
 /**
  * The client identity to bucket on — the first `x-forwarded-for` entry, which is
  * the caller as seen by the nearest proxy. Returns a constant for requests with

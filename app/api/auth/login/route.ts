@@ -2,6 +2,20 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import pool from '@/lib/db';
 import { SignJWT } from 'jose';
+import {
+  LOGIN_RETRY_AFTER_SECONDS,
+  RATE_LIMIT_MESSAGE,
+  accountKey,
+  authLimiters,
+  isLoginThrottled,
+} from '@/lib/authRateLimit';
+
+/** The refusal a throttled caller gets, before any credential work. */
+const throttled = () =>
+  NextResponse.json(
+    { error: RATE_LIMIT_MESSAGE },
+    { status: 429, headers: { 'Retry-After': String(LOGIN_RETRY_AFTER_SECONDS) } }
+  );
 
 export async function POST(req: Request) {
   try {
@@ -11,9 +25,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing email or password' }, { status: 400 });
     }
 
+    // Checked before the lookup and the bcrypt comparison, so a throttled request
+    // never reaches the work this exists to protect.
+    if (isLoginThrottled(req, email)) {
+      return throttled();
+    }
+
     // Find user
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
+      // Counted as a failure: an unknown address is still a guess, and leaving it
+      // free would make the account limiter blind to enumeration.
+      authLimiters.loginAccount.recordFailure(accountKey(email));
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
@@ -38,8 +61,13 @@ export async function POST(req: Request) {
     // Check password
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      authLimiters.loginAccount.recordFailure(accountKey(email));
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
+
+    // The credentials were right, so whatever this account had accumulated is no
+    // longer evidence of a guessing run.
+    authLimiters.loginAccount.reset(accountKey(email));
 
     // Create JWT
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');

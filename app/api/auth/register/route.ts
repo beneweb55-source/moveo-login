@@ -3,6 +3,24 @@ import bcrypt from 'bcryptjs';
 import pool from '@/lib/db';
 import { Resend } from 'resend';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  RATE_LIMIT_MESSAGE,
+  REGISTER_RETRY_AFTER_SECONDS,
+  isRegisterThrottled,
+} from '@/lib/authRateLimit';
+
+/**
+ * The refusal a throttled caller gets.
+ *
+ * Returned before the duplicate check and before any email is sent, so a
+ * throttled request neither reveals whether the address is already registered
+ * nor costs an outbound message.
+ */
+const throttled = () =>
+  NextResponse.json(
+    { error: RATE_LIMIT_MESSAGE },
+    { status: 429, headers: { 'Retry-After': String(REGISTER_RETRY_AFTER_SECONDS) } }
+  );
 
 const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build');
 
@@ -56,6 +74,10 @@ export async function POST(req: Request) {
 
     if (!email || !password || !name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    if (isRegisterThrottled(req, email)) {
+      return throttled();
     }
 
     // Check if user already exists
