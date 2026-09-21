@@ -25,6 +25,15 @@ export const LanguageProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, []);
 
+  // app/layout.tsx ships lang="fr", which is correct for the initial render but
+  // stops being true as soon as a stored or browser-detected language is
+  // applied. Keeping the attribute equal to the language actually in use means
+  // screen readers pronounce the labels correctly and the document reports its
+  // real language to a crawler.
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
+
   const toggleLanguage = () => {
     setLanguage((prev) => {
       const newLang = prev === "fr" ? "en" : "fr";
