@@ -12,13 +12,25 @@ export async function checkAdminAccess(requiredPermission?: string) {
   try {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
     const { payload: decoded } = await jwtVerify(token, secret);
+
+    // `users.id` is an integer PRIMARY KEY, and the query below compared it as
+    // `id::text = $1`. Casting the indexed column makes the predicate
+    // non-sargable — Postgres cannot use the primary-key index — so the lookup
+    // scanned the whole users table. This is the hottest authenticated path in
+    // the app: middleware.ts self-fetches /api/auth/me for every matched request
+    // from a signed-in user, and every admin route arrives here too.
+    // The claim is validated rather than trusted: a token whose userId is not an
+    // integer identifies no user, and fails closed exactly as an unreadable
+    // token does above.
+    const userId = Number(decoded.userId);
+    if (!Number.isInteger(userId)) return null;
     
     const userRes = await pool.query(`
       SELECT u.*, r.permissions, r.priority, r.name as role_name, r.color as role_color
       FROM users u 
       LEFT JOIN roles r ON u.role_id::integer = r.id::integer 
-      WHERE u.id::text = $1
-    `, [decoded.userId]);
+      WHERE u.id = $1
+    `, [userId]);
     
     if (userRes.rows.length === 0) return null;
     

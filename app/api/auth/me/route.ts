@@ -17,6 +17,19 @@ export async function GET() {
     const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
     const { payload } = await jwtVerify(token, secret);
 
+    // `users.id` is an integer PRIMARY KEY, and the query below compared it as
+    // `id::text = $1`. Casting the indexed column makes the predicate
+    // non-sargable, so Postgres could not use the primary-key index and scanned
+    // the whole users table instead. middleware.ts self-fetches this route for
+    // every matched request from a signed-in user, so that scan was paid on
+    // essentially every page and API request in the site.
+    // A token whose userId is not an integer identifies no user: answer as an
+    // authentication failure rather than issuing a query that cannot match.
+    const userId = Number(payload.userId);
+    if (!Number.isInteger(userId)) {
+      return NextResponse.json({ user: null }, { status: 401 });
+    }
+
     const result = await pool.query(`
       SELECT 
         u.id, u.name, u.email, u.bio, u.avatar_url, 
@@ -31,8 +44,8 @@ export async function GET() {
         r.priority
       FROM users u
       LEFT JOIN roles r ON u.role_id::integer = r.id::integer
-      WHERE u.id::text = $1
-    `, [payload.userId]);
+      WHERE u.id = $1
+    `, [userId]);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ user: null }, { status: 404 });
