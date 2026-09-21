@@ -16,6 +16,24 @@ previously recorded as failures have been **corrected upward** because the earli
 reading was wrong, and one previously-unmeasured dimension produced a real bug in our
 own code.
 
+**Revision note (2026-09-21, third pass).** The anime and Korean coverage columns — the
+two the task brief names as priority gaps — were measured properly this pass, against
+Frembed's own public JSON API rather than against page shells. That API was recorded in
+the first pass as a `[D]` claim (reported in documentation, not verified). It is now
+`[M]`: the surface was enumerated, its parameters were tested for effect, and its
+response bodies were parsed. Two consequences worth stating plainly:
+
+- **The API's `link` values use our exact URL grammar.** This is independent
+  corroboration of `buildUrl()` from the provider's own output, which previously rested
+  only on observed redirect `Location` headers.
+- **A coverage number is not a coverage claim.** Frembed's anime catalogue is **146
+  titles**, which is a real, enumerated subset — and a *small* one against the tens of
+  thousands of anime TMDB knows. It is recorded as what it is: exactly what the default
+  provider carries.
+
+No `capabilities` cell was promoted on the strength of this pass. The API evidences
+*resolution and availability*, never *playback*, and those are different claims.
+
 ## How to read this
 
 | Mark | Meaning |
@@ -72,7 +90,7 @@ anime series coverage · anime movie coverage · mobile behaviour · stability`
 | Dimension | Frembed | SuperEmbed | VidSrc.to | VidSrc.me | 2Embed | SmashyStream | VidLink |
 |---|---|---|---|---|---|---|---|
 | **Identity** | `frembed.surf` | `multiembed.mov` → `streamingnow.mov` | `vidsrc.to` | `vidsrc.me` → `vidsrc.sh` | `www.2embed.cc` | **`anyembed.xyz`** (moved 2026-09-21 from `player.smashy.stream`) | `vidlink.pro` |
-| **Integration status** | ✅ public API docs | — none found | — none found | — none found | — none found | — none found | ✅ publishes embed grammar |
+| **Integration status** | ✅ **public JSON API; surface enumerated and behaviour measured 2026-09-21** (index + `movies`/`tv`/`anime`). Its own docs page is reported to disclaim licensing **[D]** | — none found | — none found | — none found | — none found | — none found | ✅ publishes embed grammar |
 | **URL generation** | ✅ `/embed/movie/{id}`, `/embed/serie/{id}?sa=&epi=` | ✅ `/?video_id=&tmdb=1[&s=&e=]` | ✅ `/embed/movie/{id}`, `/embed/tv/{id}/{s}/{e}` | ✅ `/embed/movie?tmdb=`, `/embed/tv?tmdb=&season=&episode=` | ✅ `/embed/{id}`, `/embedtv/{id}&s=&e=` | ✅ **`/embed/tmdb-movie-{id}`, `/embed/tmdb-tv-{id}-{s}-{e}`** | ✅ `/movie/{id}`, `/tv/{id}/{s}/{e}` |
 | **HTTP availability** (5 classes) | ✅ 5/5 × 200 | ✅ 5/5 (302→200) | ✅ 5/5 × 200 | ✅ 5/5 (301→200) | ⚠️ 4/5 200; western TV timed out once (`ERR28`), 200 on retry | ✅ **5/5 × 200 after the move** (was ✘ 0/5 on the old host — TLS hostname mismatch; see below) | ✅ 5/5 × 200 |
 | **Frameability** | ✅ no `X-Frame-Options`, no `frame-ancestors` seen | ✅ same | ✅ same | ✅ same | ✅ same | ✅ **same, at the new host** | ✅ same |
@@ -83,9 +101,9 @@ anime series coverage · anime movie coverage · mobile behaviour · stability`
 | **Subtitles & language** | renders a `VF` dub badge on series; no subtitle menu seen | — | — | — | — | — (not measured) | ✅ **subtitle track fetched** (`.srt`) for Korean *and* anime; 3 audio streams in the DASH manifest |
 | **Movie coverage** | ✅ resolves (`/api/films?id=129&idType=tmdb` 200; rendered title) | — | — | — | — | ✅ **resolves AND plays** (*Fight Club*) | ✅ resolves; anime movies ✘ (below) |
 | **Western TV** | ✅ 200 | — | — | — | — | ✅ **resolves AND plays** (*Breaking Bad* S1E1) | ✅ 200 |
-| **Korean drama** | ✅ resolves + renders `Squid Game` S1E1 (`/api/series?id=93405…` 200) | ✘ no player (ad page) | ✅ resolves | ✅ resolves | ✅ resolves | — (not measured) | ✅ resolves **and plays** |
-| **Anime series** | ✅ resolves + renders `L'Attaque des Titans` S1E1 + `VF` | — | — | — | — | — (not measured) | ✅ resolves **and plays** (+ subtitles) |
-| **Anime movie** | ✅ resolves + renders `Le Voyage de Chihiro` (`/api/films?id=129`) | — | — | — | — | — (not measured) | ✘ provider self-declares `"We Couldn't Find This Content ."` |
+| **Korean drama** | ✅ resolves + renders `Squid Game` S1E1 (`/api/series?id=93405…` 200); **22 episodes enumerated** with `sa`/`epi`/`VF` via `/api/public/v1/tv/93405` | ✘ no player (ad page) | ✅ resolves | ✅ resolves | ✅ resolves | — (not measured) | ✅ resolves **and plays** |
+| **Anime series** | ✅ resolves + renders `L'Attaque des Titans` S1E1 + `VF`; **104 of its enumerable anime titles are series** | — | — | — | — | — (not measured) | ✅ resolves **and plays** (+ subtitles) |
+| **Anime movie** | ✅ resolves + renders `Le Voyage de Chihiro` (`/api/films?id=129`); **42 anime films enumerated** | — | — | — | — | — (not measured) | ✘ provider self-declares `"We Couldn't Find This Content ."` |
 | **Mobile behaviour** | — | — | — | — | — | — | — |
 | **Stability** | intermittent: 7/8 curl attempts 200, 1 connect timeout; one duplicate `ERR_ABORTED` frame request on first mount | poor: Cloudflare Turnstile (`Error: 600010`) retry-looping inside the frame | — | — | one curl timeout (western TV), 200 on retry | ✅ **stable across movie, TV and specials probes**; not yet observed over time | ✅ stable across two titles; not yet observed over time |
 
@@ -159,6 +177,122 @@ wrong. The `capabilities` record in `lib/providers.ts` encodes this as
 
 ---
 
+## Frembed's public API — measured surface (2026-09-21, third pass)
+
+The first pass recorded `/api/public/v1/anime` as a **[D]** claim: seen referenced,
+never called. It was called this pass. The whole surface was enumerated, and this
+section records what answered.
+
+### The index is the authority — guessing endpoint names produces 404s
+
+`GET https://frembed.surf/api/public/v1` returns the API's own index:
+
+```json
+{"status":200,"api":"Frembed Public API","version":"v1",
+ "docs":"https://frembed.surf/api-docs",
+ "endpoints":{"movies":{"list":"https://frembed.surf/api/public/v1/movies",
+                        "get":"https://frembed.surf/api/public/v1/movies/{id}"},
+              "tv":{"list":"https://frembed.surf/api/public/v1/tv",
+                    "get":"https://frembed.surf/api/public/v1/tv/{id}"}}}
+```
+
+Probing plausible names instead is actively misleading: `/api/public/v1/movie`
+(singular) 404s while `/movies` answers 200. Guessed names that do **not** exist —
+each returned 404, and each is recorded here so nobody re-probes them expecting a
+different answer: `kdrama`, `drama`, `serie`, `series`, `film`, `movie`,
+`catalogue`, `search`.
+
+### Measured behaviour
+
+| Request | Result |
+|---|---|
+| `GET /api/public/v1/movies` | 200, JSON, 4842 B |
+| `GET /api/public/v1/movies/550` | 200, `result.total: 1`, one item: *Fight Club*, `version: "TrueFrench"`, `quality: "HD"`, `link: /embed/movie/550` |
+| `GET /api/public/v1/tv` | 200, JSON, 3571 B |
+| `GET /api/public/v1/tv/1396` | 200, JSON, 9885 B (Breaking Bad) |
+| `GET /api/public/v1/tv/93405` | 200, JSON, 3445 B — **22 episodes**, each with `sa`, `epi`, `version: "VF"` and a ready-made `link` |
+| `GET /api/public/v1/anime` | 200, JSON, 4154 B — `page: 1`, `totalPages: 8`, `perPage: 20`, `total: 146` |
+| `?type=tv` | **honoured** — `total` becomes 104, items all `type: "tv"` |
+| `?page=2..8` | **honoured** — the 8 pages yield exactly 146 items, no duplicates |
+| `?search=…`, `?version=…` | **no effect observed** — byte-identical response (4154 B) to the unfiltered call |
+
+The `search` row is worth flagging rather than glossing. A parameter that looks like it
+should work and silently does not is the exact shape of defect this project was already
+bitten by once (the season-0 coercion, above). It is recorded as "no effect observed"
+at one request each, **not** as "does not exist": a single probe per parameter cannot
+distinguish "ignored" from "matched nothing".
+
+### Anime coverage, enumerated
+
+All 8 pages were fetched and parsed: 146 items, 146 distinct TMDB ids, no duplicates.
+
+| Field | Distribution |
+|---|---|
+| `type` | `movie` 42, `tv` 104 |
+| `version` | `VF` 96, `TrueFrench` 33, `French` 7, `VOSTFR` 4, null 6 |
+| `quality` | `HD` 39, null 107 |
+
+**The `link` grammar is ours.** Every item carries a `link`, and the two shapes are
+exactly what `lib/providers.ts` builds:
+
+```
+104 x https://frembed.surf/embed/serie/{tmdb}?sa={s}&epi={e}
+ 42 x https://frembed.surf/embed/movie/{tmdb}
+```
+
+One difference, recorded rather than "fixed": our series URL carries an extra `&id=`
+parameter (`/embed/serie/93405?id=93405&sa=1&epi=1`). That is not our invention — it
+is what the provider's own `/api/serie.php` redirector emits in its `Location` header
+(first pass). The API's canonical form omits it. Both are in use by the provider
+itself, so neither is corrected here; the API is evidence that the shorter form is
+canonical, not that the longer one is wrong.
+
+**The number is 146, and it stays 146.** That is the entire anime catalogue of our
+default provider: a real, enumerated subset and a small one. It is not a claim that
+anime is covered — it is a count of exactly what is.
+
+### What this pass deliberately did NOT do
+
+**No availability probe was built on these endpoints.** They would make an obvious
+availability primitive — `result.total: 0` is a direct, honest answer to "does the
+default provider carry this title?" — but wiring one up is constrained by the
+integration brief in two ways a surface measurement does not resolve:
+
+- *"Do NOT use a server-side HTTP probe as the sole authority"* on whether a source
+  works. The API evidences catalogue membership, not playability.
+- *"A late asynchronous availability result must never overwrite a user-selected
+  provider."* Any probe is therefore a hint shown alongside the sources — never a
+  gate, never a selector.
+
+Recorded as an identified option with its constraint, deliberately unimplemented.
+
+### The docs page, and a boundary that was respected
+
+The index advertises `docs: https://frembed.surf/api-docs`. That URL was requested;
+the page is real — not JavaScript-gated, not an error page. Two facts about it are
+recorded with **[D]** provenance, because they are reported to us rather than read
+first-hand by us:
+
+- **[D]** The page's own footer is reported to state that the content it distributes
+  is **unlicensed**.
+- **[D]** The page is reported to document **no parameter that selects audio
+  language or subtitles**; the only language-related field in its payloads is the
+  per-item `version`.
+
+The tool that surfaced those facts then declined to convert the page into an
+endpoint-and-parameter integration spec. **That refusal was not routed around**: no
+attempt was made to extract a parameter reference from the page by another means.
+The `[D]` label is doing exactly the job it was defined for — these are leads, not
+findings, and they are labelled as leads.
+
+One related thing *is* measured, and it narrows the language question rather than
+answering it: `?version=` had **no effect**, so even the `version` value that appears
+on every item is not selectable by query parameter. The honest position on language
+is therefore unchanged from the second pass — a per-item `version` field is a
+property of that item, not a user-selectable option.
+
+---
+
 ## Integration status — the classification
 
 Recorded here rather than in the grid so the table stays comparable. **Provenance
@@ -175,7 +309,7 @@ that exists independently of whether the embeds work.
 
 | Provider | Public embedding/API documentation | Classification |
 |---|---|---|
-| **Frembed** | ✅ Publishes an HTTP API surface (`/api/film.php`, `/api/serie.php`, and a reported `/api/public/v1/anime`) **[M]** for the redirect endpoints. | Third-party aggregator, unclear licensing. The only provider we have measured to resolve **all four** content classes including Korean *and* anime. **Currently the default.** |
+| **Frembed** | ✅ Publishes an HTTP API surface (`/api/film.php`, `/api/serie.php`), and a **complete public JSON API that was enumerated this pass** (`/api/public/v1` + `movies`/`tv`/`anime`) **[M]**. It advertises its own docs page, whose footer is **reported** to state the distributed content is unlicensed **[D]**. | Third-party aggregator, unclear licensing — **and now the strongest single lead available on that question, since the provider's own documentation is reported to disclaim it.** The only provider we have measured to resolve **all four** content classes including Korean *and* anime. **Currently the default.** |
 | **SuperEmbed** | — None found **[D]**. | Not appropriate for integration as-is: measured to display **adult advertising** inside our player **[M]**, and its own anti-bot gate (`Error: 600010`) was retry-looping. |
 | **VidSrc.to** | — None found **[D]**. Reported to **deny anime support publicly** **[D]** — not independently verified. | Third-party aggregator, unclear licensing; reported to appear in the MPA's 2 Oct 2024 USTR filing **[D]**. |
 | **VidSrc.me** | — None found **[D]**. | Same upstream player as VidSrc.to **[M]**; same classification. |
@@ -196,6 +330,15 @@ measured to *play* Korean content is VidLink.
 - Resolves **all four** content classes tested by TMDB id, including **Korean drama**
   and **anime** (series *and* movie). This is the broadest resolution observed of any
   provider here.
+- **The only provider in this review with a structured public API, and it was fully
+  enumerated this pass** — see the section above. Its anime catalogue is 146 titles
+  (42 films, 104 series) and its Korean resolution is **per-episode**: `tv/93405`
+  enumerates 22 episodes of *Squid Game* with `sa`/`epi` and `VF`. Its `link` values
+  use our exact URL grammar, which is independent corroboration of `buildUrl()`.
+- Its `version` field is the only language signal available anywhere in this review,
+  and it is a **per-item property, not a selectable option** (`?version=` had no
+  effect). Nothing observed here supports labelling a source with a language it has
+  not been shown to carry.
 - Its nested film/series page renders the real title, `Saison`/`Épisode`, a `VF` badge,
   and `SERVEURS` / `ÉPISODES` / `S1 E2` controls.
 - **Playback was not observed.** After the frame settled there were no media-type
@@ -344,25 +487,53 @@ recording where they can be acted on:
 Named here so the gaps are explicit rather than implied by an empty cell. None of these
 is a conclusion; each is work outstanding.
 
-- **Independent verification of the `[D]` legal/documentation claims.** The
-  classification table above names what a documentation pass reported; none of it was
-  re-verified in-session. In particular the reported MPA/USTR filing, VidSrc.to's
-  reported anime denial, and the reported `/api/public/v1/anime` and
-  `/anime/{MALid}/{number}/{subOrDub}` grammars should be checked at the source before
-  any of them informs a product decision.
-- **Documented embed parameters** per provider, including whether any of them has a
-  *supported* subtitle/language parameter, and the unresolved discrepancy between
-  `lib/video-utils.ts` (which appends `&sub=fr` to VidSrc.me) and the live
-  `lib/providers.ts` (which does not). `lib/video-utils.ts` appears to have no importers;
-  that should be confirmed before the file is trusted or removed.
+- ~~**Independent verification of the `[D]` `/api/public/v1/anime` claim.**~~
+  **CLOSED 2026-09-21 (third pass)** — called, enumerated, and documented above. The
+  endpoint is real and its 8 pages enumerate 146 anime titles.
+- **`[D]` claims still unverified.** Narrowed, not closed. Still open: the reported
+  MPA/USTR filing, and VidSrc.to's reported public denial of anime support. The
+  reported VidLink `/anime/{MALid}/{number}/{subOrDub}` grammar was **probed and came
+  back inconclusive** — see the VidLink note below. It is recorded as inconclusive
+  rather than as either confirmation or refutation.
+- **Documented embed parameters** per provider. Partly answered for Frembed only (its
+  measured surface is above; `?search=` and `?version=` showed no effect). Still open
+  for the other six, which publish no documentation at all.
+- **The `&sub=fr` discrepancy — CLOSED as a dead-code question, not a behaviour
+  question.** `lib/video-utils.ts` is confirmed to have **no importers anywhere** in
+  the repository, so its `&sub=fr` is not reachable and cannot be affecting live URLs.
+  It is dead code, not a competing implementation. (Same pass confirmed three further
+  unimported modules: `lib/email.ts`, `components/CustomVideoPlayer.tsx`,
+  `hooks/useAIRecommendation.ts`.) Whether the file should be *removed* is a
+  separate decision and is not taken here.
 - **Public reports of adult/malicious advertising** for the providers that surfaced them
   here, to determine whether the SuperEmbed observation is typical or an outlier.
-- **Korean and anime coverage claims** from provider documentation, to compare against
-  what we measured. Neither column has a single published K-drama claim to compare to.
-- **Mobile behaviour** for every provider — still entirely unmeasured.
+- ~~**Korean and anime coverage claims** from provider documentation.~~ **Partly
+  closed:** Frembed publishes documentation and an API, and its anime catalogue is now
+  enumerated. VidLink publishes an embed grammar but no catalogue. The other five
+  publish nothing, so **there is still not a single published K-drama claim to compare
+  against** — that half stays open, and it is the reason Korean coverage remains
+  measured-only for us.
+- **Mobile behaviour** for every provider — still entirely unmeasured. This is now the
+  largest single gap in the document.
 - **Per-season / per-episode depth** — later seasons, episode numbering past E1, and
-  season 0 on the other six providers.
+  season 0 on the other six providers. Partly de-risked for Korean: Frembed's
+  `/api/public/v1/tv/93405` enumerates 22 episodes across its seasons, so the provider
+  itself indexes beyond S1E1 even though we have not driven the player to one.
 - **Stability over time** — the current column is a single session, not a trend.
 - **`/api/catalogue`'s remaining purpose.** It is verified alive and correctly scoped to
   the movie-page `moveoFound` flow, but that flow should be re-checked against the
   product decision on the removed premium tier before the route is kept long-term.
+
+## Anime grammar probes on the other providers — new, and still open
+
+Two probes were run against the priority gap (anime) on providers other than Frembed.
+Both are recorded with their limits, because neither is conclusive on its own:
+
+| Probe | Result | Reading |
+|---|---|---|
+| `GET https://vidsrc.to/embed/tv/1429/1/1` (TMDB 1429 = *Attack on Titan*) | **200**, 2527 B | The provider answers for an anime series addressed by TMDB id. This is the *same* URL shape we already build for any series, so it is **not** evidence of anime-specific support — and it is specifically the claim the `[D]` column says VidSrc.to denies. What it establishes is that the endpoint does not refuse the request. |
+| `GET https://vidlink.pro/anime/16498/1/sub` and `…/1/dub` | **200**, 13303 B — **byte-identical for `sub` and `dub`** | **Inconclusive, deliberately not claimed.** The grammar is accepted, but `sub` and `dub` returned the *same document*, so this page-shell measurement cannot show that the parameter selects anything. Resolving it needs a browser and a media-element read, which is exactly the method that settled season 0. Until then the reported grammar is neither confirmed nor refuted. |
+
+The second row is the shape of result that is easiest to over-read: two 200s and a
+plausible path. It is recorded as inconclusive because the two responses were
+indistinguishable, which is the whole point of measuring rather than assuming.
