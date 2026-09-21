@@ -184,6 +184,23 @@ export const getUserWatchedIds = async (): Promise<Set<string>> => {
     return new Set();
 }
 
+/**
+ * True when two watched-id sets hold exactly the same ids.
+ *
+ * Callers must compare before calling setWatchedIds, because watchedIds is a
+ * dependency of the catalogue pages' initial-fetch effect and a Set is compared
+ * by reference. getUserWatchedIds() builds a fresh Set on every call — and for a
+ * logged-out visitor it returns a fresh EMPTY set (the 401 path falls through to
+ * `return new Set()`). Storing that changed the object identity, re-ran the
+ * effect, and fetched pages 1, 2 and 3 of the catalogue a second time, on every
+ * page load, with identical parameters. Measured on production /films while
+ * logged out: two identical triples of /api/tmdb-proxy page=1,2,3 requests, and
+ * the second batch replaced the first. Returning the previous set instead makes
+ * React bail out, so nothing re-runs when the ids did not actually change.
+ */
+export const sameIdSet = (a: Set<string>, b: Set<string>): boolean =>
+    a.size === b.size && [...a].every(id => b.has(id));
+
 export const extractUserGenresFromItems = (items: any[], watchedIds: Set<string>): Set<number> => {
     const userGenres = new Set<number>();
     items.forEach(item => {

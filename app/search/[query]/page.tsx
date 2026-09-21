@@ -13,7 +13,7 @@ import { User } from "lucide-react";
 
 import { motion } from "motion/react";
 
-import { sortItems, getUserWatchedIds, extractUserGenresFromItems } from "@/utils/sorting";
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems, sameIdSet } from "@/utils/sorting";
 
 const SearchResult = () => {
   const [data, setData] = useState<any>(null);
@@ -34,7 +34,9 @@ const SearchResult = () => {
 
   // Fetch Watched IDs on mount
   useEffect(() => {
-    getUserWatchedIds().then(ids => setWatchedIds(ids));
+    // Store only a real change: sameIdSet keeps object identity, so an unchanged
+    // (e.g. empty, logged-out) list does not re-run the initial-fetch effect below.
+    getUserWatchedIds().then(ids => setWatchedIds(prev => (sameIdSet(prev, ids) ? prev : ids)));
   }, []);
   
   const fetchNextPageData = () => {

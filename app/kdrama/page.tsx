@@ -17,7 +17,7 @@ const sortOptions = [
   { value: "first_air_date.desc", label: "releaseDate" },
 ];
 
-import { sortItems, getUserWatchedIds, extractUserGenresFromItems, mixCatalog } from "@/utils/sorting";
+import { sortItems, getUserWatchedIds, extractUserGenresFromItems, mixCatalog, sameIdSet } from "@/utils/sorting";
 
 import SkeletonCard from "@/components/SkeletonCard";
 
@@ -53,7 +53,9 @@ const KDramaPage = () => {
   }, [mediaType, language]);
 
   useEffect(() => {
-    getUserWatchedIds().then(ids => setWatchedIds(ids));
+    // Store only a real change: sameIdSet keeps object identity, so an unchanged
+    // (e.g. empty, logged-out) list does not re-run the initial-fetch effect below.
+    getUserWatchedIds().then(ids => setWatchedIds(prev => (sameIdSet(prev, ids) ? prev : ids)));
   }, []);
 
   useEffect(() => {
