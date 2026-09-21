@@ -6,10 +6,29 @@
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Scrolling model. Do NOT put a fixed `height` or `overflow-x: hidden` on BODY.
+   `height: 100%` plus `overflow-x: hidden` makes the body element itself the
+   scroll container, because a non-visible overflow on one axis forces the other
+   to compute to `auto`. The WINDOW then cannot scroll at all: `window.scrollY`
+   stays 0, `window.scrollTo()` is a no-op, and no `scroll` event is ever
+   dispatched on window. Measured in production before this change:
+   `html.scrollHeight === html.clientHeight === 861` while `body.scrollTop`
+   reached 12193, and a real scroll to 6000 fired `scroll` on body only.
+   Anything listening on window is therefore dead:
+   - react-infinite-scroll-component@6.1.1 attaches its listener to `window`
+     unless given `height` or `scrollableTarget` (dist/index.js:328). None of the
+     catalogue pages pass either, so `next` never fired and every one of them was
+     capped at its first batch with a loader that never resolved.
+   - Header.tsx's `window.scrollTo(0, 0)` on navigation and its hide-on-scroll
+     both read window scroll, so neither ever ran.
+   - Keyboard scrolling drives the viewport, so Space / PageDown / End did
+     nothing; only wheel and touch (which scroll body) worked.
+   Horizontal overflow is still clipped, without recreating a body scroll box:
+   on `html` the overflow propagates to the viewport, and `clip` on body clips
+   without making body scrollable. `min-height` keeps short pages full height. */
 html, body {
-  height: 100%;
+  min-height: 100%;
   width: 100%;
-  overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -18,7 +37,12 @@ html, body {
   background-color: #000;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
+  overflow-x: clip;
   min-width: 0;
   font-family: var(--font-sans);
 }
