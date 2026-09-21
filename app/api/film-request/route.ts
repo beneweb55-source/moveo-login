@@ -8,7 +8,7 @@ const JWT_SECRET = new TextEncoder().encode(
 );
 
 async function logAndNotify(
-  action: 'reçu' | 'déjà disponible' | 'déjà en file' | 'ajoutée à content_requests' | 'ajoutée à film_requests' | 'queue indisponible' | 'erreur interne',
+  action: 'reçu' | 'déjà en file' | 'ajoutée à content_requests' | 'ajoutée à film_requests' | 'queue indisponible' | 'erreur interne',
   data: { tmdb_id?: string; title?: string; year?: string; type?: string; season?: string; episode?: string; userId?: string; errorMsg?: string }
 ) {
   const isTv = data.type === 'tv';
@@ -34,10 +34,9 @@ async function logAndNotify(
 
   if (action === 'reçu') return;
 
-  let status: 'requested' | 'already_requested' | 'already_available' | 'queue_unavailable' | 'error' = 'error';
+  let status: 'requested' | 'already_requested' | 'queue_unavailable' | 'error' = 'error';
   if (action === 'ajoutée à content_requests' || action === 'ajoutée à film_requests') status = 'requested';
   else if (action === 'déjà en file') status = 'already_requested';
-  else if (action === 'déjà disponible') status = 'already_available';
   else if (action === 'queue indisponible') status = 'queue_unavailable';
   else if (action === 'erreur interne') status = 'error';
 
@@ -55,10 +54,6 @@ async function logAndNotify(
     case 'already_requested':
       color = 0xf1c40f; // Yellow
       statusTitle = 'Demande déjà en file d\'attente';
-      break;
-    case 'already_available':
-      color = 0x3498db; // Blue
-      statusTitle = 'Contenu déjà disponible';
       break;
     case 'queue_unavailable':
       color = 0xe67e22; // Orange
@@ -116,48 +111,26 @@ export async function POST(request: Request) {
 
     await logAndNotify('reçu', reqData);
 
-    // Check if already in catalogue
-    if (type === 'tv' && season && episode) {
-      try {
-        const seriesRes = await scraperPool.query(
-          'SELECT voe_url, dood_url FROM series_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
-          [tmdb_id, season, episode]
-        );
-        if (seriesRes.rows.length > 0 && (seriesRes.rows[0].voe_url || seriesRes.rows[0].dood_url)) {
-          await logAndNotify('déjà disponible', reqData);
-          return NextResponse.json({ status: 'already_available' });
-        }
-      } catch (e) {
-        console.error('Error checking series_catalogue', e);
-      }
-
-      try {
-        const animeRes = await scraperPool.query(
-          'SELECT voe_url, dood_url FROM anime_catalogue WHERE series_tmdb_id = $1 AND season = $2 AND episode = $3 LIMIT 1',
-          [tmdb_id, season, episode]
-        );
-        if (animeRes.rows.length > 0 && (animeRes.rows[0].voe_url || animeRes.rows[0].dood_url)) {
-          await logAndNotify('déjà disponible', reqData);
-          return NextResponse.json({ status: 'already_available' });
-        }
-      } catch (e) {
-        console.error('Error checking anime_catalogue', e);
-      }
-    } else {
-      try {
-        const catalogueRes = await scraperPool.query(
-          'SELECT voe_url, dood_url FROM catalogue WHERE tmdb_id = $1 LIMIT 1',
-          [tmdb_id]
-        );
-
-        if (catalogueRes.rows.length > 0 && (catalogueRes.rows[0].voe_url || catalogueRes.rows[0].dood_url)) {
-          await logAndNotify('déjà disponible', reqData);
-          return NextResponse.json({ status: 'already_available' });
-        }
-      } catch (e) {
-        console.error('Error checking catalogue', e);
-      }
-    }
+    // A "is it already available?" short-circuit used to sit here. It asked
+    // series_catalogue / anime_catalogue / catalogue whether a row carried a
+    // non-null voe_url or dood_url, and if so answered `already_available`
+    // WITHOUT queueing anything.
+    //
+    // It had to go, because both the answer and the consequence were wrong. The
+    // answer: those columns hold VOE/Dood links, a tier the player no longer
+    // carries, and the links themselves were measured dead (voe.sx answered
+    // 404) — so "already available" was frequently said about a title nobody can
+    // play. The consequence: because the route returned early, the request was
+    // never written to the queue and no one ever saw it, while the user was told
+    // it was already there. A lost request dressed up as a satisfied one.
+    //
+    // There is no server-side replacement, and inventing one would be dishonest:
+    // whether a source resolves is only observable in the user's browser, and
+    // this route is not that. The meaningful question left — has somebody
+    // already asked for this? — is answered against the request queue itself,
+    // immediately below, and that is what now decides between `requested` and
+    // `already_requested`. Nothing is lost by their removal: the route no longer
+    // reads the scraper catalogues at all.
 
     // Determine the table to use: content_requests or film_requests
     let tableName = 'content_requests';

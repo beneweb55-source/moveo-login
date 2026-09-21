@@ -7,7 +7,7 @@ import ContentWrapper from "@/components/ContentWrapper";
 import VideoPlayer from "@/components/VideoPlayer";
 import ActionButtons from "@/components/ActionButtons";
 import CastList from "@/components/CastList";
-import { Star, ArrowLeft, Clock, Calendar, Play, Film, RefreshCw, X, Loader2, Check, Plus } from "lucide-react";
+import { Star, ArrowLeft, Clock, Calendar, Play, Film, RefreshCw, X } from "lucide-react";
 import Image from "next/image";
 import { motion, useScroll, useTransform, AnimatePresence } from "motion/react";
 import Carousel from "@/components/Carousel";
@@ -25,9 +25,6 @@ export default function MovieDetails() {
   const [playerKey, setPlayerKey] = useState(0);
   const playerRef = useRef<HTMLDivElement>(null);
   const [showTrailer, setShowTrailer] = useState(false);
-  const [moveoFound, setMoveoFound] = useState<boolean | null>(null);
-  type RequestState = 'idle' | 'loading' | 'requested' | 'already' | 'error';
-  const [requestState, setRequestState] = useState<RequestState>('idle');
 
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 200]);
@@ -62,41 +59,12 @@ export default function MovieDetails() {
     fetchDetails();
   }, [id, langParam]);
 
-  useEffect(() => {
-    if (!id) return;
-    fetch(`/api/catalogue?tmdb_id=${id}`)
-      .then(r => r.json())
-      .then(d => setMoveoFound(d.found))
-      .catch(() => setMoveoFound(false));
-  }, [id]);
-
   const scrollToPlayer = () => {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const handleHardRefresh = () => {
     setPlayerKey(prev => prev + 1);
-  };
-
-  const handleRequest = async () => {
-    setRequestState('loading');
-    try {
-      const res = await fetch('/api/film-request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tmdb_id: id, title: data?.title, year: String(year) })
-      });
-      if (res.status === 401) {
-        router.push('/login');
-        return;
-      }
-      const json = await res.json();
-      if (json.status === 'requested') setRequestState('requested');
-      else if (json.status === 'already_available' || json.status === 'already_requested') setRequestState('already');
-      else setRequestState('error');
-    } catch {
-      setRequestState('error');
-    }
   };
 
   if (loading) {
@@ -268,23 +236,25 @@ export default function MovieDetails() {
                                 </button>
                             )}
 
-                            {moveoFound === false && (
-                                <button
-                                    onClick={handleRequest}
-                                    disabled={requestState === 'loading' || requestState === 'requested' || requestState === 'already'}
-                                    className={`w-full sm:w-auto flex items-center justify-center gap-4 px-8 py-3 md:py-4 rounded-full font-black transition-all duration-500 shadow-2xl whitespace-nowrap uppercase tracking-widest text-sm md:text-base ${ requestState === 'requested' ? 'bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50 cursor-default' : requestState === 'already' ? 'bg-zinc-800/80 text-zinc-400 border-2 border-zinc-700 cursor-default' : requestState === 'error' ? 'bg-red-500/20 text-red-400 border-2 border-red-500/50 hover:bg-red-500/30' : 'bg-transparent hover:bg-white/10 border-2 border-white/20 text-white hover:border-white hover:scale-105 active:scale-95 group' }`}
-                                >
-                                    {requestState === 'loading' && <Loader2 className="w-5 h-5 animate-spin" />}
-                                    {requestState === 'requested' && <Check className="w-5 h-5" />}
-                                    {requestState === 'idle' && <Plus className="w-5 h-5" />}
-                                    <span>
-                                      {requestState === 'requested' ? t.details.requestSent
-                                       : requestState === 'already' ? t.details.requestAlready
-                                       : requestState === 'error' ? t.details.requestError
-                                       : t.details.requestMovie}
-                                    </span>
-                                </button>
-                            )}
+                            {/*
+                              A "request this movie" button used to sit here, gated
+                              on `moveoFound === false`. That flag came from
+                              /api/catalogue and meant only this: no row in the
+                              retired scraper database carried a non-null
+                              voe_url/dood_url for this title. VOE and Dood are no
+                              longer part of the player, and the URLs those columns
+                              held were measured dead (voe.sx answered 404), so the
+                              gate described a database rather than playability —
+                              in both directions. It HID the button for titles whose
+                              sole "availability" record was a dead link, and it
+                              showed it for titles that play fine on the live
+                              providers, for a reason that had nothing to do with
+                              whether they play.
+                              The action itself is still offered, by the player,
+                              under the one condition the frontend can actually
+                              observe: no source resolved for this title or episode.
+                              See the sourceUnavailable state in VideoPlayer.tsx.
+                            */}
 
                             <ActionButtons
                                 id={id as string}

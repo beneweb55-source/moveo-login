@@ -493,7 +493,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (res.ok) {
         const data = await res.json();
         if (data.status === "requested") setRequestStatus("success");
-        else if (data.status === "already_requested" || data.status === "already_available") {
+        // `already_available` used to be handled here too. The route no longer
+        // emits it: it was derived from the retired VOE/Dood catalogue and it
+        // suppressed the request instead of queueing it, so a user could be told
+        // their title was already available when nothing could play it. The only
+        // remaining "we already have this" answer is the honest one, decided
+        // against the request queue: somebody has already asked.
+        else if (data.status === "already_requested") {
           setRequestStatus("already_requested");
         } else setRequestStatus("error");
       } else {

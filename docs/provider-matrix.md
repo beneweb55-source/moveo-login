@@ -686,7 +686,8 @@ recording where they can be acted on:
   appeared in the console across every provider and title tested.
 - **`/api/catalogue` is alive and correctly scoped.** `GET /api/catalogue?tmdb_id=129`
   returned **200** — and the **TV page never calls it**. The VOE/Dood removal did not
-  break the `moveoFound` flow, which remains movie-page-only.
+  break the `moveoFound` flow, which remains movie-page-only. *Superseded 2026-09-21: the
+  flow was re-checked and the route deleted — see the resolved item below.*
 - **Manual selection is authoritative, verified live.** A provider chosen in the UI was
   persisted to `localStorage.preferredServer` and applied after navigating to a different
   title, with no asynchronous availability result overwriting it.
@@ -797,9 +798,35 @@ is a conclusion; each is work outstanding.
   Distinguishing these needs a real, human-driven browser session — the one thing this
   document's method cannot supply. **This is the highest-value open item**, because it
   decides whether the default provider works for users at all.
-- **`/api/catalogue`'s remaining purpose.** It is verified alive and correctly scoped to
-  the movie-page `moveoFound` flow, but that flow should be re-checked against the
-  product decision on the removed premium tier before the route is kept long-term.
+- **`/api/catalogue`'s remaining purpose — RESOLVED 2026-09-21. Re-checked, and the
+  route is removed.** The re-check answered the question this item had left open, and the
+  answer was that `moveoFound` describes nothing a user can act on, in **either**
+  direction. `found: true` meant only that a row in the retired scraper database carried a
+  non-null `voe_url`/`dood_url`; those links are dead and the tier is unsupported, so the
+  flag **hid** the request button for titles whose only "availability" record was a dead
+  link, and **showed** it for titles that play on the live providers, for a reason that had
+  nothing to do with playability.
+
+  The same columns backed a worse defect in `POST /api/film-request`: it answered
+  `already_available` from those dead links and returned early, so the request was **never
+  queued** while the user was told the content was already there — a lost request
+  presented as a satisfied one, plus a Discord notification asserting availability. Both
+  paths are gone.
+
+  What was **kept** is the feature, because it is genuine feedback and had already been
+  rebased once: the player offers it from its `sourceUnavailable` state — the only
+  condition the frontend can actually observe, "no source resolved for this title or
+  episode" — and sends `type`/`season`/`episode`. Deduplication now rests on the meaningful
+  current question, *has somebody already asked for this?*, answered against the request
+  queue itself. The movie page's duplicate CTA and its `/api/catalogue` fetch were removed
+  with it, which left the route with **no consumer at all** — the page read only `d.found`,
+  and the URL fields it returned were read by nobody — so `app/api/catalogue/route.ts` was
+  deleted. No schema, migration, queue or CSP change was involved.
+
+  **Caveat, recorded rather than claimed away:** nothing inside this repository can prove
+  that no *external* caller of `GET /api/catalogue` existed. If one did, it was already
+  being served dead URLs; the route is recoverable from git history if such a caller
+  surfaces.
 
 ## Anime grammar probes on the other providers — new, and still open
 
