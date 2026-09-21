@@ -1,5 +1,14 @@
 # Moveo player strategy
 
+**STATUS: PROVISIONAL — NOT ENOUGH REAL VIEWING SESSIONS.** The sample behind the
+orders below is **seven playback-confirmed sessions and three failed attempts**, with **no
+second episode and no special ever played** and **no French audio ever observed**
+(`docs/player-validation-2026-09-21.md` §2, §16, §17). In this pass one order changed
+because measurement contradicted it — **anime movies**, where the primary failed both
+films tested — and one stated reason was withdrawn entirely, VidLink's "multiple audio
+tracks", which was a misreading of DASH video rungs. Treat every order here as the
+best-supported guess so far, not as a verified one.
+
 **Measurement date: 2026-09-21.** Every figure here was observed on that date
 unless the row says otherwise. Nothing in this document is inferred from a
 provider's own marketing, from a "VF"/"VOSTFR" label, or from a French title.
@@ -39,9 +48,11 @@ most cells below read NOT ENOUGH:
 
 | | Sessions | Where |
 |---|---|---|
-| Playback confirmed end to end | **6** | Movies 1 (VidLink), Korean 1 (VidLink), anime movies 2 (SmashyStream), anime series 2 (VidLink + SmashyStream) |
+| Playback confirmed end to end | **7** | Movies 1 (VidLink), **Western TV 1 (SmashyStream)**, Korean 1 (VidLink), anime movies 2 (SmashyStream), anime series 2 (VidLink + SmashyStream) |
 | Playback attempted and failed | **3** | Movies 1 (SmashyStream, M1), anime movies 2 (VidLink, AM1/AM2) |
-| **Western TV** | **0** | no session has been run for this class at all |
+| Classes with **no** session | **0** | all five classes now have at least one |
+| Second episodes played | **0** | no series has been played past E1 |
+| Specials (season 0) played | **0** | none |
 
 The per-session record, with the instrument that confirmed each one, is
 `docs/player-validation-2026-09-21.md` §2. Every other cell in this document is a
@@ -392,12 +403,14 @@ measurements:
 
 ## 11. Known limitations
 
-1. **Reliability data is still thin.** Six playback-confirmed sessions now exist
-   across four of the five classes — see `docs/player-validation-2026-09-21.md`
-   §2. Every other cell remains NOT ENOUGH REAL PLAYBACK SESSIONS. **Western TV
-   has zero sessions** despite being half of the primary strategy, and no second
-   episode and no special has ever been played. This cannot be closed by
-   reasoning — it needs real sessions.
+1. **Reliability data is still thin, but every class now has at least one
+   session.** Seven playback-confirmed sessions exist across all five classes —
+   see `docs/player-validation-2026-09-21.md` §2, with Western TV in §14. Every
+   other cell remains NOT ENOUGH REAL PLAYBACK SESSIONS: **no second episode and
+   no special has ever been played**, and Western TV — half of the primary
+   strategy — rests on **one** episode of **one** series. Not disproving an
+   assumption once is not confirming it, and this cannot be closed by reasoning —
+   it needs more real sessions.
 2. **No French *audio* session has been observed, and none is claimed.** What
    has been observed is a French **subtitle** track selected and rendered during
    playback (VidLink, one title, §6). The French preference order is still not
