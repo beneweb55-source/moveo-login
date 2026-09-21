@@ -1032,3 +1032,239 @@ but it is not zero, and closing it means changing that matcher, a separate chang
 own regression risk. Also unchanged: `sameSite: 'none'` itself. It may not even be needed
 (Frembed's iframe does not read our cookie), but proving that means auditing every flow that
 depends on it, and the Origin gate removes the exploit while leaving those flows alone.
+
+---
+
+# Full site audit — the complete pass (2026-09-21)
+
+Two read-only sweeps covered the areas the provider work had not touched: the product surfaces
+(SEARCH, HOME, RECOMMENDATIONS, WATCH HISTORY, FAVORITES, USER FEATURES) and the presentation
+layers (SEO, IMAGES, ACCESSIBILITY, MOBILE). Both were run against the same production site, and
+**every claim that changed code was re-verified from source or by `curl` before being acted on** —
+three of the agent-reported findings were corrected during that step and are listed at the end.
+
+Everything below marked *closed* was verified against deployment
+**`dpl_DcBVn4k4TwCh8nGcqD67NwKu9en3`**, which is the revision the pushed commits built.
+
+## Closed — with the measurement that proves it
+
+### 1. The Gemini API key was published to the browser — P0
+
+**Root cause.** `/ai-test` was an unlinked diagnostic page whose only function was to read
+`process.env.NEXT_PUBLIC_GEMINI_API_KEY` inside a client component, so the value was inlined into
+that page's chunk at build time.
+
+**Evidence.** On the previous deployment (`dpl_6YpeGb9ebLq4B3zLL2wwfCBjqsjS`): `GET /ai-test` →
+**200**, and of the 15 chunks that page referenced exactly one contained an `AIza…` literal —
+`/_next/static/chunks/app/ai-test/page-3aa1f80e0a0e3379.js`. `/`, `/login` and `/films` scanned
+clean, so the exposure was isolated to that page. Nothing in the app linked to it.
+
+**Fix.** The page is deleted, so no chunk is generated for it. Rejected alternatives: renaming the
+env var (needs the owner to set a new Vercel variable first; production AI search would break in
+the meantime) and adding a public health route (fresh paid-endpoint surface for no gain — less
+surface is the better outcome).
+
+**Validation.** After deploy: `GET /ai-test` → **404**, and all 16 chunks referenced by `/` scan
+clean for the literal.
+
+**Not closed by this, and not closeable in code:** the key is already public and must be rotated in
+the Google console. Deleting the literal does not un-expose it.
+
+### 2. `/api/ai-search` spent a paid API for any anonymous caller — P2
+
+**Evidence.** `GET /api/ai-search?q=un film triste` from an anonymous request returned
+`ai_reasoning: "Heartbreaking Cinema"` after 2.2 s. The route had no auth and no limiter, so an
+anonymous caller could spend without bound.
+
+**Fix.** `lib/rateLimit.ts` (process-local, matching the `check-server` precedent, with the same
+documented trust assumption about `x-forwarded-for`) and the limiter is now the **first** gate —
+evaluated before the API keys are even read, so a request that will be refused costs nothing. The
+allowance is 60/min per client key, which is far above human cadence because `Header` debounces the
+live search by 300 ms.
+
+**Validation.** 7 boundary tests (off-by-one at the allowance, independent buckets, window reset,
+key extraction), 169/169 suite green, and `GET /api/ai-search?q=un film triste` → **200** with real
+results on the deployed revision — the gate does not break the feature it guards.
+
+**This is friction, not an access control.** The key is a client-supplied `x-forwarded-for` entry.
+The live 429 path was deliberately *not* exercised against production, because doing so would spend
+60 real Gemini calls on the owner's quota to prove an `if` that the unit tests already pin.
+
+### 3. `users.id` was compared as text — P1
+
+**Root cause.** `lib/adminAuth.ts` and `app/api/auth/me` compared an integer `PRIMARY KEY` as
+`WHERE id::text = $1`. Casting the indexed column makes the predicate non-sargable, so Postgres
+cannot use the primary-key index and scans the whole `users` table.
+
+**Why it mattered.** `/api/auth/me` is self-fetched by `middleware.ts` for every matched request
+from a signed-in user, and every admin route passes through `lib/adminAuth.ts` — so that scan was
+paid on essentially every page and API request in the site.
+
+**Fix.** `Number(payload.userId)` + `Number.isInteger`, which validates rather than trusts the claim:
+a token whose `userId` is not an integer identifies no user and fails closed exactly as an
+unreadable token already did. The `LEFT JOIN roles` casts were deliberately left alone — `roles` is
+a tiny table and the cast is not on the driving side.
+
+**Not claimed:** no query plan was observed and the current row count of `users` is unknown, so this
+is a fix to the access path, not a profiled win.
+
+### 4. `/api/ping` imported an undeclared package — P1
+
+**Evidence.** `npm ls jsonwebtoken --depth=0` → empty. The package resolved only through
+`firebase-tools@15.8.0`, a **devDependency**, and `package.json` declared only `@types/jsonwebtoken`.
+It was therefore present in a local install and absent from a production build, where the import
+fails at module load. `/api/ping` is live — `PingTracker` calls it and is mounted in the root layout.
+
+**Fix.** Ported to `jose`, the library every other authenticated route already uses — including the
+two that verify this same `auth_token` cookie, so compatibility is exercised in production rather
+than assumed. The fallback literal also diverged from the app's `fallback_secret`, which would have
+made this route reject tokens every other route accepts if `JWT_SECRET` were ever unset. The claim is
+now guard-validated like the two routes above.
+
+`@types/jsonwebtoken` was **left in place** on purpose: removing it changes `package.json`'s
+dependency graph, which requires regenerating `package-lock.json` in the same commit, because an
+out-of-sync lockfile fails `npm ci` on Vercel. It belongs with the unused-package sweep below.
+
+### 5. The admin-configured hero reached nobody — P1
+
+**Root cause.** The admin panel writes the hero to `content_settings` via `PUT /api/admin/content`
+(gated `edit_hero`). The home page read it back from `GET /api/admin/content`, whose GET is gated by
+`checkAdminAccess('access_admin_panel')` — so it answered **401** to every visitor without that
+permission and `if (res.ok)` never fired. `customHero` stayed null and the default trending hero
+rendered forever. The feature was write-only in production.
+
+**Fix.** The home page now reads `/api/settings`, which already returned the identical key/value map
+over the same table, publicly, and had **no caller anywhere in the repository**. Because the
+storefront now depends on that endpoint it returns an allowlist (`hero_movie`) rather than every
+row: `content_settings` is shared with admin-only concerns — `app/api/admin/system` stores
+`maintenance_mode` in the same table — and a public unauthenticated endpoint must not begin serving
+a setting that was added later for admin use.
+
+**Validation.** `GET /api/settings` → **200** `{"hero_movie":null}` on the deployed revision — the
+same body as before, so nothing that was already public changed shape. No write path was touched.
+
+### 6. The primary navigation was not keyboard-reachable — P1
+
+**Root cause.** The desktop nav was six `<li onClick>` elements. An `<li>` is not in the tab order,
+carries no `href` and exposes no role, so the site's only category navigation was unreachable by
+keyboard, absent from a screen-reader's link list, and offered a crawler no navigation path.
+
+**Fix.** All six are `<Link>`, wrapped in `<nav aria-label>`. `hidden xl:flex` moved from the `<ul>`
+to the `<nav>` so the element occupying that slot in the header row is unchanged — the layout is
+identical. Four icon-only controls (hamburger, search, clear, drawer close) gained `aria-label` in
+the active language; translation keys were deliberately not invented for four strings, which would
+have meant editing `lib/translations.ts` and its type.
+
+### 7. No `robots.txt`, no `sitemap.xml`, one `<title>` for the whole site, and `lang="en"` on a French document — P1
+
+**Evidence (measured before the fix).** `GET /robots.txt` → 404; `GET /sitemap.xml` → 404; `/`,
+`/films`, `/movie/550` and `/search/dune` all served `<title>MOVEO - Streaming</title>`; and no route
+emitted any `og:`, `twitter:` or `canonical` tag, so sharing a link anywhere produced a bare URL.
+
+**Fix.** `app/robots.ts` (allow all; disallow the API surface and the session-only pages; point at
+the sitemap) and `app/sitemap.ts` — **hub routes only**. The catalogue is TMDB-backed and unbounded
+with no local table to enumerate, and choosing between a snapshot table and a per-request crawl is a
+design decision rather than a fix, so the sitemap covers the entry points a crawler can actually
+follow. `lastModified` is omitted rather than invented. `app/layout.tsx` gained `metadataBase`, a
+title template and `openGraph`/`twitter` defaults, and now ships `lang="fr"` — `LanguageProvider`'s
+initial state, and therefore the markup actually sent, is French, so the document had been
+announcing a language it was not written in. `LanguageProvider` now keeps the attribute equal to the
+resolved language, including after the toggle.
+
+**Validation.** `/robots.txt` → **200**, `/sitemap.xml` → **200**, `<html lang="fr"`,
+`og:title`/`og:image` (absolute) present, all critical paths still 200. `tests/seo.test.ts` pins the
+two failures that are otherwise silent: a relative URL, which makes the sitemap invalid and simply
+ignored, and a missing API exclusion.
+
+**Partial.** Per-title metadata is *not* fixed — see the deferral below.
+
+## Confirmed open — needs a product decision, not a patch
+
+### "Minutes watched" measures time on the page, not time watching — P1
+
+**Evidence, re-verified from source.** The only client code that sends a non-zero `minutes` value is
+`components/WatchTimer.tsx:100-111`, which increments once per minute while the tab is visible and
+the user has not been idle for 30 minutes — and it is mounted in the page body of both detail routes
+(`app/movie/[id]/page.tsx:115`, `app/tv/[id]/page.tsx:205`), independent of the player. The playback
+path deliberately sends zero: `utils/historyManager.ts:54` — `minutes: 0, // Progression update
+only, no time increment`. `app/api/watch-time/route.ts:53` accumulates that value into
+`watch_history.minutes_watched`, which `/api/auth/me:39` sums into `total_watch_time`, and
+`utils/ranks.ts:15-17` reads it while **ignoring its `watchedCount` argument entirely**.
+
+**Impact.** Opening a film page and reading the synopsis accrues watch time; so does leaving the tab
+open. The rank ladder — up to "Moveo Legend" at 2000h — can be climbed without playing anything.
+
+**Why it was not changed.** Every candidate fix redefines a user-facing statistic whose historical
+values were accrued under the current rule: counting only validated provider progress messages would
+make the metric unreachable for providers that emit none; gating on a play interaction needs
+cross-component state the player does not expose today. That is a product decision about what the
+rank badge *means*, and about whether existing totals are grandfathered — not a defect a patch
+should settle silently. It is recorded here as open and confirmed rather than quietly patched.
+
+## Confirmed open — deferred, with the reason
+
+**Blocked behind one refactor.** `app/movie/[id]`, `app/tv/[id]` and `app/person/[id]` are client
+components, so they cannot export `generateMetadata` and cannot call `notFound()`. That single
+constraint produces two findings: per-title titles/descriptions/og tags, and soft-404s — measured
+`/movie/999999999` → **200** and `/movie/banana` → **200**, while a genuinely unknown route does
+404. Fixing either means moving the data fetch out of the component that also drives the player.
+That is a real refactor of the hottest page in the app, not an additive change, so it is deferred
+deliberately rather than started and left half-done.
+
+**Accessibility, remaining.** No overlay has dialog semantics, Escape-to-close or focus management
+(`BottomSheet`, both trailer modals, `VideoPopup`, and the two header overlays — verified absent:
+`role="dialog"`, `aria-modal`, `<dialog>` and any `Escape` handler return zero hits repo-wide); the
+mobile drawer therefore leaves `Tab` walking the page behind it. Still open: 21 mouse-only click
+targets and ~20 unnamed icon-only buttons outside the header, `htmlFor` used once repo-wide, tap
+targets under 44px on the thumb-primary controls, and the carousel's 6-second auto-advance, which
+cannot be paused by touch and ignores `prefers-reduced-motion`. The correct pattern already exists in
+the repo (`CastList` uses real buttons with labels), so these are mechanical follow-ups.
+
+**Images and mobile.** `images.unoptimized: true` (`next.config.ts:112`) disables the optimizer, so
+no `srcset` is ever emitted and every `sizes` prop in the repo is dead; the highest-traffic image is
+a JS-set CSS background at `/t/p/original` that the preload scanner cannot see; four call sites fetch
+far more pixels than they display while others in the same codebase already pick the right bucket.
+The hero's `min-h-[550px]` is unguarded and every viewport unit is `vh`, not `dvh`, so in landscape
+the hero is 153% of the viewport. The player's "unverified" notice is a non-wrapping fixed row inside
+a clipped parent, so its dismiss button is pushed out of view on phones.
+
+**Correctness and performance, newly listed.** One failing section leaves *every* pinned home
+section in a permanent skeleton (`app/page.tsx:61` uses `Promise.all`, not `allSettled`); the
+`/trending/all/day` seed can produce duplicate React keys because movie and TV ids are separate
+namespaces; recommendations treat watchlist/favourite items as watched because the watched-id set is
+built without `?list_type=watched` and without a media-type prefix; the search dropdown has no
+fallback to plain search when the AI route 500s; the search query is encoded for the API but not for
+`router.push`, and the destination decodes outside its `try`; the header fetches profile stats it
+never renders; saved positions are stored but never used to resume; anonymous history is never
+merged and never cleared on logout; de-duplication ignores media type; season 0 is handled correctly
+in one place and wrongly in two.
+
+**Pre-existing, unchanged from earlier passes:** `app/api/admin/users/route.ts:88,140` `id::text`
+(body-supplied untyped `userId`, so the safe fix needs an input guard at both sites); runtime DDL in
+`admin/content`, `admin/reports` and `admin/users`; the `anonymous_watch_history` UNIQUE drift
+against `migrate-progression.ts:93`; `/api/user/list`'s unbounded `SELECT *`; `/api/admin/sections`
+uncached; `lib/db.ts`'s pool missing `max`/timeouts; `eslint.ignoreDuringBuilds` with
+`eslint-config-next@16` against `next@15`; 7 provably unused packages and 15 orphaned modules;
+tracked scratch files (`test-voe*.js`, `test-api.js`, `test_check-server.js`, `test_tmdb*.ts/js`,
+`fix_backticks.js`, `tsconfig.tsbuildinfo`); `.env.example`/README drift, including a README line
+documenting `GEMINI_API_KEY`, which no code reads; `/api/tmdb-proxy`'s missing endpoint allowlist and
+its stale `gemini-2.5-flash-lite-preview` alias.
+
+## Blocked on the owner — three credentials, all already public
+
+Rotating them requires access to the Google and hCaptcha consoles; no code change substitutes for
+it. Recorded in the order they were found: the **Gemini API key** (measured in a public production
+chunk, above), the **Google OAuth client secret** (`GOCSPX-…`, `app/api/auth/google/callback`), and
+the **hCaptcha secret** (`ES_…`, used by `login`, `register` and `verify-hcaptcha`). A NeonDB
+connection string with its password is also committed in four scripts. Also noted: the hCaptcha
+fallback makes `login`'s `if (!secret)` "skipping hCaptcha verification" branch unreachable.
+
+## Corrections to figures stated earlier in this document
+
+- The CSRF section's reduction is **25 → 13**, not 26 → 13.
+- Banned users **are** blocked on API paths — `middleware.ts` keys on the 403 from `/api/auth/me`.
+- `animes` and `explore` **do** have translated empty states; it was `films`/`series` that carried
+  the hardcoded French one.
+- `app/api/ai-recommend` had **no** relative-URL bug of its own.
+- The JWT fallback divergence was **three-way** (`'your-secret-key'`, `'fallback_secret'`, and an
+  unset-var path), not two-way; the `ping` port above removes one of them.
