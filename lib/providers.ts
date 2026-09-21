@@ -88,16 +88,29 @@ export interface ProviderCapabilities {
  */
 export type ProviderIconKey = "globe" | "server" | "zap";
 
+/**
+ * The provider-specific caveats an entry may declare.
+ *
+ * A UNION rather than `string`, because the UI layer resolves it with an
+ * exhaustive switch: adding a caveat here without adding its user-facing text
+ * there is then a COMPILE ERROR instead of a silently wrong tooltip. The
+ * previous `string` type let VideoPlayer.tsx test only *whether* a caveat
+ * existed and then hardcode one provider's text for every provider — correct
+ * while exactly one provider declares a caveat, and wrong the moment a second
+ * one does.
+ */
+export type ProviderWarningKey = "disableAdblock";
+
 export interface ProviderDefinition {
-  /** Display name. Also the value persisted in localStorage["preferredServer"]. */
+  /** Display name. Also the value persisted under PREFERRED_SERVER_STORAGE_KEY. */
   name: string;
   group: string;
   /** Icon identity for the UI layer. See ProviderIconKey. */
   iconKey: ProviderIconKey;
   /** Measured capabilities. See Support — unmeasured is `"unknown"`, not `"no"`. */
   capabilities: ProviderCapabilities;
-  /** i18n key for a provider-specific caveat, if any. */
-  warningKey?: string;
+  /** i18n key for a provider-specific caveat, if any. See ProviderWarningKey. */
+  warningKey?: ProviderWarningKey;
   /**
    * EVERY origin this provider can put in a frame document, in navigation
    * order: `[0]` is the origin of the URL buildUrl() produces, and each later
@@ -453,9 +466,22 @@ export const SBNET_FRAME_ORIGIN = "https://video.sibnet.ru";
 export const SBNET_SERVER_NAMES: readonly string[] = [SBNET_VF_NAME, SBNET_VOSTFR_NAME];
 
 /**
- * Every value that may legitimately appear in localStorage["preferredServer"].
- * Anything outside this list is stale and must be discarded (see
- * resolveStoredProvider) — this is the validation the audit found missing.
+ * The localStorage key holding the user's manually chosen provider.
+ *
+ * It lives here, beside STORABLE_SERVERS, because this module already owns the
+ * VALUE contract for it — the key and the set of values it may legally hold are
+ * two halves of one contract. They previously sat in different files: three
+ * literals in VideoPlayer.tsx and the documentation of them here, with nothing
+ * tying the two together, so renaming the key in one place would have looked
+ * like a working build and silently discarded every user's stored preference.
+ */
+export const PREFERRED_SERVER_STORAGE_KEY = "preferredServer";
+
+/**
+ * Every value that may legitimately appear in localStorage under
+ * PREFERRED_SERVER_STORAGE_KEY. Anything outside this list is stale and must be
+ * discarded (see resolveStoredProvider) — this is the validation the audit found
+ * missing.
  *
  * A value previously written for the removed premium tier ("MOVEO PREMIUM") is
  * therefore discarded on next load rather than selected, which is the intended

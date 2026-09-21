@@ -21,6 +21,7 @@ import { saveWatchHistory } from "@/utils/historyManager";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   DEFAULT_PROVIDER_NAME,
+  PREFERRED_SERVER_STORAGE_KEY,
   PROVIDERS,
   SBNET_VF_NAME,
   SBNET_VOSTFR_NAME,
@@ -29,6 +30,7 @@ import {
   getMessageOrigins,
   isStorableServer,
   type ProviderIconKey,
+  type ProviderWarningKey,
 } from "@/lib/providers";
 import {
   createInitialPlayerState,
@@ -113,6 +115,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const { t } = useLanguage();
 
+  /**
+   * Resolves a provider's declared caveat to its user-facing text.
+   *
+   * Exhaustive by type, the same way PROVIDER_ICON_COMPONENTS is: adding a
+   * ProviderWarningKey in the registry is a compile error here until its text is
+   * supplied. The previous expression tested only `provider.warningKey ?` and
+   * then rendered t.details.disableAdblock for ANY caveat, discarding the value
+   * it had just read — so the first provider to declare a different caveat would
+   * have shown an adblock tooltip about something else entirely.
+   */
+  const providerWarningText = (key: ProviderWarningKey): string => {
+    switch (key) {
+      case "disableAdblock":
+        return t.details.disableAdblock;
+    }
+  };
+
   const [requestStatus, setRequestStatus] = useState<
     "idle" | "loading" | "success" | "already_requested" | "error"
   >("idle");
@@ -144,10 +163,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   /**
    * The unverified-playback notice is advisory, so it must also be dismissible.
-   * No currently selectable provider has a verified message origin, so the
-   * notice is expected on every load; without a way to close it, it would stay
-   * pinned over the video for the rest of the session, sitting above the
-   * provider's own controls.
+   *
+   * No provider has been OBSERVED emitting a verifiable position, so the notice
+   * is expected on every load; without a way to close it, it would stay pinned
+   * over the video for the rest of the session, sitting above the provider's own
+   * controls.
+   *
+   * (This previously read "no currently selectable provider has a verified
+   * message origin", which the registry contradicts: Frembed declares one in
+   * `messageOrigins`. That allowlist exists so a REAL position can be trusted if
+   * one is ever emitted; what is absent is the observation, not the origin.)
    */
   const [noticeDismissed, setNoticeDismissed] = useState(false);
 
@@ -200,7 +225,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     // produced a blank player with no fallback.
     let stored: string | null = null;
     try {
-      stored = typeof window !== "undefined" ? window.localStorage.getItem("preferredServer") : null;
+      stored = typeof window !== "undefined" ? window.localStorage.getItem(PREFERRED_SERVER_STORAGE_KEY) : null;
     } catch {
       stored = null; // storage can be unavailable (private mode, blocked cookies)
     }
@@ -212,7 +237,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     );
     if (invalid && typeof window !== "undefined") {
       try {
-        window.localStorage.removeItem("preferredServer");
+        window.localStorage.removeItem(PREFERRED_SERVER_STORAGE_KEY);
       } catch {
         /* nothing to do */
       }
@@ -442,7 +467,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       resetPlaybackObservation();
       if (typeof window !== "undefined") {
         try {
-          window.localStorage.setItem("preferredServer", serverName);
+          window.localStorage.setItem(PREFERRED_SERVER_STORAGE_KEY, serverName);
         } catch {
           /* storage unavailable; the choice still applies to this session */
         }
@@ -734,8 +759,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     </button>
                     {/*
                       Dismissible because the notice is expected on every load:
-                      no currently selectable provider has a verified message
-                      origin, so playback can never be "observed" here and the
+                      no provider has been OBSERVED emitting a verifiable
+                      position, so playback can never be "observed" here and the
                       notice would otherwise sit over the video indefinitely.
                     */}
                     <button
@@ -846,7 +871,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     }`}
                 />
               )}
-              Sibnet VF
+              {SBNET_VF_NAME}
             </button>
           ) : (
             <button
@@ -854,7 +879,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
             >
               <Globe className="w-3.5 h-3.5 text-white/20" />
-              Sibnet VF (Indisponible)
+              {SBNET_VF_NAME} (Indisponible)
             </button>
           )}
 
@@ -877,7 +902,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     }`}
                 />
               )}
-              Sibnet VOSTFR
+              {SBNET_VOSTFR_NAME}
             </button>
           ) : (
             <button
@@ -885,7 +910,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium bg-transparent text-white/20 opacity-30 cursor-not-allowed"
             >
               <Globe className="w-3.5 h-3.5 text-white/20" />
-              Sibnet VOSTFR (Indisponible)
+              {SBNET_VOSTFR_NAME} (Indisponible)
             </button>
           )}
 
@@ -898,7 +923,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <button
                 key={provider.name}
                 onClick={() => handleServerChange(provider.name)}
-                title={provider.warningKey ? t.details.disableAdblock : undefined}
+                title={
+                  provider.warningKey ? providerWarningText(provider.warningKey) : undefined
+                }
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium transition-all duration-300 ${
                     isActive
                       ? "bg-white/10 text-white shadow-sm ring-1 ring-white/10"
