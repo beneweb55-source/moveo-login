@@ -33,19 +33,33 @@
  *     between the two samples, while two user-activation clicks spawned ZERO
  *     popups.
  *
- *   VidLink — playbackObserved "yes" (DASH manifest, init segments, 14
- *     consecutive chunk-stream segments) and subtitles "yes": a subtitle file
- *     was fetched and the manifest carried three streams, i.e. multiple audio
- *     tracks. That audio/subtitle evidence is the only measured language
- *     evidence in the registry, and it was observed FOR KOREAN AND FOR ANIME
- *     specifically — which is why this provider leads the Korean and anime
- *     orders and takes second place for Western content.
- *     RECORDED WEAKNESS: its own on-screen Play control did not start playback
- *     under emulated input while the element's own play() resolved and ran.
- *     Click interception was ruled out — document.elementFromPoint at the video
- *     centre returns the VIDEO, with no overlay link above it — so the cause is
- *     undetermined. An unexplained interaction defect is why it does not lead
- *     the content classes where SmashyStream has direct evidence.
+ *   VidLink — playbackObserved "yes" (DASH manifest, init segments, consecutive
+ *     chunk-stream segments, confirmed in a real Moveo journey on a Korean
+ *     episode) and subtitles "yes": a subtitle file was fetched, and a French
+ *     subtitle track was SELECTED AND RENDERED DURING PLAYBACK. That is the only
+ *     measured language evidence in the registry, and it was observed FOR KOREAN
+ *     specifically — which is why this provider leads the Korean order and takes
+ *     second place for Western content.
+ *     A CLAIM THAT USED TO STAND HERE IS WITHDRAWN: the earlier reason given was
+ *     that the manifest "carried three streams, i.e. multiple audio tracks", and
+ *     that this was measured for anime as well as Korean. Both halves of that
+ *     were read off the wrong field. DASH Representation ids span VIDEO AND AUDIO
+ *     together, so the extra `stream` ids were additional video rungs; the audio
+ *     stream, where it was read, was a single original-language track (`kor`, and
+ *     `ja` for anime). `multiLang=0` is in fact what we request. Reading a video
+ *     rung as evidence of a language track is exactly the metadata-not-evidence
+ *     error this file exists to avoid, so the anime classes no longer lead with
+ *     this provider for that reason — see the anime-movie note below.
+ *     WHAT IS TRUE AND MEASURED INSTEAD: on a real Moveo anime-series journey a
+ *     genuine Play press started playback and produced consecutive interleaved
+ *     DASH video AND audio segments. The earlier recorded weakness — "its own
+ *     Play control did not start playback under emulated input" — DID NOT
+ *     REPRODUCE and is therefore superseded rather than deleted: what is true is
+ *     that VidLink DOES NOT AUTOPLAY, so the user must press Play, which our own
+ *     advisory covers until they do and does not cover after they have.
+ *     ON THE ANIME MOVIES TESTED IT DID NOT PLAY: two films produced a not-found
+ *     panel and a manifest that was never fetched, while the class's fallback
+ *     played both. That is why anime MOVIE differs from anime SERIES below.
  *
  *   Frembed — LAST in every automatic order, and never the default. It carries
  *     the BROADEST resolution measured of any provider (all four content classes
@@ -111,8 +125,11 @@ import {
  *
  * WHY ANIME AND KOREAN ARE CLASSES RATHER THAN A TAG. The default provider
  * genuinely differs between them (see the orders below), because the measured
- * evidence differs: the only provider with measured multi-audio and subtitle
- * capability measured it for Korean and anime. Folding anime into "tv" would
+ * evidence differs: the only provider with a measured language capability
+ * measured it on Korean content (its original-language audio track read, and a
+ * subtitle track observed selecting and rendering) — and that provider then
+ * failed on both anime FILMS tested while succeeding on an anime SERIES. Folding
+ * anime into "tv" would
  * make that a hidden side effect of generic TV logic, which is exactly what the
  * brief forbids. The classes are derived from TMDB facts the pages already have
  * (`original_language` plus the Animation genre id), not stored as new data and
@@ -168,18 +185,37 @@ const ORDER_BY_CLASS: Readonly<Record<ContentClass, readonly string[]>> = {
   // its correct 3479.9s runtime.
   "western-tv": ["SmashyStream", "VidLink", "Frembed"],
 
-  // Korean drama. VidLink leads here, and the reason is specific to Korean: it
-  // is the only provider measured carrying multiple audio streams AND a subtitle
-  // track, and that measurement was made ON KOREAN CONTENT. For this class the
-  // crux is which audio and subtitle tracks exist, so the provider with evidence
-  // about tracks outranks the provider with evidence about playback.
+  // Korean drama. VidLink leads here on a measurement made ON KOREAN CONTENT:
+  // it is the only provider where the original-language audio track was read
+  // (`kor`, a single track rather than a dub) AND a subtitle track was observed
+  // selecting and rendering. For this class the crux is which audio and subtitle
+  // tracks exist, so the provider with evidence about tracks outranks the
+  // provider with evidence about playback.
+  // NOTE the evidence is narrower than it was once written: NOT "multiple audio
+  // streams". See the VidLink block at the top of this file.
   korean: ["VidLink", "SmashyStream", "Frembed"],
 
-  // Anime movie and anime series. VidLink leads for the same measured reason:
-  // its multi-audio and subtitle observation covered ANIME as well as Korean,
-  // and anime depends on the original Japanese audio track being present rather
-  // than on a dub. Season/specials handling is separate — see providerOrder.
-  "anime-movie": ["VidLink", "SmashyStream", "Frembed"],
+  // Anime. THE TWO SUB-CLASSES DIFFER, AND THAT IS THE POINT.
+  //
+  // anime-series — VidLink leads. Measured: in a real Moveo journey on an anime
+  //   episode, a Play press produced consecutive interleaved DASH video AND audio
+  //   segments with the correct episode framing, and the original Japanese audio
+  //   track was the track present. SmashyStream independently played the same
+  //   episode on a separate journey, so this ordering is a preference between two
+  //   providers that were both observed working, not a rescue.
+  //
+  // anime-movie — SmashyStream leads, and this is a REVERSAL on measurement.
+  //   VidLink was PRIMARY for this class and failed on BOTH films tested: one
+  //   answered "We Couldn't Find This Content"; the other matched the title but
+  //   never fetched a manifest and never started. VidLink was verified reachable
+  //   during the same window, so this is not an outage. SmashyStream played both,
+  //   and the comparison was controlled (same titles, same profile, same
+  //   minutes). One class, two films, both directions — enough to change the
+  //   order, not enough to call VidLink bad at anime generally, which is why
+  //   anime-SERIES is left as it was.
+  //
+  // Season/specials handling is separate — see providerOrder.
+  "anime-movie": ["SmashyStream", "VidLink", "Frembed"],
   "anime-series": ["VidLink", "SmashyStream", "Frembed"],
 };
 
@@ -407,14 +443,21 @@ export const isSibnetVariant = (name: string): boolean =>
  * subtitles, then VOSTFR. This module does NOT reorder the provider lists for
  * that preference, and that is a deliberate refusal rather than an oversight.
  *
- * The reason is that the evidence does not support it. The registry records
- * exactly one MEASURED French capability anywhere: Frembed fetched a French
- * subtitle track, and that observation reproduced. It was made on ONE title.
- * Promoting Frembed — a provider measured to fail and to open popups in a real
- * journey — ahead of working providers on the strength of a single title's
- * subtitle fetch would be precisely the error the brief warns about, making the
- * strategy depend on one lucky title. VidLink's multi-audio manifest is real, but
- * its track LANGUAGES were never read, so it cannot be claimed as French either.
+ * The reason is that the evidence does not support it. Measured French capability
+ * is still confined to SUBTITLES, on two providers: Frembed fetched a French
+ * subtitle file (reproduced on two runs), and VidLink's French subtitle track was
+ * selected and rendered during playback. Promoting a provider ahead of working
+ * providers on the strength of one title's subtitle track would be precisely the
+ * error the brief warns about, making the strategy depend on one lucky title.
+ *
+ * The sentence that used to end this note — that VidLink's track LANGUAGES "were
+ * never read" — is now out of date in one direction and still true in the other,
+ * and the distinction is the whole French question. Its AUDIO track has now been
+ * read: it is a single ORIGINAL-LANGUAGE track (`kor`), which is the OPPOSITE of
+ * a French dub. Its SUBTITLE track has been read and does render French. So
+ * VidLink is a provider through which a French viewer can read French subtitles,
+ * and it is not a provider that has ever been observed to carry French audio. No
+ * provider has.
  *
  * What a French viewer gets instead is honest and immediate: the Sibnet VF
  * variant offered first (above), every provider still one click away, and no

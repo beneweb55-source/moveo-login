@@ -627,7 +627,14 @@ rather than a placeholder.
   resolves, then a DASH manifest (`…_1_1_1080_h265/index_web.mpd`), `init-stream*.m4s`,
   and **14 consecutive `chunk-stream*-000NN.m4s` segments fetched over ~13 s** — that is
   progressive media streaming, i.e. playback. A **subtitle `.srt`** is fetched for both
-  titles, and the manifest carries three streams (multiple audio tracks).
+  titles. **Correction, made in a later pass:** the clause that used to end this bullet —
+  "the manifest carries three streams (multiple audio tracks)" — is **wrong**. DASH
+  Representation ids span video and audio together, so those `stream` ids were additional
+  **video** rungs; the audio was a single original-language track (`kor` on `93405`, `ja`
+  on `1429`), and `multiLang=0` is what Moveo actually requests. See
+  `docs/player-validation-2026-09-21.md` §5.2–5.3. The language finding that does hold is
+  narrower and different: a **French subtitle track was selected and rendered during
+  playback**, and the audio track present is the *original-language* one, not a dub.
 - It also exposes a real control surface (`Play`, `Mute` reported **`pressed`**, seek,
   `PiP`, `Fullscreen`) unlike Frembed's bare unnamed button.
 - **But it does not have the anime movie.** For `129` its own frame renders
@@ -640,20 +647,40 @@ rather than a placeholder.
   waits), `paused=false`, `readyState 4`. Its player is also the most accessible of the
   three — a labelled `region` (`Video Player - Squid Game- S1 E1`), named controls with
   `k`/`m`/`i`/`f` shortcuts, and a real ARIA seek slider.
-- **One honest caveat on that mobile run.** The on-screen `Play` buttons — both of them —
-  did **not** start playback under emulated input. The element's own
-  `HTMLMediaElement.play()` *did* resolve (so user activation was present and no autoplay
-  policy blocked it) and the position then advanced in real time. I checked whether an ad
-  layer was swallowing the clicks: `document.elementFromPoint` at the centre of the video
-  returns the `VIDEO` element itself, and no large overlay link exists over the player.
-  **So click-interception is ruled out, and the cause of the unresponsive buttons is
-  undetermined** — recorded as such rather than guessed at.
+- **One honest caveat on that mobile run — now SUPERSEDED, kept because it was real.**
+  The on-screen `Play` buttons — both of them — did **not** start playback under emulated
+  input. The element's own `HTMLMediaElement.play()` *did* resolve (so user activation was
+  present and no autoplay policy blocked it) and the position then advanced in real time.
+  I checked whether an ad layer was swallowing the clicks: `document.elementFromPoint` at
+  the centre of the video returns the `VIDEO` element itself, and no large overlay link
+  exists over the player. So click-interception was ruled out and the cause was
+  undetermined. **A later desktop session resolved the practical question: a genuine
+  `Play` press DID start playback**, producing consecutive interleaved DASH video and
+  audio segments. The unresponsive-button behaviour did not reproduce, so no defect is
+  claimed from this run. What survives, and is what a reader should take from it, is that
+  **VidLink does not autoplay** — its player mounts at `0:00` behind a poster — so a
+  session that stops at the poster is neither a failure nor a success.
 - **An adult-dating popunder opened in this provider's context.** A tab to
   `sexymeet.tv` ("Live Random Video Chat") via a `trackdesk` affiliate link, plus an
   AliExpress affiliate, appeared in the isolated context where only VidLink was loaded.
   That is the **same class of advertising** already recorded for SuperEmbed and is the
   single strongest product-safety concern in this document after SuperEmbed's. As before,
   the opener was not captured, so the attribution is an observation.
+  **A later pass upgraded part of this from "observation" to "attribution".** In a journey
+  through the Moveo page, a popup opened to
+  `browserpro.online/opera/1056/?…&network=adcash&utm_source=…&camp=…&creative=24147990`,
+  and inside VidLink's own frame the same identifiers appeared in its ad beacons —
+  `adexchangerapid.com/script/i.php?t=1&c=24147990` and
+  `adexchangerapid.com/script/suurl5.php?r=9905914`. **Same creative id `24147990`, same
+  source id `9905914`.** That is an identifier-level match rather than a same-window
+  coincidence, so the ad chain is now linked to the popup rather than merely suspected of
+  it. The opener call was still not captured, and this remains a chain, not a single
+  proven opener.
+  **This has a product consequence that is recorded and NOT acted on.** VidLink carries
+  `warningKey: "disableAdblock"` in `lib/providers.ts`, so Moveo's own copy asks the user
+  to switch off the protection that stops this chain, on a provider that is PRIMARY for
+  two content classes. Neither the copy nor the ordering was changed in this pass; the
+  finding is written down so the decision is made deliberately rather than by default.
 - Loads a fingerprinting module (`vidlink.pro/fu.wasm`) and is monetised via
   `adexchangerapid.com` / `adsco.re`.
 

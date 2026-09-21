@@ -442,19 +442,30 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       // The one provider where playback was observed end-to-end: a DASH manifest,
       // init segments, and 14 consecutive chunk-stream segments fetched over ~13s.
       playbackObserved: "yes",
-      // A subtitle `.srt` was observed being fetched, and the manifest carried
-      // three streams (i.e. multiple audio tracks) — for Korean AND anime.
+      // A subtitle file was observed being fetched, and a French subtitle track
+      // was SELECTED AND RENDERED DURING PLAYBACK on Korean content.
+      // THE REASON THIS USED TO GIVE IS WITHDRAWN: it read the manifest's "three
+      // streams" as multiple audio tracks. DASH Representation ids span video and
+      // audio together, so those were extra VIDEO rungs; the audio stream was a
+      // single original-language track (`kor`, `ja` on anime) and `multiLang=0`
+      // is what we request. That misreading is what made this provider lead the
+      // ANIME classes, and it no longer does — see lib/playerStrategy.ts.
       subtitles: "yes",
       specials: "unknown",
       adultAdvertising: "unknown",
       // MEASURED 2026-09-21 on an emulated 390x844 viewport: 1920x1080,
       // duration 3582.1, three samples 8.611 -> 13.614 -> 18.627 (+5.003s, then
       // +5.013s) with paused=false and readyState 4.
-      // CAVEAT, recorded rather than explained: its on-screen Play buttons did not
-      // start playback under emulated input, while the element's own play()
-      // resolved and ran. Click-interception was ruled out — document.elementFromPoint
-      // at the video centre returns the VIDEO itself and no overlay link covers the
-      // player — so the cause of the unresponsive buttons is undetermined.
+      // CAVEAT, superseded by a later session: under that emulated input its
+      // on-screen Play buttons did not start playback while the element's own
+      // play() resolved and ran, with click-interception ruled out. A later
+      // DESKTOP session DID start playback from a genuine Play press, producing
+      // consecutive interleaved DASH video and audio segments, so the
+      // unresponsive-button behaviour did not reproduce and the cause is moot.
+      // What survives measurement is the part that affects users: VidLink DOES
+      // NOT AUTOPLAY. Its player mounts at 0:00 behind a poster, so a viewer has
+      // to press Play — a session that ends at the poster is not a failure, and
+      // is not a success either.
       mobile: "yes",
     },
     warningKey: "disableAdblock",

@@ -34,11 +34,18 @@ as a percentage, and where the sample is too small it is reported as the literal
 string **NOT ENOUGH REAL PLAYBACK SESSIONS**. No number below is extrapolated,
 rounded into confidence, or carried over from a different content type.
 
-**How many sessions actually exist.** Exactly **one** full session has been
-observed end to end, and it is the SmashyStream Fight Club session in §5. One
-further observation (Frembed) was made and did **not** reproduce. Everything else
-in this document is a *partial* observation and is labelled as such at the point
-it is used. That is the reason almost every cell below reads NOT ENOUGH.
+**How many sessions actually exist.** Three exist, and this number is the reason
+most cells below read NOT ENOUGH:
+
+| | Sessions | Where |
+|---|---|---|
+| Playback confirmed end to end | **6** | Movies 1 (VidLink), Korean 1 (VidLink), anime movies 2 (SmashyStream), anime series 2 (VidLink + SmashyStream) |
+| Playback attempted and failed | **3** | Movies 1 (SmashyStream, M1), anime movies 2 (VidLink, AM1/AM2) |
+| **Western TV** | **0** | no session has been run for this class at all |
+
+The per-session record, with the instrument that confirmed each one, is
+`docs/player-validation-2026-09-21.md` §2. Every other cell in this document is a
+*partial* observation and is labelled as such at the point it is used.
 
 ---
 
@@ -75,7 +82,7 @@ runs.
 | **Movies** (Western) | SmashyStream | VidLink | Frembed |
 | **Western TV** | SmashyStream | VidLink | Frembed |
 | **Korean drama** | VidLink | SmashyStream | Frembed |
-| **Anime movies** | VidLink | SmashyStream | Frembed |
+| **Anime movies** | SmashyStream | VidLink | Frembed |
 | **Anime series** | VidLink | SmashyStream | Frembed |
 | **Any special** (TMDB season 0) | SmashyStream first, then the class order | | |
 
@@ -84,12 +91,31 @@ playback was confirmed inside a real Moveo journey (§5), and the only one
 measured resolving a special to the correct episode rather than substituting
 S1E1.
 
-**Why VidLink leads Korean and anime.** It is the only provider measured
-carrying multiple audio streams *and* fetching a subtitle track, and that
-observation was made on Korean and on anime content. For those classes the crux
-is which audio and subtitle tracks exist, so track evidence outranks playback
-evidence. This is a deliberate trade, and its cost is recorded in §6: VidLink's
-own on-screen Play control did not start playback under emulated input.
+**Why VidLink leads Korean and anime series — and why the reason is not the one
+originally written here.** The earlier justification was that VidLink is "the
+only provider measured carrying multiple audio streams *and* fetching a subtitle
+track". **The multiple-audio half is falsified.** On every title measured,
+VidLink served exactly **one** audio AdaptationSet, and `multiLang=0` is what it
+is asked for — the original reading was a misreading of *video* Representation
+ids. See `docs/player-validation-2026-09-21.md` §1 and §5.2. The corrected
+reason rests on measurement: on Korean, VidLink served `lang="kor"` — the
+original track rather than a dub — alongside a working subtitle track and a
+1080p ladder, and on anime series it served the episode at 1080p HEVC. For these
+classes the crux is that the **original-language audio** be present, so
+original-track evidence outranks generic playback evidence.
+
+**Why SmashyStream now leads anime movies.** This is a change forced by
+measurement on 2026-09-21, and it is scoped to anime **movies** only. VidLink
+failed on both anime films tested — *Spirited Away* (TMDB 129) returned "We
+Couldn't Find This Content" despite HTTP 200, and *Your Name.* (TMDB 372058)
+matched the title but fetched no manifest and never started across two Play
+presses and 40+ s — while SmashyStream played both. VidLink was verified
+reachable throughout, so these are catalogue results, not connectivity results,
+and the comparison was controlled (same title, same profile, same minute).
+Anime **series** is deliberately left VidLink-first, because there VidLink was
+measured playing the episode at 1080p HEVC and SmashyStream played it too — so
+the contradiction does not extend to that class. Two titles is a thin basis and
+it is recorded as such; it is not presented as a rate.
 
 **Why the default is no longer Frembed, and why there is no longer a single
 default at all.** Until 2026-09-21 the default was one constant, `"Frembed"`. Its
@@ -196,27 +222,33 @@ observation is not a result in either direction.
 
 ### French
 
-**French reliability: NOT ENOUGH REAL PLAYBACK SESSIONS.** No French-language
-playback session has been observed. Nothing in this section is a success claim.
-
-What IS measured, and it is one data point:
+**French reliability: NOT ENOUGH REAL PLAYBACK SESSIONS.** A French-language
+session has now been observed — the first in this project's history — so this
+section is no longer empty. It is still **one title**, and nothing here is a rate.
 
 | Fact | Evidence |
 |---|---|
 | A French subtitle track exists on at least one provider | Frembed fetched a French subtitle file (HTTP 200). **Reproduced on two separate runs.** |
-| Its scope | Measured on **one title** (a Korean drama, TMDB 93405). |
+| A French subtitle track can be **selected and rendered during playback** | VidLink: its captions menu listed 17 languages including **Français**; selecting it fetched `cacdn.hakunaymatata.com/…/079a961414f58271cd4bb3dad01b9aab.srt` (HTTP 200) and French text then rendered on screen during active playback. |
+| French **audio** on that title | **Absent, and not selectable.** The manifest declares exactly one audio track, `lang="eng"`, and VidLink's UI has no audio-track selector (*Settings* = Captions / Customize / Playback; *Playback* = rate only). Recorded as absent **on this title**, not as a VidLink-wide claim. |
+| Its scope | Both subtitle observations are **one title each** (a Korean drama, TMDB 93405; and TMDB 550). |
 | Sibnet VF availability | Per-title, decided by the scrape. Absent variants render as "Indisponible" rather than being hidden. |
 
 **What the strategy therefore does, and refuses to do.** A French viewer's
 preference order is French audio, then French subtitles, then VOSTFR. The
-provider lists are **not** reordered for that preference, deliberately. The only
-measured French capability anywhere belongs to Frembed — the provider measured to
-fail and to open popups in a real journey — and promoting it ahead of working
-providers on the strength of one title's subtitle fetch would make the strategy
-depend on one lucky title, which is precisely the error the brief warns against.
+provider lists are **not** reordered for that preference, deliberately. Note the
+distinction the two French rows above now draw: Frembed is measured to **fetch** a
+French subtitle file, whereas VidLink is measured to **render French subtitles
+during playback** — the stronger of the two observations, and the one that
+satisfies the brief's "correct content + actual playback + usable French
+subtitles". Neither is a rate, and neither justifies reordering on its own.
 
-VidLink's multi-audio manifest is real, but its **track languages were never
-read**, so it cannot be claimed as French either.
+**Both halves of the sentence that used to stand here are now falsified.**
+VidLink's "multi-audio manifest" was never multi-audio (§5.2), and its track
+languages **have** been read: `eng` on the Western film, `kor` on the Korean
+series. So VidLink can now be credited with a measured, usable French **subtitle**
+track — which it previously could not — while still not being claimed for French
+**audio**, which was absent on the one title where it was checked.
 
 What a French viewer gets instead: the **Sibnet VF variant offered first**
 (`lib/playerStrategy.sibnetOrder`), every provider still one click away, and no
@@ -247,7 +279,7 @@ Representative coverage, so the strategy does not rest on one title:
 | Correct episode title resolved (`Squid Game 2021 · S01 E01`) | VidSrc.to |
 | Correct episode title resolved | Frembed |
 | Resolved to an adult landing page instead of a player — provider since removed | SuperEmbed |
-| Multi-audio streams + subtitle track present | VidLink |
+| Single **original-language** audio track (`lang="kor"`, not a dub) + subtitle track present | VidLink |
 | No playback within ~14 s of its own Play being clicked | VidSrc.to |
 | No media observed | 2Embed |
 
@@ -261,8 +293,9 @@ single default. It is not enough to state a success rate.
 
 | Observation | Provider |
 |---|---|
-| Multi-audio streams + subtitle track present | VidLink |
-| Playback observed on anime content | VidLink (media element) |
+| Single original-language audio track + subtitle track present | VidLink |
+| Playback observed, anime **series**, 1080p HEVC | VidLink (AS2, DASH segments) **and** SmashyStream (AS1, advancing timecode) |
+| Playback observed, anime **movie** | SmashyStream on both films tested; VidLink on neither (AM1–AM4) |
 
 Anime is a **first-class class**, not a side effect of generic TV logic. The
 current data model does carry what is needed — TMDB's `original_language` plus
@@ -270,8 +303,21 @@ the Animation genre id (16) — so a separate data model was not required. What
 *was* required was for the strategy to read those two facts, and it now does.
 
 Anime depends on the original Japanese audio track being present rather than on
-a dub, which is why the anime classes lead with the provider measured carrying
-multiple audio streams.
+a dub. The reason the anime classes lead with VidLink is **not** that VidLink was
+measured carrying multiple audio streams — that reading was withdrawn (§5.3 of
+`docs/player-validation-2026-09-21.md`): the extra `stream` ids were *video*
+rungs, and the audio stream was a single `ja`/`kor` track in both cases. The
+reason that survives measurement is narrower: VidLink exposed the
+original-language track **and** a selecting, rendering subtitle control on the
+one title where both were inspected, and it is the only provider confirmed
+playing an anime **series** with interleaved DASH video *and* audio segments.
+
+The split between the two anime sub-classes is deliberate and is what the
+measurements actually support: **anime series** leads with VidLink (AS2
+confirmed, and SmashyStream also confirmed on AS1), while **anime movies** leads
+with SmashyStream, which played both films tested (AM1, AM2) where VidLink
+produced a not-found panel on one and never fetched a manifest on the other
+(AM3, AM4). Treating "anime" as one class would have hidden that reversal.
 
 ---
 
@@ -279,7 +325,7 @@ multiple audio streams.
 
 | Provider | Subtitles | Evidence |
 |---|---|---|
-| VidLink | **yes** | A subtitle file was fetched, and the manifest carried three streams |
+| VidLink | **yes** | A subtitle file was fetched, and a French subtitle track was selected and rendered during playback (§6) |
 | Frembed | **yes** | A French subtitle file was fetched (HTTP 200), reproduced on two runs |
 | SmashyStream | unknown | Not measured |
 | VidSrc.to / VidSrc.me / 2Embed / Sibnet | unknown | Not measured |
@@ -305,9 +351,9 @@ No claim is made about mobile playback for any provider.
 
 | Provider | Classification | Notes |
 |---|---|---|
-| SmashyStream | **INTEGRATED** — automatic, PRIMARY for Western classes | Only confirmed in-journey playback; only measured specials-correct provider |
-| VidLink | **INTEGRATED** — automatic, PRIMARY for Korean/anime | Only measured multi-audio + subtitle provider; Play control did not start playback under emulated input |
-| Frembed | **INTEGRATED** — automatic, last in every order | Broadest resolution coverage measured; non-reproducing playback; popups and ad beacons in-journey |
+| SmashyStream | **INTEGRATED** — automatic, PRIMARY for Western classes **and anime movies**; FALLBACK #1 for Korean and anime series | In-journey playback confirmed on anime **movies** (AM3, AM4) and anime **series** (AS1). On the single **Movies** session it did not play: M1 failed as PRIMARY, while its fallback VidLink played the same title (M2) — see Limitations 9. **Partially degraded:** streaming endpoints served HTTP 200 while account/telemetry endpoints returned 500/503 and its root host answered HTTP 451, with a "read-only" maintenance banner — so a 200 on one endpoint is not a 200 on the service. Its load time sits on the `IFRAME_LOAD_TIMEOUT_MS` boundary (Limitations 4). |
+| VidLink | **INTEGRATED** — automatic, PRIMARY for Korean and anime series; FALLBACK #1 for anime movies | In-journey playback confirmed on Korean (K1) and anime series (AS2) with interleaved DASH video+audio segments; a French **subtitle** track was selected and rendered during playback. **Does not autoplay** — the user must press Play, so our advisory is correct before the press and stale after it. `multiLang=0` requested; single original-language audio track. Carries a `disableAdblock` warning and an ad chain whose creative id matched a popup opened from our page (see Limitations 6). |
+| Frembed | **INTEGRATED** — automatic, last in every order | Broadest resolution coverage measured; **playback never observed in-journey, and not measurable from our side** (Limitations 4); French subtitle file fetched twice; popups and ad beacons in-journey. Kept for resolution breadth and because absence of observability is not absence of playback — but it is not counted as working anywhere. |
 | VidSrc.to | **INTEGRATED** — MANUAL_ONLY | Correct Korean episode title resolved; no playback observed |
 | VidSrc.me | **INTEGRATED** — MANUAL_ONLY | Same upstream player as VidSrc.to; host mid-migration to vidsrc.sh |
 | 2Embed | **INTEGRATED** — MANUAL_ONLY | Player area was `about:blank` plus a redirect layer; no media observed |
@@ -346,32 +392,58 @@ measurements:
 
 ## 11. Known limitations
 
-1. **Almost no reliability data exists.** One confirmed session. Every other
-   cell is NOT ENOUGH REAL PLAYBACK SESSIONS. This is the largest gap in the
-   document and it cannot be closed by reasoning — it needs real sessions.
-2. **No French playback session has ever been observed.** No provider is
-   claimed to serve French audio, and the French preference order is not
-   implemented beyond the Sibnet variant ordering. Closing this needs per-title
-   measurement of actual audio and subtitle tracks across several titles.
-3. **VidLink's Play control did not start playback under emulated input** while
-   the element's own `play()` resolved and ran. Click interception was ruled out
-   (`document.elementFromPoint` at the video centre returns the VIDEO, with no
-   overlay above it). The cause is **undetermined** — an unexplained interaction
-   defect, which is why VidLink does not lead the classes where SmashyStream has
-   direct evidence.
+1. **Reliability data is still thin.** Six playback-confirmed sessions now exist
+   across four of the five classes — see `docs/player-validation-2026-09-21.md`
+   §2. Every other cell remains NOT ENOUGH REAL PLAYBACK SESSIONS. **Western TV
+   has zero sessions** despite being half of the primary strategy, and no second
+   episode and no special has ever been played. This cannot be closed by
+   reasoning — it needs real sessions.
+2. **No French *audio* session has been observed, and none is claimed.** What
+   has been observed is a French **subtitle** track selected and rendered during
+   playback (VidLink, one title, §6). The French preference order is still not
+   implemented beyond the Sibnet variant ordering.
+3. **The earlier "VidLink's Play control did not start playback" limitation is
+   superseded by measurement.** On AS2 a genuine Play press started playback and
+   produced consecutive interleaved DASH segments, so the previously
+   *undetermined* interaction defect did not reproduce. What is true instead is
+   that VidLink **does not autoplay**: the player mounts at `0:00` behind a
+   poster with a Play glyph, so a user must press Play — which also means our
+   advisory is correct until they do and stale after they have (§6).
+4. **`IFRAME_LOAD_TIMEOUT_MS = 20000` is too tight for SmashyStream.** The same
+   embed URL missed the 20 s budget once and then loaded in 15–16 s on retry, so
+   a merely-slow provider is reported to the user as "Le lecteur ne répond pas"
+   and its player is unmounted. Recorded with evidence and **deliberately not yet
+   changed**, because the correct value needs a load-time distribution we do not
+   have — two samples cannot set a constant.
 4. **Frembed is unmeasurable by the accepted method** (cross-origin player), so
    its `playbackObserved` can never be resolved to `yes` or `no` from our side
    without a different technique. It stays last on UX grounds.
 5. **No mobile measurement at all.**
-6. **Advertising behaviour is not modelled in the strategy.** SmashyStream,
-   VidLink and Frembed were each observed with popups or ad beacons in at least
-   one context; only SuperEmbed's was disqualifying, because it was adult
-   advertising inside our own player. The remaining behaviour is recorded in
-   `docs/provider-matrix.md` and reflected in the ordering, but it is not a
-   field the code can branch on.
+6. **Advertising behaviour is not modelled in the strategy, and one instance is
+   now attributed rather than merely observed.** SmashyStream, VidLink and
+   Frembed were each observed with popups or ad beacons in at least one context;
+   only SuperEmbed's was disqualifying, because it was adult advertising inside
+   our own player. For **VidLink** the chain is now identified: a popup opened
+   from our page to `browserpro.online` carrying `network=adcash`, and inside
+   VidLink's own frame the same **creative id `24147990`** and **source id
+   `9905914`** appeared in `adexchangerapid.com` beacons — the same identifiers,
+   so this is not a coincidental popup. VidLink is marked PRIMARY for two
+   classes *and* carries `warningKey: "disableAdblock"` in `lib/providers.ts`,
+   which means Moveo asks users to switch off the protection that stops this
+   chain. Recorded here rather than acted on: changing the warning copy or the
+   ordering is a product decision, and neither the copy nor the order has been
+   changed in this pass.
 7. **Nothing here is a claim that a provider "works".** A provider works for a
-   *title*, on a *platform*, at a *moment*. Two of the three automatic providers
-   have never been confirmed playing inside a real Moveo journey.
+   *title*, on a *platform*, at a *moment*. One of the three automatic providers
+   — **Frembed** — has never been confirmed playing inside a real Moveo journey
+   and, by Limitations 4, cannot be confirmed by the method used here.
 8. **The `frame-src` list and the registry are held together by a test, not by
    construction.** `next.config.ts` still holds a literal array;
    `tests/csp.test.ts` fails if the two drift. That is a guard, not a fix.
+9. **The Movies ordering is contradicted by the only Movies session, and has
+   deliberately been left as it is.** In M1 the PRIMARY provider failed and
+   FALLBACK #1 played the same title. One session is not enough to reorder a
+   class on, and the M1 failure had a *cause* that is not the provider's general
+   behaviour — its backend was mid-degradation (§4.2 of the validation log). So
+   the honest state is: **the Movies order is unverified, not verified**, and it
+   is listed here rather than quietly treated as measured.

@@ -128,8 +128,9 @@ describe('deriveContentClass', () => {
 describe('providerOrder', () => {
   it('puts the measured best source first for each class', () => {
     // SmashyStream leads the Western classes on the strength of confirmed
-    // in-journey playback; VidLink leads Korean and anime because the only
-    // measured multi-audio and subtitle evidence was recorded on those.
+    // in-journey playback; VidLink leads Korean and anime SERIES because the only
+    // measured language evidence (original-language audio track read, subtitle
+    // track selected and rendered) was recorded on those.
     assert.deepEqual(providerOrder({contentClass: 'movie'}), [
       'SmashyStream',
       'VidLink',
@@ -145,9 +146,15 @@ describe('providerOrder', () => {
       'SmashyStream',
       'Frembed',
     ]);
+    // anime MOVIE is deliberately NOT the same order as anime SERIES. VidLink was
+    // primary here and failed on both films tested — one "We Couldn't Find This
+    // Content", one title-matched but with no manifest ever fetched — while
+    // SmashyStream played both, in a controlled comparison taken in the same
+    // window with VidLink verified reachable. If someone "tidies" the two anime
+    // classes into one order, this assertion is what should stop them.
     assert.deepEqual(providerOrder({contentClass: 'anime-movie'}), [
-      'VidLink',
       'SmashyStream',
+      'VidLink',
       'Frembed',
     ]);
     assert.deepEqual(providerOrder({contentClass: 'anime-series'}), [
@@ -155,6 +162,11 @@ describe('providerOrder', () => {
       'SmashyStream',
       'Frembed',
     ]);
+    assert.notDeepEqual(
+      providerOrder({contentClass: 'anime-movie'}),
+      providerOrder({contentClass: 'anime-series'}),
+      'the two anime classes have been collapsed back into one order',
+    );
   });
 
   it('names only providers that exist', () => {
@@ -271,6 +283,10 @@ describe('defaultProviderName', () => {
     assert.equal(defaultProviderName({contentClass: 'western-tv'}), 'SmashyStream');
     assert.equal(defaultProviderName({contentClass: 'korean'}), 'VidLink');
     assert.equal(defaultProviderName({contentClass: 'anime-series'}), 'VidLink');
+    // The reversal, pinned: a first-time visitor landing on an anime FILM is
+    // handed SmashyStream, because VidLink produced no playback on either film
+    // tested. Anime SERIES, one line up, still hands over VidLink.
+    assert.equal(defaultProviderName({contentClass: 'anime-movie'}), 'SmashyStream');
   });
 
   it('is always a source the player can actually select and persist', () => {
