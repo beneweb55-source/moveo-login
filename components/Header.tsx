@@ -246,6 +246,7 @@ const Header = () => {
           <button 
             className="xl:hidden p-1.5 -ml-1.5 text-white/80 hover:text-white transition-colors"
             onClick={() => setIsMobileMenuOpen(true)}
+            aria-label={language === 'fr' ? 'Ouvrir le menu' : 'Open menu'}
           >
             <Menu className="w-6 h-6" />
           </button>
@@ -256,17 +257,24 @@ const Header = () => {
           </Link>
         </div>
 
-        {/* Desktop Navigation */}
-        <ul className="hidden xl:flex items-center gap-6 font-medium text-sm text-white/80">
-          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/")}>{t.nav.home}</li>
-          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("movie")}>{t.nav.movies}</li>
-          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => navigationHandler("tv")}>{t.nav.tvShows}</li>
-          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/animes")}>{t.nav.animes}</li>
-          <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/kdrama")}>{t.nav.kdramas}</li>
-          {user && (
-            <li className="cursor-pointer hover:text-white transition-colors" onClick={() => router.push("/my-list")}>{t.nav.myList}</li>
-          )}
-        </ul>
+        {/* Desktop Navigation — rendered as real links. These were <li onClick>
+            elements, which are not focusable, expose no role and carry no href:
+            the site's only category navigation was unreachable by keyboard and
+            invisible to a screen-reader's link list. `hidden xl:flex` moved from
+            the <ul> to the <nav> so this occupies the same slot in the header
+            row as before and the layout is unchanged. */}
+        <nav aria-label="Navigation principale" className="hidden xl:flex">
+          <ul className="flex items-center gap-6 font-medium text-sm text-white/80">
+            <li><Link href="/" className="hover:text-white transition-colors">{t.nav.home}</Link></li>
+            <li><Link href="/films" className="hover:text-white transition-colors">{t.nav.movies}</Link></li>
+            <li><Link href="/series" className="hover:text-white transition-colors">{t.nav.tvShows}</Link></li>
+            <li><Link href="/animes" className="hover:text-white transition-colors">{t.nav.animes}</Link></li>
+            <li><Link href="/kdrama" className="hover:text-white transition-colors">{t.nav.kdramas}</Link></li>
+            {user && (
+              <li><Link href="/my-list" className="hover:text-white transition-colors">{t.nav.myList}</Link></li>
+            )}
+          </ul>
+        </nav>
 
         {/* Center/Right Section: Search */}
         <div className="flex-1 flex justify-end xl:justify-center max-w-2xl transition-all duration-500 ease-in-out relative" ref={searchRef}>
@@ -274,6 +282,7 @@ const Header = () => {
           <button 
             className="xl:hidden p-2 text-white/80 hover:text-white transition-colors"
             onClick={() => setShowMobileSearch(true)}
+            aria-label={language === 'fr' ? 'Rechercher' : 'Search'}
           >
             <Search className="w-5 h-5" />
           </button>
@@ -296,6 +305,7 @@ const Header = () => {
                 <button 
                   type="button" 
                   onClick={() => setQuery("")}
+                  aria-label={language === 'fr' ? 'Effacer la recherche' : 'Clear search'}
                   className="p-2 text-white/50 hover:text-white transition-colors"
                 >
                   <X className="h-4 w-4" />
@@ -598,6 +608,7 @@ const Header = () => {
                 <Logo />
                 <button 
                   onClick={() => setIsMobileMenuOpen(false)}
+                  aria-label={language === 'fr' ? 'Fermer le menu' : 'Close menu'}
                   className="p-2 text-white/70 hover:text-white bg-white/5 rounded-full"
                 >
                   <X className="w-5 h-5" />
