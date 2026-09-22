@@ -47,7 +47,12 @@ import {
   playerReducer,
   resolveStoredProvider,
 } from "@/lib/playerState";
-import { parsePlaybackProgress } from "@/lib/playerMessages";
+import {
+  observePosition,
+  parsePlaybackProgress,
+  slotKey,
+  type SnapshotCursor,
+} from "@/lib/playerMessages";
 
 interface VideoPlayerProps {
   id: string;
@@ -231,6 +236,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [playbackObserved, setPlaybackObserved] = useState(false);
 
   /**
+   * The last SNAPSHOT reading of a slot, so the next one can be compared to it.
+   *
+   * See `isSnapshotAdvance` in lib/playerMessages.ts for why a snapshot needs a
+   * predecessor before it counts as anything. Measured on production on
+   * 2026-09-22: on `/movie/969681`, `localStorage.watch_history` was cleared to
+   * `null` and the VidLink source was selected with no other interaction, and
+   * `{timestamp: 0, duration: 8678, provider: "VidLink"}` came back — then kept
+   * being rewritten while nothing played. The movie page has no writer of its
+   * own, and the only position-carrying shape VidLink sent in that session (25
+   * messages, every shape enumerated) was `MEDIA_DATA`, its stored snapshot. The
+   * mount snapshot was being read as playback.
+   *
+   * Held per attempt rather than for the component's lifetime: it is reset
+   * wherever `playbackObservedRef` is, so a retry, a provider change or an
+   * episode change starts again with no predecessor and therefore no evidence.
+   */
+  const snapshotCursorRef = useRef<SnapshotCursor | null>(null);
+
+  /**
    * The unverified-playback notice is advisory, so it must also be dismissible.
    *
    * No provider has been OBSERVED emitting a verifiable position, so the notice
@@ -252,6 +276,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const resetPlaybackObservation = useCallback(() => {
     playbackObservedRef.current = false;
     setPlaybackObserved(false);
+    // The snapshot cursor belongs to the attempt as well. A new frame has its
+    // own history and no comparable predecessor, so the next snapshot it sends
+    // is a baseline rather than evidence — which is the correct reading of a
+    // provider that has just been mounted.
+    snapshotCursorRef.current = null;
     // Dismissing the notice belongs to the attempt it was shown for, so a new
     // attempt (retry, server change, episode change) re-arms it.
     setNoticeDismissed(false);
@@ -506,6 +535,42 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       // Silent rejection: unknown senders get no response of any kind.
       if (!progress) return;
+
+      // -----------------------------------------------------------------------
+      // SNAPSHOT ≠ PLAYBACK EVENT.
+      //
+      // A `MEDIA_DATA` envelope is the provider's stored state re-sent on a
+      // timer, so it describes what the provider REMEMBERS, not what is
+      // happening. Two measurements make that concrete rather than theoretical:
+      // it repeats roughly every 2000 ms while the player lives, and at mount it
+      // carries whatever the provider last stored for the title — a remembered
+      // position, or `watched: 0` for a title it does not know.
+      //
+      // `timeupdate` was the intended counter-evidence, and it was measured
+      // instead of assumed: across 25 messages from VidLink on production, in
+      // every state reachable, NO `timeupdate` shape ever arrived (neither
+      // `event === "timeupdate"` nor `type === "timeupdate"`). So gating on a
+      // live event alone would mean the only provider that reports a position
+      // at all could never mark playback, and watch time would be permanently
+      // zero for it. What is actually available is MOVEMENT: a stored value
+      // cannot advance on its own, so two consecutive readings of the same slot
+      // with the later strictly greater is viewing having advanced between them.
+      //
+      // The cursor is updated on EVERY accepted snapshot, including the ones
+      // that do not count — a baseline is exactly what the next reading needs to
+      // be compared against.
+      // -----------------------------------------------------------------------
+      const observation = observePosition(
+        progress,
+        snapshotCursorRef.current,
+        slotKey(type, id, season ?? null, episode ?? null),
+      );
+      snapshotCursorRef.current = observation.cursor;
+
+      // A snapshot that has not moved is the provider repeating its memory: it
+      // is neither evidence of playback (§13) nor a position worth storing
+      // (§4 forbids recording 0:00 because a screen was opened).
+      if (!observation.countsAsPlayback) return;
 
       if (!playbackObservedRef.current) {
         playbackObservedRef.current = true;

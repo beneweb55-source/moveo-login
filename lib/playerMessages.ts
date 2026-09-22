@@ -16,9 +16,43 @@
  * the message.
  */
 
+/**
+ * WHERE a verified position came from, which decides what it can be evidence of.
+ *
+ *  - `event`    — a live playback event: the provider is describing what is
+ *                 happening now.
+ *  - `snapshot` — the provider's STORED state, re-sent on a timer whether or not
+ *                 anything is playing. Measured on VidLink on 2026-09-22:
+ *                 `MEDIA_DATA` repeats roughly every 2000 ms, and at mount it
+ *                 carries whatever the provider last remembered for that title.
+ *
+ * The distinction is load-bearing, and it was added AFTER a measurement rather
+ * than before one. A snapshot at mount was being read as playback, so opening a
+ * title's player produced a stored progression of 0:00 for a title nobody had
+ * watched, and started the watch-time signal with nothing playing. Measured on
+ * `https://www.moveo.blog/movie/969681` on 2026-09-22: with `watch_history`
+ * cleared and nothing but the source selected, the entry
+ * `{timestamp: 0, duration: 8678, provider: "VidLink"}` came back, and was then
+ * rewritten roughly every five seconds. The movie page has no writer of its own,
+ * so the only path that can have written it is this module's output.
+ *
+ * The MOUNT write reproduces on the movie branch and not on the series branch,
+ * which is worth knowing: the movie position lives in a media-level `progress`
+ * that carries a REAL runtime, so `{watched: 0, duration: 8678}` survives every
+ * numeric check, while a series reads its per-episode slot and an unplayed title
+ * stores `duration: 0` there, which the checks reject. The asymmetry, not the
+ * zero, is what made this reachable.
+ *
+ * See `isSnapshotAdvance`, which is what a `snapshot` now has to demonstrate
+ * before it counts.
+ */
+export type PositionSource = "event" | "snapshot";
+
 export interface PlaybackProgress {
   currentTime: number;
   duration: number;
+  /** See `PositionSource`. Never inferred later: it is decided where the shape is read. */
+  source: PositionSource;
 }
 
 export interface MessageValidationContext {
@@ -141,12 +175,22 @@ const readMediaData = (
   // An envelope whose type we do not recognise stores nothing, which is the
   // honest outcome: we cannot tell which field describes the viewer.
   //
-  // MEASURED ONLY AT REST: the one movie entry observed carried
-  // `{watched: 0, duration: 0}`, so an ADVANCING movie position has not been
-  // observed. The shape is read because it is real and it is the only carrier a
-  // movie envelope has, and the numeric sanity checks below reject the
-  // `duration: 0` case outright; it is NOT claimed as verified. See
-  // docs/player-validation-2026-09-21.md.
+  // MEASURED ONLY AT REST. A movie entry being mounted carries a real runtime
+  // and a ZERO position: measured at `https://www.moveo.blog/movie/969681` on
+  // 2026-09-22, ten consecutive envelopes (gaps 1996–2003 ms) each carried
+  // `{watched: 0, duration: 8678}` while nothing was playing. Because the
+  // duration is real, this pair passes every numeric check — which is why the
+  // movie branch is the one that reproduced the mount-write defect on
+  // production (see `PositionSource`). The `{watched: 0, duration: 0}` pair has
+  // also been observed, on VidLink's PER-EPISODE slot for a title it has no
+  // stored progress for (`/tv/1429` S1E1, same day); that pair is rejected by
+  // `duration > 0` below, and it is why that check is required rather than
+  // assumed. What has NEVER been observed is an ADVANCING movie position, so
+  // the movie branch is read as a real shape and is not claimed as verified for
+  // playback — and because the position it carries is the provider's memory, it
+  // now arrives tagged `source: "snapshot"` and must advance before anything
+  // counts it as viewing (see `isSnapshotAdvance`).
+  // See docs/player-validation-2026-09-21.md.
   if (providerType === "movie" && isPlainObject(entry.progress)) {
     const progress = entry.progress as Record<string, unknown>;
     return {currentTime: progress.watched, duration: progress.duration};
@@ -166,15 +210,18 @@ const readMediaData = (
 const extractPositionFields = (
   data: Record<string, unknown>,
   ctx: MessageValidationContext,
-): {currentTime: unknown; duration: unknown} | null => {
+): {currentTime: unknown; duration: unknown; source: PositionSource} | null => {
   if (data.event === "timeupdate" && isPlainObject(data.data)) {
-    return {currentTime: data.data.currentTime, duration: data.data.duration};
+    return {currentTime: data.data.currentTime, duration: data.data.duration, source: "event"};
   }
   if (data.type === "MEDIA_DATA") {
-    return readMediaData(data, ctx);
+    // The provider's stored state, not an event. Tagged here rather than by the
+    // caller because this is the only place that knows which branch was taken.
+    const read = readMediaData(data, ctx);
+    return read ? {currentTime: read.currentTime, duration: read.duration, source: "snapshot"} : null;
   }
   if (data.type === "timeupdate") {
-    return {currentTime: data.currentTime, duration: data.duration};
+    return {currentTime: data.currentTime, duration: data.duration, source: "event"};
   }
   return null;
 };
@@ -218,8 +265,109 @@ export const parsePlaybackProgress = (
     if (!(duration <= MAX_MEDIA_SECONDS)) return null;
     if (!(currentTime <= duration)) return null;
 
-    return {currentTime, duration};
+    return {currentTime, duration, source: fields.source};
   } catch {
     return null;
   }
+};
+
+// ---------------------------------------------------------------------------
+// SNAPSHOT ≠ PLAYBACK EVENT
+//
+// A snapshot is the provider's MEMORY. It is re-sent on a timer and it repeats
+// the same value whether or not anything is playing, so on its own it is not
+// evidence that this visit watched anything: the mount envelope of a title the
+// provider already knows will carry a position before the viewer has pressed
+// play, and a title the provider does not know will carry `watched: 0`.
+//
+// What turns a snapshot into evidence is that it MOVED. Two consecutive
+// readings of the same slot, the later strictly greater than the earlier, is
+// viewing having advanced between them — a stored value cannot do that on its
+// own. VidLink's `watched` was measured advancing in step with the media element
+// (providers.ts records 21.206035 while the element read 22 s), so the advance
+// is the property that is actually available to us.
+//
+// The comparison is deliberately stateful only through a caller-held cursor, so
+// this module stays pure and every rule below is testable without a browser.
+// ---------------------------------------------------------------------------
+
+/** The last SNAPSHOT reading seen for one slot. Held by the caller, not here. */
+export interface SnapshotCursor {
+  slot: string;
+  position: number;
+}
+
+/**
+ * Tolerance, in seconds, on "strictly greater".
+ *
+ * Snapshots arrive as floats with many decimals, and a provider that rounds the
+ * same position twice must not read as movement. Real movement between two
+ * snapshots is around two seconds of playback, so half a second sits far below
+ * a real advance and far above any rounding artefact.
+ */
+export const SNAPSHOT_ADVANCE_EPSILON_S = 0.5;
+
+/**
+ * A slot identifies WHICH position a reading describes.
+ *
+ * Season 0 is the specials season and `-` is "no season at all" (a film), so the
+ * two cannot collide: `||` would fold the specials into the films' slot and let
+ * one's position describe the other.
+ */
+export const slotKey = (
+  type: string,
+  id: string | number,
+  season: number | null | undefined,
+  episode: number | null | undefined,
+): string => `${type}:${id}:s${season ?? "-"}e${episode ?? "-"}`;
+
+/**
+ * Whether a snapshot shows viewing having advanced since the previous snapshot
+ * of the SAME slot.
+ *
+ * A different slot is never an advance: the two readings describe different
+ * positions, and comparing them would invent movement out of an episode change.
+ * A `null` cursor (nothing observed yet) is never an advance — which is exactly
+ * the mount case this exists to refuse.
+ */
+export const isSnapshotAdvance = (
+  previous: SnapshotCursor | null,
+  slot: string,
+  position: number,
+): boolean =>
+  previous !== null &&
+  previous.slot === slot &&
+  position > previous.position + SNAPSHOT_ADVANCE_EPSILON_S;
+
+/**
+ * The whole policy, in one pure function: does this observation count as
+ * playback, and what cursor does it leave behind?
+ *
+ * It is here rather than inside `components/VideoPlayer.tsx` because a rule that
+ * decides whether a viewing is reported must be reachable by a test that does
+ * not mount a browser. The component keeps only the cursor ref and calls this.
+ *
+ * The cursor is returned for BOTH sources, and that is deliberate:
+ *
+ *  - an `event` is the real position, so a snapshot arriving afterwards that is
+ *    greater than it is a genuine advance;
+ *  - a snapshot that did not count is still the baseline the next snapshot needs
+ *    to be compared against. A baseline that was not recorded would make the
+ *    following snapshot incomparable, and the rule could never fire.
+ *
+ * An `event` always counts. No measurement here has ever seen one, which is why
+ * a snapshot has to be able to count as well — but if a provider ever does send
+ * a live playback event, that is direct evidence and needs no corroboration.
+ */
+export const observePosition = (
+  progress: PlaybackProgress,
+  previous: SnapshotCursor | null,
+  slot: string,
+): {countsAsPlayback: boolean; cursor: SnapshotCursor} => {
+  const cursor: SnapshotCursor = {slot, position: progress.currentTime};
+  if (progress.source === "event") return {countsAsPlayback: true, cursor};
+  return {
+    countsAsPlayback: isSnapshotAdvance(previous, slot, progress.currentTime),
+    cursor,
+  };
 };

@@ -7,7 +7,16 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {parsePlaybackProgress, type MessageValidationContext} from '../lib/playerMessages';
+import {
+  SNAPSHOT_ADVANCE_EPSILON_S,
+  isSnapshotAdvance,
+  observePosition,
+  parsePlaybackProgress,
+  slotKey,
+  type MessageValidationContext,
+  type PlaybackProgress,
+  type SnapshotCursor,
+} from '../lib/playerMessages';
 
 const FRAME = {name: 'iframe-window'} as unknown as Window;
 const ATTACKER = {name: 'other-window'} as unknown as Window;
@@ -28,6 +37,7 @@ describe('origin validation', () => {
     assert.deepEqual(parsePlaybackProgress(timeupdate, valid()), {
       currentTime: 30,
       duration: 120,
+      source: 'event',
     });
   });
 
@@ -96,6 +106,7 @@ describe('payload shape', () => {
     assert.deepEqual(parsePlaybackProgress(timeupdate, valid()), {
       currentTime: 30,
       duration: 120,
+      source: 'event',
     });
   });
 
@@ -112,12 +123,20 @@ describe('payload shape', () => {
 
   it('accepts the flat timeupdate shape', () => {
     const data = {type: 'timeupdate', currentTime: 5, duration: 100};
-    assert.deepEqual(parsePlaybackProgress(data, valid()), {currentTime: 5, duration: 100});
+    assert.deepEqual(parsePlaybackProgress(data, valid()), {
+      currentTime: 5,
+      duration: 100,
+      source: 'event',
+    });
   });
 
   it('accepts numeric strings', () => {
     const data = {type: 'timeupdate', currentTime: '5.5', duration: '100'};
-    assert.deepEqual(parsePlaybackProgress(data, valid()), {currentTime: 5.5, duration: 100});
+    assert.deepEqual(parsePlaybackProgress(data, valid()), {
+      currentTime: 5.5,
+      duration: 100,
+      source: 'event',
+    });
   });
 
   it('ignores episode_change — it is not a playback event', () => {
@@ -192,14 +211,14 @@ describe('numeric sanity', () => {
   it('accepts the boundaries', () => {
     assert.deepEqual(
       parsePlaybackProgress({event: 'timeupdate', data: {currentTime: 0, duration: 1}}, valid()),
-      {currentTime: 0, duration: 1},
+      {currentTime: 0, duration: 1, source: 'event'},
     );
     assert.deepEqual(
       parsePlaybackProgress(
         {event: 'timeupdate', data: {currentTime: 300, duration: 300}},
         valid(),
       ),
-      {currentTime: 300, duration: 300},
+      {currentTime: 300, duration: 300, source: 'event'},
     );
   });
 
@@ -266,6 +285,7 @@ describe('magnitude bounds', () => {
     assert.deepEqual(parsePlaybackProgress(threeHours, valid()), {
       currentTime: 60,
       duration: 3 * 60 * 60,
+      source: 'event',
     });
   });
 
@@ -274,6 +294,7 @@ describe('magnitude bounds', () => {
     assert.deepEqual(parsePlaybackProgress(boundary, valid()), {
       currentTime: 0,
       duration: 24 * 60 * 60,
+      source: 'event',
     });
   });
 
@@ -367,6 +388,7 @@ describe('MEDIA_DATA — the measured VidLink shape', () => {
     assert.deepEqual(parsePlaybackProgress(seriesEnvelope(), seriesCtx()), {
       currentTime: 21.206035,
       duration: 1439.2,
+      source: 'snapshot',
     });
   });
 
@@ -386,6 +408,7 @@ describe('MEDIA_DATA — the measured VidLink shape', () => {
     assert.deepEqual(parsePlaybackProgress(envelope, seriesCtx({season: 0, episode: 3})), {
       currentTime: 7.5,
       duration: 1439.2,
+      source: 'snapshot',
     });
   });
 
@@ -443,6 +466,7 @@ describe('MEDIA_DATA — the measured VidLink shape', () => {
     assert.deepEqual(parsePlaybackProgress(playing, seriesCtx()), {
       currentTime: 120.5,
       duration: 5400,
+      source: 'snapshot',
     });
   });
 
@@ -508,6 +532,143 @@ describe('MEDIA_DATA — the measured VidLink shape', () => {
     assert.equal(
       parsePlaybackProgress(seriesEnvelope(), seriesCtx({allowedOrigins: []})),
       null,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// SNAPSHOT ≠ PLAYBACK EVENT — whether a reading counts as viewing.
+//
+// WHY THIS SUITE EXISTS. A snapshot is the provider's memory, re-sent on a timer
+// whether or not anything is playing. Reading one as playback produced two
+// measured defects at once, on production, on 2026-09-22:
+//
+//   1. a watch-history entry `{timestamp: 0, duration: 8678}` for
+//      https://www.moveo.blog/movie/969681 while nothing had played — the
+//      §-forbidden "0:00 because a screen was opened", and a page that opened a
+//      title nobody had watched;
+//   2. watch time accruing on a page where the viewer never pressed play.
+//
+// The counter-evidence for gating on a live event was measured, not assumed: no
+// `timeupdate` message EVER arrived — 25 messages from VidLink, every shape
+// enumerated, no `timeupdate` in any state reachable. So the rule cannot be
+// "only events count", or the only provider that reports a position could never
+// earn a minute. It is MOVEMENT: a stored value cannot advance on its own.
+// ---------------------------------------------------------------------------
+
+const SNAPSHOT: PlaybackProgress = {currentTime: 0, duration: 8678, source: 'snapshot'};
+const EVENT: PlaybackProgress = {currentTime: 0, duration: 8678, source: 'event'};
+const MOVIE_SLOT = slotKey('movie', '969681', null, null);
+
+describe('observePosition — a snapshot has to move before it counts', () => {
+  it('IGNORES a mount snapshot that has no predecessor', () => {
+    // The measured defect, as a unit case: the envelope VidLink sends when its
+    // player mounts. There is nothing to compare it to, so it is a baseline and
+    // not evidence — regardless of how large the position it carries is.
+    const result = observePosition({...SNAPSHOT, currentTime: 1260}, null, MOVIE_SLOT);
+    assert.equal(result.countsAsPlayback, false);
+    // ...and the baseline IS recorded, or the next reading would have nothing to
+    // be compared against and the rule could never fire.
+    assert.deepEqual(result.cursor, {slot: MOVIE_SLOT, position: 1260});
+  });
+
+  it('IGNORES the provider repeating the same position', () => {
+    // Measured: the envelope repeats roughly every 2000 ms. At rest it repeats
+    // the same value, so this is the case that must not accrue anything.
+    const previous: SnapshotCursor = {slot: MOVIE_SLOT, position: 0};
+    assert.equal(observePosition(SNAPSHOT, previous, MOVIE_SLOT).countsAsPlayback, false);
+  });
+
+  it('ACCEPTS a snapshot that advanced', () => {
+    // The other half, and the reason the rule is not simply "ignore snapshots":
+    // VidLink's `watched` was measured advancing in step with the media element.
+    // Two readings that moved are viewing having happened between them.
+    const previous: SnapshotCursor = {slot: MOVIE_SLOT, position: 0};
+    const advanced = observePosition({...SNAPSHOT, currentTime: 2.4}, previous, MOVIE_SLOT);
+    assert.equal(advanced.countsAsPlayback, true);
+    assert.deepEqual(advanced.cursor, {slot: MOVIE_SLOT, position: 2.4});
+  });
+
+  it('REFUSES a move backwards', () => {
+    // The provider resetting its own stored value (or a second device) is not
+    // viewing, and treating it as such would rewind the cursor and let a later
+    // reading re-count ground already counted.
+    const previous: SnapshotCursor = {slot: MOVIE_SLOT, position: 1260};
+    assert.equal(
+      observePosition({...SNAPSHOT, currentTime: 0}, previous, MOVIE_SLOT).countsAsPlayback,
+      false,
+    );
+  });
+
+  it('does NOT let a different slot compare against the previous one', () => {
+    // An episode change produces a position that belongs to a different episode.
+    // Comparing the two would invent movement out of the change itself, and
+    // would mark playback on a page the viewer has only just opened.
+    const s1e1 = slotKey('tv', '1429', 1, 1);
+    const s1e2 = slotKey('tv', '1429', 1, 2);
+    const previous: SnapshotCursor = {slot: s1e1, position: 30};
+    assert.equal(observePosition({...SNAPSHOT, currentTime: 900}, previous, s1e2).countsAsPlayback, false);
+    // And the cursor moved to the new slot, so the NEXT reading of s1e2 is
+    // compared against s1e2's own baseline rather than s1e1's position.
+    assert.deepEqual(
+      observePosition({...SNAPSHOT, currentTime: 900}, previous, s1e2).cursor,
+      {slot: s1e2, position: 900},
+    );
+  });
+
+  it('treats SEASON 0 as its own slot, not as "no season"', () => {
+    // A special and a film are different slots. An implementation using `||`
+    // would fold them together and let a special's position be read as a film's
+    // movement (see the same rule in sameSlot, progressionGuard).
+    assert.notEqual(slotKey('tv', '1429', 0, 3), slotKey('tv', '1429', null, null));
+    assert.notEqual(slotKey('tv', '1429', 0, 3), slotKey('tv', '1429', 1, 3));
+    assert.equal(slotKey('tv', '1429', 0, 3), slotKey('tv', '1429', 0, 3));
+  });
+
+  it('counts an EVENT unconditionally, with no predecessor', () => {
+    // A live playback event is direct evidence and needs no corroboration. This
+    // is the shape that was searched for and never observed — kept accepted so
+    // that a provider which does send one is not refused, and pinned so a future
+    // edit cannot start requiring movement from an event too.
+    const result = observePosition({...EVENT, currentTime: 45}, null, MOVIE_SLOT);
+    assert.equal(result.countsAsPlayback, true);
+    assert.deepEqual(result.cursor, {slot: MOVIE_SLOT, position: 45});
+  });
+
+  it('counts an EVENT that moves backwards', () => {
+    // Scrubbing back is a real playback event and must still mark playback; the
+    // monotonic rule exists for snapshots, whose movement is the only evidence
+    // available, not for events, which are evidence by themselves.
+    const previous: SnapshotCursor = {slot: MOVIE_SLOT, position: 1260};
+    assert.equal(observePosition({...EVENT, currentTime: 5}, previous, MOVIE_SLOT).countsAsPlayback, true);
+  });
+});
+
+describe('isSnapshotAdvance — the boundary', () => {
+  const cursor: SnapshotCursor = {slot: MOVIE_SLOT, position: 10};
+
+  it('requires strictly more than the epsilon', () => {
+    // A provider repeating a rounded position must not read as movement. Half a
+    // second is far below the ~2 s that separates two real snapshots and far
+    // above any rounding artefact.
+    assert.equal(isSnapshotAdvance(cursor, MOVIE_SLOT, 10), false, 'identical');
+    assert.equal(isSnapshotAdvance(cursor, MOVIE_SLOT, 10 + SNAPSHOT_ADVANCE_EPSILON_S), false, 'exactly at');
+    assert.equal(isSnapshotAdvance(cursor, MOVIE_SLOT, 10 + SNAPSHOT_ADVANCE_EPSILON_S + 0.01), true, 'just past');
+    assert.equal(isSnapshotAdvance(cursor, MOVIE_SLOT, 10.2), false, 'inside the tolerance');
+    assert.equal(isSnapshotAdvance(cursor, MOVIE_SLOT, 12), true, 'a real advance');
+  });
+});
+
+describe('the two sources stay distinguishable end to end', () => {
+  it('tags the measured VidLink envelope as a snapshot and a timeupdate as an event', () => {
+    // The discriminator is decided where the shape is read, and this pins that
+    // the two paths do not collapse into one — collapsing them is exactly how a
+    // stored position came to be read as playback.
+    assert.equal(parsePlaybackProgress(seriesEnvelope(), seriesCtx())?.source, 'snapshot');
+    assert.equal(parsePlaybackProgress(timeupdate, valid())?.source, 'event');
+    assert.equal(
+      parsePlaybackProgress({type: 'timeupdate', currentTime: 5, duration: 100}, valid())?.source,
+      'event',
     );
   });
 });

@@ -9,11 +9,12 @@ runs.
 Findings are labelled with the identifiers used while working: `F1`–`F6` for the history
 defects, `R3-*` for the regressions introduced and found in this same diff.
 
-**State at time of writing:** 320 tests / 65 suites / 0 failures. `tsc --noEmit` clean.
-`eslint .` reports 2 errors, 0 warnings — both pre-existing in `components/VideoPlayer.tsx`
-and untouched here. **Nothing in this document is device-verified**: every claim below is
-either a unit-test result, a source-level fact, or reasoning from both, and the sections say
-which.
+**State at time of writing:** 330 tests / 68 suites / 0 failures (the count grew with the
+suite pinning §5.3). `tsc --noEmit` clean, `npm run build` succeeds. `eslint .` reports 2
+errors, 0 warnings — both pre-existing in `components/VideoPlayer.tsx` and untouched here.
+**Claims below are marked with what they rest on:** a unit-test result, a source-level fact, or
+a measurement taken in a real browser on production. §5.3 is the one section whose central
+finding is live-measured; the rest are not, and §7 says so.
 
 ---
 
@@ -128,8 +129,10 @@ request is in flight and owns it.
 
 ## 5. Recorded, deliberately NOT changed
 
-Each of these is a real finding with a real remedy. None is changed, and the reason is in
-each entry rather than left to the reader.
+Each of these is a real finding with a real remedy. All but one is unchanged, and the reason
+is in each entry rather than left to the reader. `R3-F1` was the exception: it was waiting on
+a measurement, the measurement was taken, and it is now fixed — §5.3 records what was
+measured and §5.3.1 records what is still not proven about the fix.
 
 ### 5.1 F5 — the `isComplete` escape hatch is unreachable through any measured path
 
@@ -155,29 +158,85 @@ Why not now: the remedy cannot be verified from here (see §7), and a half-verif
 transaction wrapper around a hot path is the unverified claim §20 and §28 forbid. Recording
 it is the honest outcome; pretending a lock was tested when it was not is not.
 
-### 5.3 R3-F1 — a mount envelope is treated as evidence of playback
+### 5.3 R3-F1 — a mount envelope was treated as evidence of playback. MEASURED, THEN FIXED
 
-`lib/playerMessages.ts:170` recognises three shapes: `event === "timeupdate"`,
+**Was.** `lib/playerMessages.ts` recognised three shapes: `event === "timeupdate"`,
 `type === "timeupdate"` (both **live events**), and `type === "MEDIA_DATA"` (**the provider's
-stored snapshot**, including at mount). `components/VideoPlayer.tsx` marks playback observed
-on **any** verified position, so a resumed episode's mount envelope — the provider's
-remembered `21.206035` — marks the signal before anything has played, and `WatchTimer` then
-accrues minutes on a page where the viewer never pressed play. The file's own comment at
-line 164 names the principle this violates: "Treating it as playback would be inventing an
-event."
+stored snapshot**, including at mount). `components/VideoPlayer.tsx` marked playback observed
+on **any** verified position, so a mount envelope — the provider's remembered position —
+marked the signal before anything had played, and `WatchTimer` accrued minutes on a page where
+the viewer never pressed play.
 
-**Remedy:** carry the discriminator out of `extractPositionFields` (`live: boolean`) and mark
-playback observed only for a live event, leaving the progression save path unchanged. The
-risk is confined to watch-time minutes — playback and progression saving are untouched
-(§17).
+**The measurement it was waiting for was taken, on production, in a real Chrome.**
 
-**Why not now, and this is the whole reason:** `timeupdate` is accepted on faith from the
-previous implementation. A search of `docs/` for `timeupdate` returns **nothing** — no
-`timeupdate` message has ever been measured in this project. Gating watch time on it would be
-a guess in the direction that removes a working feature on VidLink, the only provider that
-reports a position at all. **One measurement settles it:** during a confirmed VidLink
-playback session, does a `timeupdate` event arrive? If yes, apply the remedy. If no, the fix
-must not be shipped.
+1. **No `timeupdate` ever arrives.** Across 25 messages from VidLink on
+   `https://www.moveo.blog/movie/969681`, every shape enumerated, in every state reachable:
+   `{"type":"sr"}`-family payloads, one `{"data":{"type":"initToParent",…}}`, and `MEDIA_DATA`.
+   **Neither `event === "timeupdate"` nor `type === "timeupdate"` was ever sent.** This matches
+   the repo's own record (no `timeupdate` in `docs/`) and settles the question the previous
+   version of this entry left open. The proposed remedy — gate playback on a live event — was
+   therefore **not shipped**, because on this evidence it would have made watch time
+   permanently zero for the only provider that reports a position at all.
+2. **The snapshot is a repeating memory.** Ten consecutive `MEDIA_DATA` envelopes for the
+   mounted title arrived at gaps of 1996–2003 ms, each carrying
+   `{watched: 0, duration: 8678}` — the provider's stored state, re-sent on a timer, with
+   nothing playing.
+3. **The write is caused by the mount envelope, demonstrated rather than deduced.**
+   `localStorage.watch_history` was cleared to `null` (verified in the same call), the VidLink
+   source was selected, and **no other interaction was made**. The entry came back:
+   `{"id":"969681","type":"movie","title":"Spider-Man : Brand New Day","provider":"VidLink",
+   "timestamp":0,"duration":8678,"completed":false}`. Nothing played; the position is `0` — the
+   §4-forbidden "0:00 because a screen was opened". The same block then calls
+   `markPlaybackObserved`, so the watch-time signal started on the same evidence. The entry is
+   also **rewritten roughly every five seconds** while the page stays open, which is why it
+   survived an earlier manual deletion.
+
+4. **The mount write happens on the MOVIE branch and not the SERIES branch, and the reason
+   is the asymmetry, not the zero.** Measured the same day on `/tv/1429` S1E1 with VidLink
+   mounted: four consecutive envelopes each carried `show_progress.s1e1.progress = {watched:
+   0, duration: 0}` and the media-level `progress = {watched: 0, duration: 1439.2}`. The
+   per-episode `duration: 0` is rejected by the existing `duration > 0` check, so **the series
+   page stored nothing** — verified by reading `localStorage.watch_history` across a 12 s
+   window with the frame mounted (`same: true`). The movie branch reads the media-level
+   `progress`, which carries a **real runtime**, so its zero position survives every check and
+   is written. That is the precise shape of the defect: not "a zero is read", but "a branch
+   that reads a field carrying a real runtime will accept a stored zero".
+
+**The fix: SNAPSHOT ≠ PLAYBACK EVENT.** `extractPositionFields` now tags each read position
+with its `source` (`"event"` or `"snapshot"`), and `observePosition` decides whether the
+reading counts as viewing. A snapshot counts only when the **same slot** was read before with
+a **strictly greater** position (`SNAPSHOT_ADVANCE_EPSILON_S = 0.5`): a stored value cannot
+advance on its own, so two readings that moved are viewing having happened between them, while
+a mount baseline, an identical repeat, a backwards move and an episode change count for
+nothing. The policy is a pure function in `lib/playerMessages.ts`, not inline in the component,
+so it is reachable by a test that does not mount a browser.
+
+**And the rule was checked against the live wire, not only against fixtures:** the ten
+measured envelopes are **byte-identical in position** (`allEqual: true`). Under the rule the
+first is a baseline and the other nine are repeats, so the entry quoted in point 3 above
+**cannot be written by the fixed code**. That is the fix's premise confirmed on the real
+provider rather than on a hand-made payload.
+
+**Why this direction and not a harder block:** nothing about the iframe, the provider URLs,
+the CSP or the playback path changed (§17). The only thing that changed is what counts as
+evidence.
+
+#### 5.3.1 What is still NOT proven about this fix
+
+- **An advance was never observed by me.** Playback could not be started: VidLink's embed
+  route timed out from here (`code=000` at 15.01 s while its root answered 200), so the
+  "snapshot advances during playback" half rests on the repo's earlier measurement
+  (`providers.ts`: `watched` advanced in step with the media element, 21.206035 while the
+  element read 22 s) rather than on a re-measurement in this session. That is a real gap and
+  it is the one that decides whether watch time is earned on VidLink at all.
+- **The fix does not run in production.** It is committed locally; production served the
+  previous revision throughout these measurements. The defect was measured **there**; the
+  fix was verified by unit test plus the live-wire premise check above, **not** by observing a
+  deployed page that no longer writes.
+- **A provider that stops repeating its envelope during playback** would earn no watch time
+  under this rule. The cadence above was measured **at rest**; whether the repetition
+  continues while playing is unverified. The failure direction is deliberate (no minutes
+  rather than invented minutes), but it is a failure direction and it is stated.
 
 ### 5.4 `Number(null) === 0` in the roles PATCH — a comment, not a behaviour
 
@@ -201,8 +260,11 @@ a single page session.
 
 Stated plainly, because a report that omits these is not usable.
 
-1. **No device testing.** No claim here rests on observed playback, observed ad behaviour, or
-   a real browser session. Every fix above is pinned by a unit test or is a source-level fact.
+1. **Almost no device testing, and no observed playback anywhere.** §5.3 rests on a real
+   Chrome session against production, which is where the mount-envelope write was measured and
+   the envelope cadence read off the wire. **Every other claim here** is pinned by a unit test
+   or is a source-level fact. No claim in this document rests on playback having been
+   observed, because it could not be started (see §5.3.1).
 2. **No database was reached.** `DATABASE_URL` is not available to this session, so no
    migration was run, no existing row was read, and **no production data was touched** (§24).
    The SQL changes are reasoning over the schema read from `scripts/migrate-progression.ts`.
@@ -216,6 +278,7 @@ Stated plainly, because a report that omits these is not usable.
    position. That is the §9/§10 priority (never lose a correct progression) applied to a case
    where the two cannot both be satisfied, and it is why the position is preferred. Once the
    new episode is actually being watched, the first measured sample moves the row.
-5. **What the fixes do NOT do:** they do not add a transaction (§5.2), do not change what
-   counts as playback for watch time (§5.3), and do not touch ad containment, which is a
-   separate line of work with its own doc (`docs/provider-matrix.md`).
+5. **What the fixes do NOT do:** they do not add a transaction (§5.2), and they do not touch
+   ad containment, which is a separate line of work with its own doc
+   (`docs/provider-matrix.md`). They **do** now decide what counts as playback for watch time
+   (§5.3), and the part of that decision which could not be proven is listed in §5.3.1.
