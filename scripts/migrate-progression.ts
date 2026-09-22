@@ -18,6 +18,16 @@ async function migrate() {
     console.log('Running migration: add progression columns & admin infrastructure...');
 
     // 1. Add progression columns to watch_history
+    //
+    // The names are QUOTED in the statement below, and that is not cosmetic.
+    // `current_time` is a RESERVED word in PostgreSQL, so
+    // `ADD COLUMN IF NOT EXISTS current_time FLOAT` is a syntax error — `42601`,
+    // measured on PostgreSQL 18.4. This script's catch only tolerates `42701`
+    // (duplicate column), so it does not swallow that: the run aborts on the
+    // third column, having added `title` and `poster_path` and nothing else.
+    // Which means this script CANNOT have created `watch_history.current_time`;
+    // whatever created it in production, it was not this file. Quoting the
+    // identifier makes the statement do what it has always said it does.
     const progressionColumns = [
       { name: 'title', type: 'VARCHAR(500)' },
       { name: 'poster_path', type: 'VARCHAR(500)' },
@@ -29,7 +39,7 @@ async function migrate() {
 
     for (const col of progressionColumns) {
       try {
-        await pool.query(`ALTER TABLE watch_history ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+        await pool.query(`ALTER TABLE watch_history ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type}`);
         console.log(`  ✅ Added column watch_history.${col.name}`);
       } catch (e: any) {
         if (e.code === '42701') {

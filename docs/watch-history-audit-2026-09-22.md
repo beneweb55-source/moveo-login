@@ -9,12 +9,18 @@ runs.
 Findings are labelled with the identifiers used while working: `F1`–`F6` for the history
 defects, `R3-*` for the regressions introduced and found in this same diff.
 
-**State at time of writing:** 330 tests / 68 suites / 0 failures (the count grew with the
-suite pinning §5.3). `tsc --noEmit` clean, `npm run build` succeeds. `eslint .` reports 2
-errors, 0 warnings — both pre-existing in `components/VideoPlayer.tsx` and untouched here.
-**Claims below are marked with what they rest on:** a unit-test result, a source-level fact, or
-a measurement taken in a real browser on production. §5.3 is the one section whose central
-finding is live-measured; the rest are not, and §7 says so.
+**State at time of writing:** 334 tests / 70 suites / 0 failures. `tsc --noEmit` clean,
+`npm run build` succeeds. `eslint .` reports 2 errors, 0 warnings — both pre-existing
+`react-hooks/set-state-in-effect` errors in `components/VideoPlayer.tsx`, in code this work
+does not touch. Those 334 are what `npm test` runs on any machine;
+`tests/watchHistoryConcurrency.test.ts` adds 8 more and is **skipped** unless
+`TEST_DATABASE_URL` is set, so it is not in that number — run it with a PostgreSQL available
+and it is 8/8 green (§5.2).
+
+**Claims below are marked with what they rest on:** a unit-test result, a source-level fact, a
+measurement taken in a real browser on production, or a measurement taken against a real
+PostgreSQL. §5.2, §5.3 and §5.5 are the sections whose central findings are measured; §7
+lists what none of them establishes.
 
 ---
 
@@ -127,12 +133,14 @@ Fixed with the standard cancellation flag, checked before any state is written �
 `finally` deliberately does **not** clear the loading flag when cancelled, because a newer
 request is in flight and owns it.
 
-## 5. Recorded, deliberately NOT changed
+## 5. Findings recorded during this work — what was fixed and what was not
 
-Each of these is a real finding with a real remedy. All but one is unchanged, and the reason
-is in each entry rather than left to the reader. `R3-F1` was the exception: it was waiting on
-a measurement, the measurement was taken, and it is now fixed — §5.3 records what was
-measured and §5.3.1 records what is still not proven about the fix.
+Each entry below is a real finding with a real remedy. Three of the six were left
+unchanged and the reason is in the entry rather than left to the reader; the other three
+were waiting on a measurement that was then taken, and are fixed — `R3-F1` (§5.3), `F6`
+(§5.2) and the reserved-word defect the concurrency work uncovered (§5.5). What is still
+NOT proven about each fix is stated next to it rather than collected at the end, because a
+fix recorded without its limits is the kind of claim this document exists to avoid.
 
 ### 5.1 F5 — the `isComplete` escape hatch is unreachable through any measured path
 
@@ -144,19 +152,71 @@ ignores for series; the per-episode slot that series actually use tracks real pr
 (`show_progress.s1e1.progress.watched = 21.206035`). **Changing it would break the rewatch
 allowance, which is deliberate.** Recorded, not changed.
 
-### 5.2 F6 — no transaction and no row lock in the write path
+### 5.2 F6 — no transaction and no row lock in the write path. MEASURED, THEN FIXED
 
-`POST /api/watch-time` does SELECT-then-UPSERT with no transaction and no `FOR UPDATE`. Two
-writers — a player in one tab, a merge in another — can interleave. The race exists today and
-is **unchanged** by this work.
+**Was.** `POST /api/watch-time` did SELECT-then-UPSERT with no transaction and no
+`FOR UPDATE`, so two writers — a player in one tab, a merge in another — could each decide
+against a row the other had already replaced, and the final state was decided by which
+request happened to land last rather than by the no-regression rule.
 
-Remedy, for when it is taken: an advisory lock (`pg_advisory_xact_lock`) inside a
-transaction. `FOR UPDATE` alone would not close it, because it cannot lock a row that does
-not exist yet on the first insert.
+**The measurement §7 asked for was taken, against a real PostgreSQL.** No `DATABASE_URL` is
+available to this session, so one was built: `embedded-postgres` installed with `--no-save`
+(so `package.json` is untouched) and booted as **PostgreSQL 18.4, port 55432**, with
+`tests/watchHistoryConcurrency.test.ts` running the real SQL against it. The suite is skipped
+unless `TEST_DATABASE_URL` is set, so `npm test` stays green everywhere else, and it creates
+its own schema and its own probe user and drops them afterwards — no production data is
+reached (§24).
 
-Why not now: the remedy cannot be verified from here (see §7), and a half-verified
-transaction wrapper around a hot path is the unverified claim §20 and §28 forbid. Recording
-it is the honest outcome; pretending a lock was tested when it was not is not.
+**The race reproduces, deterministically.** The suite keeps the pre-fix write as
+`planLegacyWrite` / `applyLegacyWrite` — the two statements split at the seam the race lives
+on — and runs the same pair of writers in both arrival orders:
+
+- current play (S2E7 at 1934 s) first, month-old guest entry (S1E1 at 0:40) second →
+  the account ends at **S1E1 · 0:40**;
+- the same two writers the other way round → **S2E7 · 1934 s**.
+
+Two different rows from the same pair of writes, differing only in which landed last. The
+first of those is §9's named case. Keeping the racy path in the suite is deliberate: an
+assertion that has only ever seen the fixed code cannot be shown to be capable of failing.
+
+**The fix.** The signed-in write is now `writeSignedInProgress` in `lib/watchHistoryWrite.ts`:
+`BEGIN` → `pg_advisory_xact_lock(hashtext(user:type:id))` → the stored-row SELECT →
+`progressionColumns` → the same `INSERT … ON CONFLICT … DO UPDATE` → `COMMIT`, with `ROLLBACK`
+on error and `client.release()` in `finally`. `app/api/watch-time/route.ts` calls it; nothing
+else about the route changed.
+
+**Why the lock and not `FOR UPDATE`.** `SELECT … FOR UPDATE` cannot lock a row that does not
+exist yet, and the first write of a title is exactly where the decision is lost. `ON CONFLICT`
+alone does not help either: by the time it arbitrates, both writers have already chosen their
+values from a stale read. So the lock is taken **before** the SELECT, and the second writer's
+read then sees the first writer's committed row and applies the rule to it.
+
+**Result, measured:** both arrival orders now produce the same row — `S2E7 · 1934 s` — and the
+unordered, genuinely concurrent `Promise.all` case produces it too. The same-slot case is
+order-independent as well (a newer 1934 s position survives an older 134 s one, where the
+pre-fix path stored 134). Watch-time addition is unaffected (1 + 2 = 3 across a concurrent
+pair), and a write carrying no progression still leaves the stored position alone (the R3-F2
+shape, re-checked because the transaction is new code on the same path).
+
+**Stated trade-off.** `pg_advisory_xact_lock` waits indefinitely; a writer that hangs inside
+the transaction blocks writes for the SAME title until its connection dies. The alternative,
+`pg_try_advisory_xact_lock` with a retry budget, would trade that for dropped progress
+updates, which is the wrong direction. Each transaction takes exactly one lock, so no
+lock-ordering deadlock is possible, and writers are serialized per title rather than globally.
+
+**What is NOT proven about this fix.**
+
+- **Two connections is not a deployment.** Pool exhaustion, a writer that never commits, and
+  behaviour under many simultaneous writers are argued in the module's docstring and are not
+  measured.
+- **One case stays order-dependent on purpose.** Two observations of DIFFERENT slots that are
+  equally current both carry a measured position and both pass the ordering test, so the guard
+  has no grounds to prefer either and the second arrival wins. The lock removes the *lost
+  decision*; it does not invent a rule where the rule says "either". The suite pins the
+  property that does hold regardless — the stored row is always ONE WHOLE observation, never a
+  position from one and a slot from the other.
+- **The lock never ran in production**, because the statement it wraps could not execute at
+  all. See §5.5.
 
 ### 5.3 R3-F1 — a mount envelope was treated as evidence of playback. MEASURED, THEN FIXED
 
@@ -244,6 +304,77 @@ An audit note claimed a code path relied on `Number(null) === 0`. The behaviour 
 by this work; only the comment's accuracy is in question. Left for the roles pass rather than
 churned here.
 
+### 5.5 NEW MEASUREMENT — `current_time` is a reserved word, and the SQL naming it never ran
+
+This one was not in the brief and was not suspected. It was found while building the fixture
+for §5.2, because the fixture would not create the schema.
+
+**What was measured**, on the PostgreSQL 18.4 instance §5.2 describes, statement by statement:
+
+| Statement, as shipped | Result |
+| --- | --- |
+| `INSERT INTO watch_history (… current_time …)` | `42601` **syntax error at or near "current_time"** |
+| `ON CONFLICT … DO UPDATE SET current_time = …` | `42601` **syntax error** |
+| `ALTER TABLE … ADD COLUMN IF NOT EXISTS current_time FLOAT` | `42601` **syntax error** |
+| `SELECT current_time, total_duration, … FROM watch_history` | **parses** — and returns `"13:36:54.602569+01"`, the *server's time of day* |
+| `SELECT "current_time" …` / `watch_history."current_time"` | the stored `1934`, as intended |
+
+The cause is one row of `pg_get_keywords()`: `current_time`, catcode `R` — **reserved**. So
+outside a quoted identifier it is not a column name at all. In an INSERT column list or an
+`ON CONFLICT … SET` target PostgreSQL refuses to parse it; in a SELECT list it parses as the
+SQL value function `CURRENT_TIME`, which is a *different expression that means something
+else*, so nothing errors and the wrong value is returned. That second form is the dangerous
+one, because it is silent.
+
+**Consequences, each of which follows from the table above.**
+
+1. **The signed-in write could never execute.** The route's INSERT named `current_time`
+   unquoted, so every `POST /api/watch-time` from a signed-in user threw, and the route's
+   catch turned it into `500 Internal server error`. No server-side watch time and no
+   server-side progression has ever been stored through this route for an account.
+2. **The read returned a clock instead of a position, silently.** `GET /api/watch-time`
+   selected the same name, so each row came back with `current_time` set to a time of day.
+   `utils/historyManager.ts` coerces that field with `toFiniteOrUndefined`, and
+   `Number("13:36:54.602569+01")` is `NaN` — measured, not assumed — so the field became
+   `undefined` and the entry was normalised with **no position at all**. Server-side history
+   could not offer a resume point even when a position was stored.
+3. **`scripts/migrate-progression.ts` cannot have created the column.** Its `ALTER` names
+   `current_time` unquoted too, and its catch tolerates only `42701` (duplicate column), so a
+   syntax error aborts the run — on the third of six columns, after `title` and
+   `poster_path`. Production evidently *has* the column (the application reads it), so
+   something else created it. **Which script or hand-run did is not established here.**
+
+**The fix**, in all three files: quote the identifier (`"current_time"`) in the write module,
+in the route's `GET`, and in the migration's interpolation. Nothing else changed — no column
+renamed, no migration run, no API field renamed, so the request and response shapes are
+identical and no client is affected.
+
+**And it is pinned twice, because the two pins catch different things.**
+`tests/watchHistoryConcurrency.test.ts` runs the real statements against a real server, so
+the unquoted form fails loudly there — but that suite is skipped without `TEST_DATABASE_URL`,
+which is exactly how a defect like this survives on a machine with no database.
+`tests/watchTime.test.ts` therefore also asserts the rule at the source level: every SQL
+statement in the write module and the route must name `current_time` quoted, the migration
+must quote what it interpolates, and the scan is proved capable of failing by running it over
+the three pre-fix statements.
+
+**What is NOT proven about this finding.**
+
+- **The version is one version.** All of it is measured on PostgreSQL 18.4. `CURRENT_TIME` is
+  a reserved word in the SQL standard and has been reserved in PostgreSQL for many major
+  versions, so this is not a new-version quirk, but I did not re-measure on another version
+  and do not claim I did.
+- **Production's 500 is inferred, not observed.** I could not authenticate, so I could not
+  make the deployed endpoint take the signed-in branch. What is measured is the *code*: the
+  route's own call, against a real server, threw `42601`. That the deployment behaves as its
+  code does is the one step left to a credentialed check, and it belongs in §7's list.
+- **`F2`/`F3` may have had this as their root cause, and that is unresolved.** Those fixes —
+  the latch cleared on a proven session, the merge made awaited and all-or-nothing — are
+  correct on their own terms and are kept. But the observable symptom they were written for
+  ("the server row stayed behind", "entries that failed were never retried") is also exactly
+  what a write path that always threw would produce. I have not separated the two, and I am
+  not going to claim the earlier fixes were what repaired the symptom.
+
 ## 6. A validation claim found to be false, and made true
 
 `lib/playbackSignal.ts:4` stated "Tested in tests/playbackSignal.test.ts". **That file did
@@ -262,12 +393,16 @@ Stated plainly, because a report that omits these is not usable.
 
 1. **Almost no device testing, and no observed playback anywhere.** §5.3 rests on a real
    Chrome session against production, which is where the mount-envelope write was measured and
-   the envelope cadence read off the wire. **Every other claim here** is pinned by a unit test
-   or is a source-level fact. No claim in this document rests on playback having been
-   observed, because it could not be started (see §5.3.1).
-2. **No database was reached.** `DATABASE_URL` is not available to this session, so no
-   migration was run, no existing row was read, and **no production data was touched** (§24).
-   The SQL changes are reasoning over the schema read from `scripts/migrate-progression.ts`.
+   the envelope cadence read off the wire. **Every other claim here** is pinned by a unit test,
+   by a database measurement, or is a source-level fact. No claim in this document rests on
+   playback having been observed, because it could not be started (see §5.3.1).
+2. **No production database was reached, and no production data was touched (§24).** The
+   session has no `DATABASE_URL`. For §5.2 and §5.5 a LOCAL throwaway PostgreSQL 18.4 was
+   booted instead and the real statements were run against it; it holds nothing but the
+   probe rows the suite creates, and it is not the database the product uses. So: the SQL is
+   measured, and the deployed schema is not — the column list in this document comes from
+   `scripts/init-new-db.ts` and `scripts/migrate-progression.ts`, not from reading production.
+   No migration was run against anything.
 3. **The clock-skew tolerance is a judgement, not a measurement.** The server compares a
    client timestamp against `last_updated`, written by the database. `OBSERVATION_TOLERANCE_MS`
    (24 h) exists so that ordinary skew cannot freeze a viewer's season advance; past a day the
@@ -278,7 +413,13 @@ Stated plainly, because a report that omits these is not usable.
    position. That is the §9/§10 priority (never lose a correct progression) applied to a case
    where the two cannot both be satisfied, and it is why the position is preferred. Once the
    new episode is actually being watched, the first measured sample moves the row.
-5. **What the fixes do NOT do:** they do not add a transaction (§5.2), and they do not touch
-   ad containment, which is a separate line of work with its own doc
-   (`docs/provider-matrix.md`). They **do** now decide what counts as playback for watch time
-   (§5.3), and the part of that decision which could not be proven is listed in §5.3.1.
+5. **What the fixes do NOT do:** they do not touch ad containment, which is a separate line of
+   work with its own doc (`docs/provider-matrix.md`). They **do** now decide what counts as
+   playback for watch time (§5.3), make the signed-in write one serialized transaction (§5.2),
+   and make the SQL able to run at all (§5.5); the parts of each that could not be proven are
+   listed in §5.2, §5.3.1 and §5.5.
+6. **The deployed revision was not checked, and the 500 was not observed.** Everything in §5.5
+   rests on running the product's own statements against a local PostgreSQL. Verifying that
+   `https://www.moveo.blog/api/watch-time` answers a signed-in POST — and that it stops
+   answering `500` once this revision is deployed — needs credentials this session does not
+   have. Until then the code is measured and the deployment is not (§19).

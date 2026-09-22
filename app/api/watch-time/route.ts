@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import pool from '@/lib/db';
-import { progressionColumns } from '@/lib/progressionGuard';
+import { writeSignedInProgress } from '@/lib/watchHistoryWrite';
 
 async function getUserFromToken() {
   try {
@@ -46,6 +46,19 @@ export async function POST(req: Request) {
     }
 
     if (user && user.userId) {
+      // The id the write is attributed to comes from the verified token and from
+      // nowhere else (`user_id = $1` is what makes it impossible for one account
+      // to write another's row). It is NARROWED here rather than cast, because
+      // `getUserFromToken` returns jose's `JWTPayload`, whose values are
+      // `unknown`: a token whose `userId` is not an id is a token this route
+      // cannot attribute a write to, and 401 is what it already answers a
+      // request with no usable session. Both sign-in routes put `user.id` — a
+      // number from `users.id` — into this claim, so no real token is refused.
+      const userId = user.userId;
+      if (typeof userId !== 'number' && typeof userId !== 'string') {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+
       // ── Progression, when the caller actually sent any ──
       //
       // Only a NUMERIC season/episode/position counts as "the caller is telling
@@ -53,141 +66,46 @@ export async function POST(req: Request) {
       // season — and must not be read as an instruction to erase what is stored.
       // This distinction is what keeps WatchTimer's minute ticks, which carry no
       // progression at all, from wiping a position they know nothing about:
-      // they simply skip this block.
+      // they simply skip the progression half of the write.
       const progressionSent =
         typeof current_time === 'number' ||
         typeof total_duration === 'number' ||
         typeof season === 'number' ||
         typeof episode === 'number';
 
-      // Values actually written to the progression columns. `null` here means
-      // "leave the stored value alone" — the ON CONFLICT below COALESCEs — and
-      // that is now the answer for EVERY column the losing observation carried,
-      // not just the position.
-      let writeCurrentTime: number | null = null;
-      let writeTotalDuration: number | null = null;
-      // The season and episode are written here rather than taken from the
-      // request body directly, and that is the fix for a row that contradicted
-      // itself. They used to be `COALESCE($9, watch_history.season)` fed from the
-      // raw body, so a refused observation still moved the slot: a stale entry
-      // lost the position comparison and kept the season/episode, which left the
-      // row reading "S2E7 · 32:14" — or, when the loser was the newer entry, kept
-      // the newer position under the older episode's number. The slot now moves
-      // only together with the observation that won it, so the position and the
-      // episode number always describe the same thing.
-      let writeSeason: number | null = null;
-      let writeEpisode: number | null = null;
-
-      if (progressionSent) {
-        // What is already stored for THIS title, so the no-regression rule has
-        // something to compare against. One extra SELECT per write, and it buys
-        // the §9 guarantee that a write from a second device can never rewind a
-        // position a first device already recorded. The comparison itself lives
-        // in lib/progressionGuard.ts — the same function the browser calls — so
-        // the two rules cannot drift apart.
-        //
-        // `last_updated` is read for the ordering question and for nothing else.
-        // It is the only time the server knows for the stored observation, and
-        // the guard needs it to tell a current episode change from a guest's
-        // month-old entry arriving late in a merge (§9).
-        const existing = await pool.query(
-          `SELECT current_time, total_duration, season, episode, last_updated
-           FROM watch_history
-           WHERE user_id = $1 AND media_type = $2 AND media_id = $3`,
-          [user.userId, media_type, media_id]
-        );
-        const row = existing.rows[0];
-
-        // `last_updated` arrives from `pg` as a Date; the string branch is there
-        // because the driver's type mapping is a configuration detail and a
-        // timestamp that arrives as text must not be read as absent.
-        //
-        // A value that cannot be read as a finite number is reported as ABSENT,
-        // never as NaN. The distinction matters: the guard treats a missing
-        // timestamp as "this is happening now", so an unreadable one is harmless,
-        // whereas NaN passes `typeof === 'number'` and makes every comparison
-        // false — which would refuse every episode change on the account for as
-        // long as that row existed, with nothing in any log to say why.
-        const storedObservedAt = (() => {
-          const raw = row?.last_updated;
-          const ms =
-            raw instanceof Date
-              ? raw.getTime()
-              : typeof raw === 'string'
-                ? Date.parse(raw)
-                : Number.NaN;
-          return Number.isFinite(ms) ? ms : null;
-        })();
-
-        const storedFields = row
+      // The write is one serialized transaction. It used to be a SELECT then an
+      // INSERT … ON CONFLICT issued separately, with nothing between them, so two
+      // writers could each decide against a row the other had already replaced
+      // and the final state was decided by arrival order rather than by the
+      // no-regression rule. See lib/watchHistoryWrite.ts for what the lock is,
+      // why `FOR UPDATE` would not have been enough, and the trade-off it makes.
+      await writeSignedInProgress(pool, {
+        userId,
+        mediaType: media_type,
+        mediaId: media_id,
+        minutes: minutesValue,
+        title,
+        posterPath: poster_path,
+        progression: progressionSent
           ? {
-              position: row.current_time === null ? null : Number(row.current_time),
-              duration: row.total_duration === null ? null : Number(row.total_duration),
-              season: row.season === null ? null : Number(row.season),
-              episode: row.episode === null ? null : Number(row.episode),
-              observedAt: storedObservedAt,
+              position: typeof current_time === 'number' ? current_time : null,
+              // Only meaningful alongside a position: a duration with no
+              // position is a runtime, not a place in the video.
+              duration: typeof total_duration === 'number' ? total_duration : null,
+              season: typeof season === 'number' ? season : null,
+              episode: typeof episode === 'number' ? episode : null,
+              // Advisory, and self-scoped: it orders this account's own
+              // observations against each other and can therefore only reorder
+              // rows belonging to the caller. A non-finite value is discarded as
+              // absent rather than rejected, because a client that cannot compute
+              // a timestamp should still be able to save its position.
+              observedAt:
+                typeof observed_at === 'number' && Number.isFinite(observed_at)
+                  ? observed_at
+                  : null,
             }
-          : undefined;
-        const incomingFields = {
-          position: typeof current_time === 'number' ? current_time : null,
-          duration: typeof total_duration === 'number' ? total_duration : null,
-          season: typeof season === 'number' ? season : null,
-          episode: typeof episode === 'number' ? episode : null,
-          // Advisory, and self-scoped: it orders this account's own observations
-          // against each other and can therefore only reorder rows belonging to
-          // the caller. A non-finite value is discarded as absent rather than
-          // rejected, because a client that cannot compute a timestamp should
-          // still be able to save its position.
-          observedAt: typeof observed_at === 'number' && Number.isFinite(observed_at)
-            ? observed_at
-            : null,
-        };
-
-        // The winner and the columns it implies, in one call. The rule itself is
-        // in lib/progressionGuard.ts, tested there, because a decision made
-        // inline here cannot be reached by any test that does not have a
-        // database — and that is how the contradictions this fixes went unnoticed.
-        const columns = progressionColumns(storedFields, incomingFields);
-
-        writeCurrentTime = columns.currentTime;
-        writeTotalDuration = columns.totalDuration;
-        writeSeason = columns.season;
-        writeEpisode = columns.episode;
-        // Every other outcome leaves ALL of the stored columns as they are. The
-        // branch that used to NULL the position here is gone on purpose: it fired
-        // when the stored observation won a slot change, which is exactly the
-        // case where the position it was about to erase was the only correct
-        // record in the row — a viewer at 32:14 who clicked the next episode in a
-        // list lost the position, and R3-F2 is that defect. The situation it was
-        // written for (a null position being read as the new episode's) can no
-        // longer arise, because a slot now moves only with a measured position.
-      }
-
-      // Upsert watch time for authenticated user — also stores progression
-      await pool.query(
-        `INSERT INTO watch_history (user_id, media_type, media_id, minutes_watched, title, poster_path, current_time, total_duration, season, episode, last_updated)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
-         ON CONFLICT (user_id, media_type, media_id)
-         DO UPDATE SET
-           minutes_watched = watch_history.minutes_watched + $4,
-           title = COALESCE($5, watch_history.title),
-           poster_path = COALESCE($6, watch_history.poster_path),
-           current_time = COALESCE($7, watch_history.current_time),
-           total_duration = COALESCE($8, watch_history.total_duration),
-           season = COALESCE($9, watch_history.season),
-           episode = COALESCE($10, watch_history.episode),
-           last_updated = CURRENT_TIMESTAMP`,
-        // Every progression column is `null` unless the observation that won the
-        // guard supplied it, because a null here means "leave the stored value
-        // alone" and the losing observation has nothing to say about this row.
-        //
-        // `??` and not `||` for the numeric fields: 0 is a real value for every one
-        // of them. Season 0 is how TMDB spells SPECIALS, and a position of 0 is the
-        // start of the video — `||` turned both into "no value", so COALESCE kept
-        // the stale value instead of storing what was sent. The string fields keep
-        // `||`, where an empty string genuinely means "nothing to store".
-        [user.userId, media_type, media_id, minutesValue, title || null, poster_path || null, writeCurrentTime, writeTotalDuration, writeSeason, writeEpisode]
-      );
+          : null,
+      });
     } else if (session_id) {
       // Upsert watch time for anonymous user
       await pool.query(
@@ -216,9 +134,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ progress: [] }, { status: 200 });
     }
 
+    // `"current_time"` is quoted because it is a RESERVED word in PostgreSQL.
+    // Unquoted it parses here, but as the SQL value function `CURRENT_TIME` —
+    // the server's time of day — rather than as the stored position, so every
+    // row came back with a text clock in that field and the viewer's position
+    // was silently dropped by the numeric coercion on the client. Measured on
+    // PostgreSQL 18.4; see docs/watch-history-audit-2026-09-22.md.
     const result = await pool.query(
       `SELECT media_type, media_id, minutes_watched, title, poster_path,
-              current_time, total_duration, season, episode, last_updated
+              "current_time", total_duration, season, episode, last_updated
        FROM watch_history
        WHERE user_id = $1
          AND media_type NOT IN ('admin_adjustment')
