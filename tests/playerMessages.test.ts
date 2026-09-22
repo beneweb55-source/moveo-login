@@ -99,9 +99,15 @@ describe('payload shape', () => {
     });
   });
 
-  it('accepts the MEDIA_DATA shape', () => {
+  it('rejects the MEDIA_DATA shape this suite used to assert', () => {
+    // This exact payload — `data: {currentTime, duration}` — was asserted here
+    // as accepted. It was never observed from any provider: it had been written
+    // to match the parser rather than the parser written to match the wire, so
+    // passing it proved nothing about a real provider and hid two real defects
+    // (no origin allowlisted for VidLink, and a field path that does not exist).
+    // It is now a REJECTION case, because it carries no media id to resolve.
     const data = {type: 'MEDIA_DATA', data: {currentTime: 12, duration: 60}};
-    assert.deepEqual(parsePlaybackProgress(data, valid()), {currentTime: 12, duration: 60});
+    assert.equal(parsePlaybackProgress(data, valid()), null);
   });
 
   it('accepts the flat timeupdate shape', () => {
@@ -271,8 +277,237 @@ describe('magnitude bounds', () => {
     });
   });
 
-  it('applies the bound to the MEDIA_DATA shape too', () => {
-    const mediaData = {type: 'MEDIA_DATA', data: {currentTime: 1e308, duration: 1e308}};
-    assert.equal(parsePlaybackProgress(mediaData, valid()), null);
+});
+
+// ---------------------------------------------------------------------------
+// MEDIA_DATA — VidLink's envelope, in the shape it was MEASURED sending.
+//
+// Captured on a live Chrome from origin https://vidlink.pro at
+// https://vidlink.pro/tv/1429/1/1, every 2000 ms. A representative payload:
+//
+//   {"type":"MEDIA_DATA","data":{"1429":{
+//      "id":1429,"type":"tv",
+//      "progress":{"watched":0,"duration":1439.2},
+//      "last_season_watched":"1","last_episode_watched":"1",
+//      "show_progress":{"s1e1":{"season":"1","episode":"1",
+//        "progress":{"watched":21.206035,"duration":1439.2}}}}}}
+//
+// Two things in it are load-bearing, and both were observed rather than
+// reasoned about: the payload is keyed by media id, and the media-level
+// `progress` did NOT track the episode being played — at the moment
+// `show_progress.s1e1.progress.watched` read 21.206035, the media-level
+// `progress.watched` still read 0. Reading the obvious field would have stored
+// a permanent 0:00, which is worse than storing nothing.
+// ---------------------------------------------------------------------------
+
+/**
+ * Builds the measured envelope for a series episode.
+ *
+ * The media-level pair is settable SEPARATELY from the per-episode pair, which
+ * is the whole point: the measured payload carries both, and the media-level one
+ * does not track the episode. A helper that wrote one duration into both places
+ * could not express the movie case, whose observed pair is `{watched: 0,
+ * duration: 0}` — the zero was invisible and the test asserted against 1439.2.
+ */
+const seriesEnvelope = (
+  over: {
+    id?: string | number;
+    season?: string | number;
+    episode?: string | number;
+    watched?: unknown;
+    duration?: unknown;
+    mediaLevelWatched?: unknown;
+    mediaLevelDuration?: unknown;
+    type?: string;
+  } = {},
+) => {
+  const id = over.id ?? 1429;
+  const season = over.season ?? '1';
+  const episode = over.episode ?? '1';
+  return {
+    type: 'MEDIA_DATA',
+    data: {
+      [String(id)]: {
+        id,
+        type: over.type ?? 'tv',
+        progress: {
+          watched: over.mediaLevelWatched ?? 0,
+          duration: over.mediaLevelDuration ?? 1439.2,
+        },
+        last_season_watched: String(season),
+        last_episode_watched: String(episode),
+        show_progress: {
+          [`s${season}e${episode}`]: {
+            season: String(season),
+            episode: String(episode),
+            progress: {
+              watched: over.watched ?? 21.206035,
+              duration: over.duration ?? 1439.2,
+            },
+          },
+        },
+      },
+    },
+  };
+};
+
+/** The context a series page supplies: which id, which episode. */
+const seriesCtx = (over: Partial<MessageValidationContext> = {}) =>
+  valid({
+    origin: 'https://vidlink.pro',
+    allowedOrigins: ['https://vidlink.pro'],
+    mediaId: '1429',
+    season: 1,
+    episode: 1,
+    ...over,
+  });
+
+describe('MEDIA_DATA — the measured VidLink shape', () => {
+  it('reads the per-episode position, not the media-level one', () => {
+    assert.deepEqual(parsePlaybackProgress(seriesEnvelope(), seriesCtx()), {
+      currentTime: 21.206035,
+      duration: 1439.2,
+    });
+  });
+
+  it('reads the media-level progress as 0 and would be wrong — which is why it is not read', () => {
+    // The measured payload carries BOTH. The media-level field says 0 while the
+    // episode is at 21.206. This test pins that the parser prefers the episode
+    // entry, so a future refactor cannot quietly switch to the field that is
+    // always zero.
+    const envelope = seriesEnvelope({mediaLevelWatched: 0, watched: 21.206035});
+    const parsed = parsePlaybackProgress(envelope, seriesCtx());
+    assert.equal(parsed?.currentTime, 21.206035);
+    assert.notEqual(parsed?.currentTime, 0);
+  });
+
+  it('treats season 0 as a real slot, not as "no season"', () => {
+    const envelope = seriesEnvelope({season: '0', episode: '3', watched: 7.5});
+    assert.deepEqual(parsePlaybackProgress(envelope, seriesCtx({season: 0, episode: 3})), {
+      currentTime: 7.5,
+      duration: 1439.2,
+    });
+  });
+
+  it('rejects when the context names no media id', () => {
+    // Without the id we cannot tell which entry in the payload is ours, and
+    // picking one would be a guess.
+    const ctx = seriesCtx();
+    delete (ctx as {mediaId?: string}).mediaId;
+    assert.equal(parsePlaybackProgress(seriesEnvelope(), ctx), null);
+  });
+
+  it('rejects an envelope for a different title', () => {
+    assert.equal(parsePlaybackProgress(seriesEnvelope({id: 999}), seriesCtx()), null);
+  });
+
+  it('rejects when the episode we asked for is absent, rather than using another one', () => {
+    // `last_season_watched`/`last_episode_watched` are in the payload and DO
+    // name an episode with a position. Falling back to them would attribute a
+    // position to whichever episode this page happens to be showing.
+    const envelope = seriesEnvelope({season: '4', episode: '28'});
+    assert.equal(parsePlaybackProgress(envelope, seriesCtx({season: 2, episode: 7})), null);
+  });
+
+  it('rejects a series envelope whose progress pair is not usable', () => {
+    assert.equal(
+      parsePlaybackProgress(seriesEnvelope({duration: 0}), seriesCtx()),
+      null,
+      'a zero duration is not a runtime',
+    );
+    assert.equal(
+      parsePlaybackProgress(seriesEnvelope({watched: 5000, duration: 100}), seriesCtx()),
+      null,
+      'a position past the end is not a position',
+    );
+    assert.equal(
+      parsePlaybackProgress(seriesEnvelope({watched: 1e308, duration: 1e308}), seriesCtx()),
+      null,
+      'the 24-hour bound still applies',
+    );
+  });
+
+  it('rejects a series envelope that has no show_progress at all', () => {
+    const envelope = seriesEnvelope();
+    delete (envelope.data['1429'] as {show_progress?: unknown}).show_progress;
+    assert.equal(parsePlaybackProgress(envelope, seriesCtx()), null);
+  });
+
+  it('reads a movie from the media-level progress', () => {
+    const playing = seriesEnvelope({
+      type: 'movie',
+      mediaLevelWatched: 120.5,
+      mediaLevelDuration: 5400,
+    });
+    delete (playing.data['1429'] as {show_progress?: unknown}).show_progress;
+    assert.deepEqual(parsePlaybackProgress(playing, seriesCtx()), {
+      currentTime: 120.5,
+      duration: 5400,
+    });
+  });
+
+  it('rejects the movie entry as it was actually observed, at rest', () => {
+    // MEASURED ONLY AT REST: the one movie entry observed carried
+    // {watched: 0, duration: 0}, so an ADVANCING movie position has not been
+    // observed. The pair above is the shape read because it is the only
+    // position carrier a movie envelope has; this case is what the provider
+    // really sent, and it must store nothing rather than a 0:00 of unknown
+    // runtime. The two cases are kept apart on purpose: the first is a shape,
+    // the second is a measurement, and neither is claimed to be the other.
+    const atRest = seriesEnvelope({
+      type: 'movie',
+      mediaLevelWatched: 0,
+      mediaLevelDuration: 0,
+    });
+    delete (atRest.data['1429'] as {show_progress?: unknown}).show_progress;
+    assert.equal(parsePlaybackProgress(atRest, seriesCtx()), null);
+  });
+
+  it('does NOT fall through to the media-level progress for a series', () => {
+    // The measured series entry carries the media-level `progress` object TOO,
+    // reading 0 while the episode was at 21.206 s. So a series envelope whose
+    // per-episode entry is missing must store nothing: falling through would
+    // read the one field the measurement proved is stale, and would turn every
+    // such payload into a 0:00 position that then has to be refused upstream.
+    const envelope = seriesEnvelope({mediaLevelWatched: 300, mediaLevelDuration: 1439.2});
+    delete (envelope.data['1429'] as {show_progress?: unknown}).show_progress;
+    assert.equal(parsePlaybackProgress(envelope, seriesCtx()), null);
+  });
+
+  it('does not read the media-level progress when the type is unrecognised', () => {
+    // An envelope whose type we do not know tells us nothing about which field
+    // describes the viewer, so it stores nothing rather than guessing.
+    const envelope = seriesEnvelope({
+      type: 'live',
+      mediaLevelWatched: 300,
+      mediaLevelDuration: 1439.2,
+    });
+    delete (envelope.data['1429'] as {show_progress?: unknown}).show_progress;
+    assert.equal(parsePlaybackProgress(envelope, seriesCtx()), null);
+  });
+
+  it('ignores the other envelopes VidLink sends', () => {
+    // Observed alongside MEDIA_DATA and carrying no position.
+    for (const payload of [
+      {type: 'sr'},
+      {data: {type: 'initToParent', counterId: 98154677, hid: 'x'}, __yminfo: 'y'},
+    ]) {
+      assert.equal(parsePlaybackProgress(payload, seriesCtx()), null);
+    }
+  });
+
+  it('is still gated on origin and sender before any of this is read', () => {
+    assert.equal(
+      parsePlaybackProgress(seriesEnvelope(), seriesCtx({origin: 'https://evil.example'})),
+      null,
+    );
+    assert.equal(
+      parsePlaybackProgress(seriesEnvelope(), seriesCtx({source: ATTACKER})),
+      null,
+    );
+    assert.equal(
+      parsePlaybackProgress(seriesEnvelope(), seriesCtx({allowedOrigins: []})),
+      null,
+    );
   });
 });

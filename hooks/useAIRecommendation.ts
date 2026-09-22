@@ -1,83 +1,70 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { GoogleGenAI, Type } from "@google/genai";
 
+/**
+ * Client for the recommendations section.
+ *
+ * WHAT CHANGED AND WHY
+ *
+ * This hook used to run the scoring itself, in the browser:
+ *
+ *   const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY! });
+ *
+ * A `NEXT_PUBLIC_` variable is inlined into the client bundle by Next.js, so
+ * importing this hook was all it would have taken to publish the Gemini API key
+ * to every visitor of the site — the key would have been readable in the
+ * JavaScript, scraped, and spent. Nothing imports the hook today, so webpack
+ * drops it and nothing was published: measured against production on 2026-09-22,
+ * no chunk served by www.moveo.blog contains a Google key prefix or even that
+ * variable's name. The trap was armed rather than fired.
+ *
+ * The scoring now happens in `app/api/ai-recommend`, on the server, where the
+ * key belongs, and this hook is a thin client of it. The shape it returns is
+ * unchanged, so whatever wires this up later needs no adjustment — and, more to
+ * the point, wiring it up can no longer leak a credential.
+ *
+ * It also stops logging the history. `console.log('...history:', history)` put a
+ * viewer's viewing history into the browser console and the server log for no
+ * operational reason (§7).
+ *
+ * It is deliberately NOT wired into any page yet. The scoring path cannot be
+ * exercised from here (no Gemini key is configured in this checkout), and §26 is
+ * explicit: a function whose reliability has not been demonstrated does not get
+ * activated. Making it safe to activate was the point of this change; activating
+ * it is a separate, testable step.
+ */
 export const useAIRecommendation = () => {
   const [loading, setLoading] = useState(false);
   const [recommendations, setRecommendations] = useState<any[]>([]);
 
   const getRecommendations = useCallback(async (history: any[]) => {
-    console.log('useAIRecommendation hook called with history:', history);
-    if (history.length < 3) {
-      console.log('useAIRecommendation: history too short, returning show: false');
+    // Guarded here as well as on the server: an obviously-too-short history does
+    // not need a round trip to be answered, and the server makes the same
+    // decision for callers that are not this hook.
+    if (!Array.isArray(history) || history.length < 3) {
       return { show: false };
     }
 
     setLoading(true);
     try {
-      // 1. Get candidates from backend
       const response = await fetch('/api/ai-recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ history }),
       });
-      const { candidates, count, error } = await response.json();
-      if (error) throw new Error(error);
 
-      // 2. Call AI on client-side
-      const ai = new GoogleGenAI({ apiKey: process.env.NEXT_PUBLIC_GEMINI_API_KEY! });
-      
-      const systemInstruction = `Tu es le moteur de recommandation de Moveo. Retourne UNIQUEMENT un JSON valide, sans markdown.
-Règles de scoring :
-3 à 5 films dans l'historique : scores max 85%
-6 à 15 films : max 92%
-15+ films : max 97%
-Ne mets jamais dans les résultats un film déjà dans l'historique.`;
+      // A refusal or a failure answers with the same shape the section already
+      // understands, so there is no separate error path to render here. The
+      // `catch` below covers the transport case.
+      const data = await response.json().catch(() => ({ show: false }));
 
-      const userPrompt = `Historique : ${JSON.stringify(history)}
-Candidats TMDB : ${JSON.stringify(candidates)}
-Nombre de films vus : ${count}
-Retourne ce format :
-{ "titreSection": "Moveo te recommande", "films": [{ "id": number, "score": number, "raison": string }] }`;
+      if (!data?.show || !Array.isArray(data.films)) {
+        return { show: false };
+      }
 
-      const aiResponse = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              titreSection: { type: Type.STRING },
-              films: {
-                type: Type.ARRAY,
-                items: {
-                  type: Type.OBJECT,
-                  properties: {
-                    id: { type: Type.INTEGER },
-                    score: { type: Type.NUMBER },
-                    raison: { type: Type.STRING },
-                  },
-                  required: ["id", "score", "raison"],
-                },
-              },
-            },
-            required: ["titreSection", "films"],
-          },
-        },
-      });
-
-      const result = JSON.parse(aiResponse.text || "{}");
-      
-      // 3. Sort and return top 10
-      const sorted = (result.films || [])
-        .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, 10);
-
-      setRecommendations(sorted);
-      return { show: true, titreSection: result.titreSection, films: sorted };
+      setRecommendations(data.films);
+      return { show: true, titreSection: data.titreSection, films: data.films };
     } catch (error) {
       console.error('AI Recommendation error:', error);
       return { show: false };

@@ -35,6 +35,18 @@ export const translations = {
       week: "Semaine",
       top10: "Top 10 en France",
       resumeWatching: "Reprendre la lecture",
+      /**
+       * The three verbs a history card can carry, and they are NOT synonyms:
+       * a card with a measured position CONTINUES, a card whose episode is
+       * finished starts over (REVOIR), and a card that only knows which episode
+       * you were on — because nothing measurable was ever observed — merely
+       * WATCHES. Offering "Reprendre" for a position we do not have would be
+       * the interface asserting something we cannot observe.
+       */
+      continueWatching: "Continuer",
+      replayFromStart: "Revoir",
+      finished: "Terminé",
+      removeFromHistory: "Retirer de l'historique",
       youMightLike: "Vous aimerez aussi",
       trailer: "Bande-Annonce",
       cast: "Casting",
@@ -397,6 +409,37 @@ export const translations = {
       visitor: "Visiteur",
       search: "Rechercher",
       cancel: "Annuler",
+      // System panel. The keys are grouped here rather than beside the other
+      // admin keys because they are read as a set by SystemManager, which was
+      // French-only until now: an admin using the site in English saw "PANEL
+      // SPÉCIAL" and "Journaux d'Activité Récents" on a screen whose every other
+      // label came from this file.
+      system: "Système",
+      systemTitle: "État du système",
+      systemDescription: "Services dont Moveo dépend, et journal des actions d'administration.",
+      systemRefresh: "Actualiser",
+      systemStatus: "État des services",
+      systemActivity: "Journal d'activité récent",
+      systemNoServices: "Aucune donnée de service.",
+      systemNoLogs: "Aucun journal pour le moment.",
+      systemLogsUnavailable: "Journal illisible",
+      systemAlerts: "Alertes système",
+      systemAllOnline: "Tous les services répondent.",
+      systemSomeOffline: "Services hors ligne :",
+      systemChecking: "Vérification…",
+      statusOnline: "En ligne",
+      statusOffline: "Hors ligne",
+      logBy: "Par",
+      // The list managers (UsersManager, WatchTimeManager, ModerationManager,
+      // OnlineUsersManager) all used to render a fetch failure as an absence of
+      // data: a 403 or a 500 produced "Aucun utilisateur trouvé", "Aucun
+      // signalement trouvé", or a silently frozen feed. These two keys let those
+      // panels say which of the two actually happened, and the `online*` pair
+      // lets the live feed admit that it stopped updating.
+      loadFailed: "Impossible de charger les données.",
+      missingPermission: "Vous n'avez pas la permission requise pour afficher ces données.",
+      onlineUpdated: "Actualisé à {time}",
+      onlineStale: "Flux interrompu. Dernières données : {time}.",
     }
   },
   en: {
@@ -435,6 +478,10 @@ export const translations = {
       week: "Week",
       top10: "Top 10 in France",
       resumeWatching: "Resume Watching",
+      continueWatching: "Continue",
+      replayFromStart: "Watch again",
+      finished: "Finished",
+      removeFromHistory: "Remove from history",
       youMightLike: "You might also like",
       trailer: "Trailer",
       cast: "Cast",
@@ -789,6 +836,28 @@ export const translations = {
       visitor: "Visitor",
       search: "Search",
       cancel: "Cancel",
+      // Mirrors the `admin` block in `fr` — see the note there.
+      system: "System",
+      systemTitle: "System status",
+      systemDescription: "Services Moveo depends on, and the admin action log.",
+      systemRefresh: "Refresh",
+      systemStatus: "Service status",
+      systemActivity: "Recent activity log",
+      systemNoServices: "No service data.",
+      systemNoLogs: "No log entries yet.",
+      systemLogsUnavailable: "Log unreadable",
+      systemAlerts: "System alerts",
+      systemAllOnline: "All services are responding.",
+      systemSomeOffline: "Services offline:",
+      systemChecking: "Checking…",
+      statusOnline: "Online",
+      statusOffline: "Offline",
+      logBy: "By",
+      // Mirrors the `admin` block in `fr` — see the note there.
+      loadFailed: "Could not load the data.",
+      missingPermission: "You do not have the permission required to display this data.",
+      onlineUpdated: "Updated at {time}",
+      onlineStale: "Feed interrupted. Last data: {time}.",
     }
   }
 };

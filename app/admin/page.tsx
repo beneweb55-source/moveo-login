@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { LayoutDashboard, Users, Shield, LayoutTemplate, Flag, Clock, Activity, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Shield, LayoutTemplate, Flag, Clock, Activity, LogOut, Home, Menu, X, Zap, type LucideIcon } from 'lucide-react';
 import Dashboard from '@/components/admin/Dashboard';
 import UsersManager from '@/components/admin/UsersManager';
 import RolesManager from '@/components/admin/RolesManager';
@@ -12,8 +12,14 @@ import WatchTimeManager from '@/components/admin/WatchTimeManager';
 import OnlineUsersManager from '@/components/admin/OnlineUsersManager';
 import SystemManager from '@/components/admin/SystemManager';
 import { useLanguage } from '@/context/LanguageContext';
-import { motion, AnimatePresence } from 'motion/react';
-import { Zap, ChevronUp, Database, ShieldCheck, RefreshCw } from 'lucide-react';
+
+// The floating "Quick Actions" menu that used to be mounted under the content
+// area is gone. Three of its four entries — "Backup Rapide", "Audit Sécurité",
+// "Recharger API" — had no `onClick` at all: buttons that did nothing, which is
+// a control that reads as a capability and is not one (§4). The fourth only
+// switched to the system section, which the sidebar beside it already does. It
+// also carried a permanently bouncing red "!" badge, which implied that
+// something on the panel needed attention at every moment, on every section.
 
 export default function AdminPage() {
   const { t } = useLanguage();
@@ -21,7 +27,6 @@ export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -30,9 +35,13 @@ export default function AdminPage() {
         const res = await fetch('/api/auth/me');
         if (res.ok) {
           const data = await res.json();
-          console.log("Admin Page - Données reçues de /auth/me:", data);
+          // The two console.log calls that stood here printed the whole
+          // `/api/auth/me` payload — the account's email, bio, links and
+          // permission set — into the browser console of every admin page load,
+          // and the extracted permission list beside it. Nothing consumed either
+          // one, and the panel it logged to is the one surface on the site whose
+          // contents are worth not leaving in a console (§7).
           const permissions = data.user?.permissions || [];
-          console.log("Admin Page - Permissions extraites:", permissions);
           if (permissions.includes('access_admin_panel')) {
             setUser(data.user);
           } else {
@@ -50,21 +59,48 @@ export default function AdminPage() {
     checkAccess();
   }, [router]);
 
+  // This layout renders no <Header>, and the Header is where the rest of the
+  // site keeps its sign-out — so this panel was the only authenticated surface
+  // with no way to end a session. On a shared machine the sole recourse was to
+  // navigate to the public site and use the menu there.
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (error) {
+      console.error('Logout failed', error);
+    } finally {
+      // Navigate either way. The cookie is the session, and an admin who asked
+      // to leave must not be held on the panel by a failed request.
+      router.push('/');
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center bg-[#0A0A0A] text-white">{t.admin.loading}</div>;
   }
 
   if (!user) return null;
 
-  const sections = [
+  // `permissions` reads as "any of these grants the section" — that is what the
+  // guard below has always done, and it is right for `content`, which is
+  // reachable through either of two independent capabilities.
+  //
+  // `allOf` is "every one of these", and it exists for the watch-time section.
+  // That section lists users through /api/admin/users, which requires
+  // `view_users`, while its adjustment action requires `manage_watch_time`. It
+  // was offered on `manage_watch_time` alone, so a role holding only that
+  // permission was shown a section it could never populate — the request came
+  // back 403 and the table rendered as "Aucun utilisateur trouvé". A tool whose
+  // data the admin is not permitted to read should not be offered at all.
+  const sections: { id: string; label: string; icon: LucideIcon; permissions: string[]; allOf?: string[] }[] = [
     { id: 'dashboard', label: t.admin.dashboard, icon: LayoutDashboard, permissions: ['view_stats'] },
     { id: 'users', label: t.admin.users, icon: Users, permissions: ['view_users'] },
     { id: 'roles', label: t.admin.roles, icon: Shield, permissions: ['manage_roles'] },
     { id: 'content', label: t.admin.content, icon: LayoutTemplate, permissions: ['edit_hero', 'pin_sections'] },
     { id: 'moderation', label: t.admin.moderation, icon: Flag, permissions: ['view_reports'] },
-    { id: 'watchtime', label: t.admin.watchTime, icon: Clock, permissions: ['manage_watch_time'] },
+    { id: 'watchtime', label: t.admin.watchTime, icon: Clock, permissions: ['manage_watch_time'], allOf: ['view_users'] },
     { id: 'online', label: t.admin.online, icon: Activity, permissions: ['access_admin_panel'] },
-    { id: 'system', label: "Système Spécial", icon: Zap, permissions: ['access_admin_panel'] },
+    { id: 'system', label: t.admin.system, icon: Zap, permissions: ['access_admin_panel'] },
   ];
 
   const renderSection = () => {
@@ -112,6 +148,8 @@ export default function AdminPage() {
             {sections.map((section) => {
               // Check if user has permission to view this section
               if (section.permissions && !section.permissions.some((p: string) => user.permissions?.includes(p))) return null;
+              // ...and, where the section declares it, every permission in `allOf`.
+              if (section.allOf && !section.allOf.every((p: string) => user.permissions?.includes(p))) return null;
               
               const Icon = section.icon;
               const isActive = activeSection === section.id;
@@ -132,7 +170,6 @@ export default function AdminPage() {
                   >
                     <Icon className={`w-5 h-5 ${isSpecial && !isActive ? 'text-red-500' : ''}`} />
                     <span className="font-medium">{section.label}</span>
-                    {isSpecial && <span className="ml-auto text-[8px] font-black bg-red-600 text-white px-1.5 py-0.5 rounded uppercase tracking-tighter">NEW</span>}
                   </button>
                 </li>
               );
@@ -140,13 +177,20 @@ export default function AdminPage() {
           </ul>
         </nav>
         
-        <div className="p-4 border-t border-white/10">
-          <button 
+        <div className="p-4 border-t border-white/10 space-y-1">
+          <button
             onClick={() => router.push('/')}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-white/5 hover:text-white transition-colors"
           >
-            <LogOut className="w-5 h-5" />
+            <Home className="w-5 h-5" />
             <span className="font-medium">{t.admin.backToSite}</span>
+          </button>
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-zinc-400 hover:bg-red-500/10 hover:text-red-500 transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">{t.nav.logout}</span>
           </button>
         </div>
       </div>
@@ -170,63 +214,6 @@ export default function AdminPage() {
           {renderSection()}
         </div>
 
-        {/* Quick Actions Floating Menu */}
-        <div className="fixed bottom-6 right-6 z-[60]">
-          <AnimatePresence>
-            {isQuickActionsOpen && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                className="absolute bottom-16 right-0 w-56 bg-[#111] border border-white/10 rounded-2xl p-2 shadow-2xl overflow-hidden"
-              >
-                <div className="px-3 py-2 mb-1 border-b border-white/5">
-                  <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Actions Spéciales</p>
-                </div>
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-400 hover:bg-white/5 hover:text-white transition-all group">
-                  <Database className="w-4 h-4 group-hover:text-red-500" />
-                  <span className="font-bold">Backup Rapide</span>
-                </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-400 hover:bg-white/5 hover:text-white transition-all group">
-                  <ShieldCheck className="w-4 h-4 group-hover:text-emerald-500" />
-                  <span className="font-bold">Audit Sécurité</span>
-                </button>
-                <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-400 hover:bg-white/5 hover:text-white transition-all group">
-                  <RefreshCw className="w-4 h-4 group-hover:text-blue-500" />
-                  <span className="font-bold">Recharger API</span>
-                </button>
-                <div className="mt-1 pt-1 border-t border-white/5">
-                  <button 
-                    onClick={() => {
-                      setActiveSection('system');
-                      setIsQuickActionsOpen(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-500/10 transition-all font-black uppercase tracking-tighter"
-                  >
-                    <Zap className="w-4 h-4 fill-current" />
-                    Panel Système
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <button 
-            onClick={() => setIsQuickActionsOpen(!isQuickActionsOpen)}
-            className={`w-14 h-14 rounded-full flex items-center justify-center transition-all duration-500 shadow-2xl shadow-red-900/40 border-2 ${
-              isQuickActionsOpen 
-              ? 'bg-white border-white text-red-600 rotate-180' 
-              : 'bg-red-600 border-red-500 text-white hover:scale-110'
-            }`}
-          >
-            {isQuickActionsOpen ? <X className="w-6 h-6" /> : <Zap className="w-6 h-6 fill-current" />}
-            {!isQuickActionsOpen && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-white text-red-600 text-[10px] font-black rounded-full flex items-center justify-center border-2 border-red-600 animate-bounce">
-                !
-              </span>
-            )}
-          </button>
-        </div>
       </div>
     </div>
   );

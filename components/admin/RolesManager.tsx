@@ -157,13 +157,27 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
     }));
 
     try {
-      await fetch('/api/admin/roles', {
+      const res = await fetch('/api/admin/roles', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates })
       });
+
+      // The card was already moved on screen by `setRoles(newRoles)` above, so a
+      // refusal has to be undone explicitly. Swallowing the response left the
+      // panel showing an order the database had rejected — and the server now
+      // refuses a reorder that would raise a role to the operator's own rank, so
+      // silently swallowing it would mean the one case that matters most is the
+      // one that appears to have worked.
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(data.error || t.admin.error, 'error');
+        fetchRoles();
+      }
     } catch (error) {
       console.error('Failed to update priorities', error);
+      showToast(t.admin.error, 'error');
+      fetchRoles();
     }
   };
 

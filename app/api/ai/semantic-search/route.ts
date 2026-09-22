@@ -1,10 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from "@google/genai";
+import { clientKeyFrom, createRateLimiter } from '@/lib/rateLimit';
+
+/**
+ * NOTE ON THIS ROUTE, WHICH HAS NO CALLER
+ *
+ * A repository-wide search finds no reference to it. `/api/ai-search` performs
+ * the same AI translation step — and then does the TMDB lookup as well — for a
+ * caller that exists (`components/Header.tsx`), so this looks like the earlier
+ * half of that design left behind.
+ *
+ * It was POST-able by anyone, spending a paid Gemini call per request with no
+ * limiter of any kind. The limiter below is the same one `/api/ai-search` uses,
+ * applied for the same reason: `lib/rateLimit.ts` records what it does and does
+ * not defend against — it is friction, not an access control.
+ *
+ * Removing the route outright is the better end state and is recommended in the
+ * audit report; it is left in place here rather than deleted, because deleting a
+ * capability the owner may still intend to wire up is their decision, whereas
+ * leaving it spendable by anonymous callers is not.
+ */
+const RATE_LIMIT = createRateLimiter({ windowMs: 60_000, maxRequests: 60 });
 
 export async function POST(req: NextRequest) {
   try {
+    // Evaluated before the key is read: a request that is about to be refused
+    // should cost nothing at all.
+    if (RATE_LIMIT.isRateLimited(clientKeyFrom(req))) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const { query } = await req.json();
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
     if (!apiKey) {
       return NextResponse.json({ error: 'API Key missing' }, { status: 500 });

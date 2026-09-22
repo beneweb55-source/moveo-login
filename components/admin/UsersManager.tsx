@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { Search, MoreVertical, ShieldAlert, Clock, Calendar, Mail, User } from 'lucide-react';
+// MoreVertical, Clock and Calendar were imported here and never rendered.
+import { Search, ShieldAlert, Mail, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getRankFromWatchTime } from '@/utils/ranks';
 import { useLanguage } from '@/context/LanguageContext';
@@ -17,12 +18,22 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
   const [totalPages, setTotalPages] = useState(1);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  // This table had no fallback row of any kind. A 403 or a 500 left `users`
+  // empty, so the panel rendered as a header, an empty table body and two
+  // disabled pagination buttons — nothing that named what went wrong, and
+  // nothing that distinguished "no users" from "could not read users".
+  // Held as a code, translated at render time, so that `fetchUsers` below reads
+  // no `t` and can keep a stable dependency list (§14).
+  const [loadError, setLoadError] = useState<'permission' | 'network' | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   };
 
+  // `t` is deliberately absent from the dependency list: useLanguage() returns a
+  // new `t` object on every render, so depending on it would re-fetch on every
+  // render (§14).
   const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/users?page=${page}&search=${search}`);
@@ -30,9 +41,15 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
         const data = await res.json();
         setUsers(data.users);
         setTotalPages(data.totalPages);
+        setLoadError(null);
+      } else {
+        setUsers([]);
+        setLoadError(res.status === 401 || res.status === 403 ? 'permission' : 'network');
       }
     } catch (error) {
       console.error('Failed to fetch users', error);
+      setUsers([]);
+      setLoadError('network');
     } finally {
       setLoading(false);
     }
@@ -45,6 +62,11 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
         const data = await res.json();
         setRoles(data);
       }
+      // A non-ok response here is left silent on purpose. GET /api/admin/roles
+      // requires `manage_roles`, and an admin who may view users but not manage
+      // roles legitimately gets a 403 — the role <select> is disabled for them
+      // by the guards below and the table already shows each user's current
+      // role name, so an empty picker cannot be mistaken for "no role".
     } catch (error) {
       console.error('Failed to fetch roles', error);
     }
@@ -205,6 +227,21 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                     </td>
                   </tr>
                 ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-12 text-center">
+                      {loading ? (
+                        <span className="text-zinc-500">{t.admin.loading}</span>
+                      ) : loadError ? (
+                        <span className="text-amber-500">
+                          {loadError === 'permission' ? t.admin.missingPermission : t.admin.loadFailed}
+                        </span>
+                      ) : (
+                        <span className="text-zinc-500">{t.admin.noUserFound}</span>
+                      )}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

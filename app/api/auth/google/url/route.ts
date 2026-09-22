@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { OAUTH_STATE_COOKIE, OAUTH_STATE_TTL_MS, createOAuthState } from '@/lib/oauthState';
+import { warnIfGoogleClientIsUnconfigured } from '@/lib/googleOAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,12 @@ export async function GET(req: Request) {
   } catch {
     return NextResponse.json({ error: 'Invalid origin' }, { status: 400 });
   }
+
+  // Says so in the logs when this deployment is about to sign a user in with the
+  // OAuth client committed to the repository. It does not change which
+  // credentials are used: see lib/googleOAuth.ts for why removing the fallbacks
+  // is not this codebase's call to make, and for the rotation that is owed.
+  warnIfGoogleClientIsUnconfigured();
 
   const clientId = process.env.GOOGLE_CLIENT_ID || '630042598048-to0breshebpts9pmbke6kqnt8pth3n0l.apps.googleusercontent.com';
   const redirectUri = `${originBase}/api/auth/google/callback`;

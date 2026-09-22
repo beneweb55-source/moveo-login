@@ -2,8 +2,31 @@ import { NextResponse } from "next/server";
 import axios from "axios";
 import { GoogleGenAI, Type } from "@google/genai";
 import { filterContent } from "@/utils/contentFilter";
+import { clientKeyFrom, createRateLimiter } from "@/lib/rateLimit";
 
 const BASE_URL = "https://api.themoviedb.org/3";
+
+/**
+ * This route is metered ONLY for the paid branch, and a caller that exceeds the
+ * allowance is degraded rather than refused.
+ *
+ * WHY NOT A LIMITER OVER THE WHOLE ROUTE
+ *
+ * This is the site's entire data layer: `utils/api.ts` points every catalogue
+ * call at it — `/discover/movie`, `/tv/:id/season/:n`, `/person/:id` — and one
+ * page load issues several requests through it. A per-client limit over the
+ * route as a whole would therefore refuse ordinary browsing, which is the
+ * aggressive trade §17 rules out: the cost of closing the exposure would be
+ * breaking the pages it protects.
+ *
+ * The exposure worth closing is narrower. Only the `q`-with-intent branch below
+ * spends money — it calls Gemini — and it is an ENHANCEMENT over a search that
+ * already works without it. Exceeding the allowance therefore skips the AI and
+ * falls through to the plain TMDB title search, which is what the caller
+ * actually asked for. Nothing is refused, no request fails, and the paid spend
+ * is bounded.
+ */
+const AI_RATE_LIMIT = createRateLimiter({ windowMs: 60_000, maxRequests: 20 });
 
 // Mood keywords to detect semantic queries
 const MOOD_KEYWORDS = [
@@ -39,8 +62,15 @@ function isSemantic(query: string): boolean {
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   
-  const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  // Server-side names first, both accepted — see the note in
+  // app/api/ai-search/route.ts. This route and that one were the only two
+  // reading the `NEXT_PUBLIC_` name alone, which meant the admin health check
+  // (which reads both) could report TMDB "online" while this route — the only
+  // one that actually serves the catalogue — was answering 500 to every page.
+  // Reading either name is strictly more permissive, so no working deployment
+  // can be broken by it.
+  const TMDB_API_KEY = process.env.TMDB_API_KEY || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
   if (!TMDB_API_KEY) {
     return NextResponse.json({ error: "TMDB API key missing" }, { status: 500 });
@@ -84,7 +114,16 @@ export async function GET(request: Request) {
   let aiTitles: string[] = [];
   let aiReasoning = "";
 
-  if (q && isSemantic(q) && GEMINI_API_KEY) {
+  // The allowance is checked before the call is made and only for this branch.
+  // `useSemantic` is what the block below reads, so a caller over the limit keeps
+  // its search results and simply loses the AI re-ranking — see the note on
+  // AI_RATE_LIMIT above.
+  let useSemantic = Boolean(q && isSemantic(q) && GEMINI_API_KEY);
+  if (useSemantic && AI_RATE_LIMIT.isRateLimited(clientKeyFrom(request))) {
+    useSemantic = false;
+  }
+
+  if (useSemantic) {
     try {
       const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       const schema = {

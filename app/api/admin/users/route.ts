@@ -110,19 +110,40 @@ export async function PUT(req: Request) {
     const values = [];
     let paramIndex = 1;
 
-    if (roleId !== undefined && (adminUser.permissions ?? []).includes('edit_roles')) {
+    // A missing permission used to be indistinguishable from a successful
+    // no-op. Both cases fell through to the `updates.length === 0` branch below,
+    // which answered
+    //   200 { message: 'No updates provided or insufficient permissions' }
+    // and components/admin/UsersManager.tsx treats any `res.ok` as success: it
+    // refetched the list and re-rendered the user's OLD role, with no error
+    // shown. An admin without `edit_roles` would change a role, watch it
+    // silently snap back, and have no way to tell a permission problem from a
+    // bug — the "insufficient permissions" text was in the body and nothing
+    // read it.
+    //
+    // Each requested field is now authorised before it is applied, and a
+    // caller who is not permitted to make the change they asked for is refused
+    // outright rather than getting a half-applied mutation behind a 200.
+    if (roleId !== undefined) {
+      if (!(adminUser.permissions ?? []).includes('edit_roles')) {
+        return NextResponse.json({ error: 'Missing permission: edit_roles' }, { status: 403 });
+      }
       // Check if new role has higher priority than admin
       const newRoleRes = await pool.query(`SELECT priority, name FROM roles WHERE id = $1`, [roleId]);
-      if (newRoleRes.rows.length > 0) {
-        if (newRoleRes.rows[0].priority >= adminUser.priority && adminUser.role_name !== 'Admin' && !adminUser.is_founder) {
-          return NextResponse.json({ error: 'Cannot assign role with higher or equal priority' }, { status: 403 });
-        }
-        updates.push(`role_id = $${paramIndex++}`);
-        values.push(roleId);
+      if (newRoleRes.rows.length === 0) {
+        return NextResponse.json({ error: 'Role not found' }, { status: 400 });
       }
+      if (newRoleRes.rows[0].priority >= adminUser.priority && adminUser.role_name !== 'Admin' && !adminUser.is_founder) {
+        return NextResponse.json({ error: 'Cannot assign role with higher or equal priority' }, { status: 403 });
+      }
+      updates.push(`role_id = $${paramIndex++}`);
+      values.push(roleId);
     }
 
-    if (isBanned !== undefined && (adminUser.permissions ?? []).includes('ban_users')) {
+    if (isBanned !== undefined) {
+      if (!(adminUser.permissions ?? []).includes('ban_users')) {
+        return NextResponse.json({ error: 'Missing permission: ban_users' }, { status: 403 });
+      }
       updates.push(`is_banned = $${paramIndex++}`);
       values.push(isBanned);
       updates.push(`ban_reason = $${paramIndex++}`);
@@ -130,15 +151,47 @@ export async function PUT(req: Request) {
     }
 
     if (updates.length === 0) {
-      return NextResponse.json({ message: 'No updates provided or insufficient permissions' });
+      return NextResponse.json({ error: 'No updates provided' }, { status: 400 });
     }
 
     values.push(userId);
     await pool.query(`
-      UPDATE users 
-      SET ${updates.join(', ')} 
+      UPDATE users
+      SET ${updates.join(', ')}
       WHERE id::text = $${paramIndex}
     `, values);
+
+    // Trace the change. Until now /api/admin/watch-time was the only writer to
+    // admin_logs, so "Journaux d'Activité Récents" on the system panel showed
+    // watch-time adjustments and nothing else — the least security-relevant
+    // mutation on the whole panel was the only one with a trace, while a role
+    // change (which grants permissions) and a ban left none at all. That made
+    // the activity log read as "nothing else ever happens".
+    //
+    // Same non-critical pattern as that route: a logging failure must not fail
+    // the mutation the admin actually asked for, and must not report a failure
+    // for an action that did succeed.
+    try {
+      const actions: string[] = [];
+      if (roleId !== undefined) actions.push('role_change');
+      if (isBanned !== undefined) actions.push(isBanned ? 'user_ban' : 'user_unban');
+      await pool.query(`
+        INSERT INTO admin_logs (admin_id, admin_name, action, target_type, target_id, metadata)
+        VALUES ($1, $2, $3, 'user', $4, $5)
+      `, [
+        adminUser.id,
+        adminUser.name || adminUser.email,
+        actions.join('+'),
+        String(userId),
+        JSON.stringify({
+          role_id: roleId ?? null,
+          is_banned: isBanned ?? null,
+          ban_reason: banReason ?? null,
+        }),
+      ]);
+    } catch (logError) {
+      console.error('Failed to log admin action:', logError);
+    }
 
     return NextResponse.json({ message: 'User updated successfully' });
   } catch (error: any) {

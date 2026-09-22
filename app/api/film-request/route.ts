@@ -1,11 +1,18 @@
+import { getJwtSecret } from '@/lib/jwtSecret';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import * as jose from 'jose';
 import { scraperPool } from '@/lib/db';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback_secret_key_for_development_only'
-);
+// The secret is read at the verify call site below, not here. This line used to
+// be a module-scope `new TextEncoder().encode(process.env.JWT_SECRET ||
+// 'fallback_secret_key_for_development_only')` — a DIFFERENT literal from the
+// one the other twenty routes used, so the two halves of the app did not accept
+// each other's tokens. lib/jwtSecret.ts now owns the read and throws when the
+// variable is absent; keeping the call inside the handler means a
+// misconfigured deployment answers 401 on this route, as the catch below
+// already does, instead of failing while the module is imported.
+
 
 async function logAndNotify(
   action: 'reçu' | 'déjà en file' | 'ajoutée à content_requests' | 'ajoutée à film_requests' | 'queue indisponible' | 'erreur interne',
@@ -95,7 +102,7 @@ export async function POST(request: Request) {
 
     let userId;
     try {
-      const { payload } = await jose.jwtVerify(token, JWT_SECRET);
+      const { payload } = await jose.jwtVerify(token, getJwtSecret());
       userId = payload.userId;
     } catch (err) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

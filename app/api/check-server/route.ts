@@ -1,3 +1,4 @@
+import { getJwtSecret } from '@/lib/jwtSecret';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import * as jose from 'jose';
@@ -10,19 +11,25 @@ import { buildProviderUrl, getProvider, type MediaType } from '@/lib/providers';
  * not be reachable anonymously, so an unauthenticated caller gets 401 and
  * nothing is fetched on their behalf.
  *
- * NOTE ON THE SECRET: `fallback_secret` is the repo-wide default used by every
- * other route in this app. It is a known weakness, deliberately NOT fixed here —
- * changing the secret contract is a separate, cross-cutting change. This route
- * introduces nothing new; it matches the others so a token issued by
- * /api/auth/login verifies here too.
+ * NOTE ON THE SECRET: this route used to carry its own copy of
+ * `process.env.JWT_SECRET || 'fallback_secret'`, as did twenty others. A
+ * verifier that cannot find its key must not accept anything, so the read now
+ * goes through lib/jwtSecret.ts, which THROWS rather than falling back to a
+ * published constant. The comment that used to sit here deferred that fix as "a
+ * separate, cross-cutting change"; it has since been made across all
+ * twenty-one call sites, so the deferral no longer applies.
  */
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
 
 const hasValidSession = async (): Promise<boolean> => {
   try {
     const token = (await cookies()).get('auth_token')?.value;
     if (!token) return false;
-    await jose.jwtVerify(token, JWT_SECRET);
+    // Read INSIDE the try, and not at module scope: with no JWT_SECRET
+    // configured, getJwtSecret() throws, and this catch turns that into "no
+    // session" — which is the fail-closed answer the route wants. Reading it at
+    // module scope would instead have thrown while the route module was being
+    // imported, taking down every request to it including the tokenless ones.
+    await jose.jwtVerify(token, getJwtSecret());
     return true;
   } catch {
     return false;

@@ -15,6 +15,7 @@ import Carousel from "@/components/Carousel";
 
 import { useLanguage } from "@/context/LanguageContext";
 import WatchTimer from "@/components/WatchTimer";
+import { getWatchHistoryItem, saveWatchHistory } from "@/utils/historyManager";
 
 export default function TvDetails() {
   const { id } = useParams();
@@ -52,6 +53,50 @@ export default function TvDetails() {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 200]);
 
+  /**
+   * The season/episode this page should open on, resolved ONCE per mount.
+   *
+   * Read here rather than during render on purpose. `window` does not exist on
+   * the server, and the server renders this component too: reading storage or
+   * the address bar while rendering would make the first client render disagree
+   * with the markup that was sent, which is a hydration error, not a restore.
+   *
+   * `window.location.search` is used instead of `useSearchParams()` because the
+   * value is only ever needed inside an effect, where the two are equivalent —
+   * and `useSearchParams` would opt this route into a Suspense boundary it does
+   * not have.
+   */
+  const requestedSlotRef = useRef<{ season: number; episode: number } | null>(null);
+  /**
+   * The slot the page actually OPENED on, after validation against the real
+   * season list. A later season/episode that differs from this one was chosen
+   * by the viewer; one that matches it was restored.
+   */
+  const restoredSlotRef = useRef<{ season: number; episode: number } | null>(null);
+
+  useEffect(() => {
+    const mediaId = String(id);
+    const params = new URLSearchParams(window.location.search);
+    const urlSeason = Number.parseInt(params.get("s") ?? "", 10);
+    const urlEpisode = Number.parseInt(params.get("e") ?? "", 10);
+
+    // `Number.isInteger` and not a truthiness test: season 0 is TMDB's SPECIALS
+    // season and must be a usable value (§12).
+    if (Number.isInteger(urlSeason) && Number.isInteger(urlEpisode)) {
+      requestedSlotRef.current = { season: urlSeason, episode: urlEpisode };
+      return;
+    }
+
+    // No slot in the address bar. That is the case after a reload of a URL that
+    // was never rewritten, or a visit from a bookmark — and it is exactly the
+    // case §10 names, where the page used to restart at S1E1 and throw away a
+    // 32-minute position. Fall back to wherever this device stopped.
+    const stored = getWatchHistoryItem("tv", mediaId);
+    if (typeof stored?.season === "number" && typeof stored.episode === "number") {
+      requestedSlotRef.current = { season: stored.season, episode: stored.episode };
+    }
+  }, [id]);
+
   useEffect(() => {
     if (data?.name) {
       document.title = `${data.name} - Moveo`;
@@ -79,11 +124,42 @@ export default function TvDetails() {
           append_to_response: "videos,credits,recommendations"
         });
         setData(res);
-        
-        const firstSeason = res.seasons?.find((s: any) => s.season_number === 1) || res.seasons?.[0];
-        if (firstSeason) {
-          setSelectedSeason(firstSeason.season_number);
-          setEpisodesCount(firstSeason.episode_count);
+
+        // The slot the viewer asked for — by URL or by having been there before
+        // — wins over the S1E1 default, but ONLY if that season exists on this
+        // title. A stale link must not select a season that was removed, and a
+        // season whose number TMDB no longer lists must not leave the page with
+        // no season selected at all.
+        const seasons: any[] = res.seasons || [];
+        const requested = requestedSlotRef.current;
+        const requestedSeason = requested
+          ? seasons.find((s: any) => s.season_number === requested.season)
+          : undefined;
+
+        if (requested && requestedSeason) {
+          // When the season's episode count is unknown, the requested episode is
+          // kept and validated later against the real episode list rather than
+          // being silently dropped here.
+          const count =
+            typeof requestedSeason.episode_count === "number" ? requestedSeason.episode_count : 0;
+          const episode =
+            requested.episode >= 1 && (count === 0 || requested.episode <= count)
+              ? requested.episode
+              : 1;
+          setSelectedSeason(requested.season);
+          setSelectedEpisode(episode);
+          setEpisodesCount(requestedSeason.episode_count);
+          restoredSlotRef.current = { season: requested.season, episode };
+        } else {
+          const firstSeason = seasons.find((s: any) => s.season_number === 1) || seasons[0];
+          if (firstSeason) {
+            setSelectedSeason(firstSeason.season_number);
+            setEpisodesCount(firstSeason.episode_count);
+            restoredSlotRef.current = {
+              season: firstSeason.season_number,
+              episode: 1,
+            };
+          }
         }
       } catch (error) {
         console.error("Error fetching details:", error);
@@ -98,19 +174,48 @@ export default function TvDetails() {
 
   useEffect(() => {
     if (!data || selectedSeason === undefined) return;
-    
+
+    /**
+     * Set by the cleanup below, and the reason this is not a plain async call.
+     *
+     * Changing season starts a second request while the first is still in
+     * flight, and a response cannot tell which season the viewer is looking at
+     * by the time it lands. Whichever resolves last used to win: the abandoned
+     * season's episode list was written under the new season's heading, its
+     * count replaced the new season's, and the clamp below ran against a list
+     * the viewer was not on — leaving the player pointed at an episode number
+     * from a different season (audit finding R3-F3). Nothing about that failure
+     * is visible in the UI, which is what makes it worth a flag.
+     */
+    let cancelled = false;
+
     const fetchSeasonDetails = async () => {
       setIsFetchingSeason(true);
       // Clear episodes data while fetching to prevent showing old episodes
       setEpisodesData([]);
       try {
         const res = await fetchDataFromApi(`/tv/${id}/season/${selectedSeason}`, { language: langParam });
+        // Before any state is written, not after: a late response must be a
+        // no-op, and a single early return is easier to keep correct than four
+        // guarded setters.
+        if (cancelled) return;
         if (res && res.episodes) {
           const sortedEpisodes = [...res.episodes].sort((a: any, b: any) => a.episode_number - b.episode_number);
           setEpisodesCount(sortedEpisodes.length);
           setEpisodesData(sortedEpisodes);
+          // The real episode list is authoritative. TMDB's `episode_count` on
+          // the season object is sometimes higher than the episodes it actually
+          // returns, and a stored episode can outlive the season it belonged to.
+          // Either way the player must not be pointed at an episode the season
+          // does not contain. Written as an updater so this effect does not need
+          // `selectedEpisode` in its dependencies — which would make it re-run,
+          // and re-fetch, on every episode change.
+          setSelectedEpisode((current) =>
+            current > sortedEpisodes.length ? 1 : current,
+          );
         }
       } catch (error) {
+        if (cancelled) return;
         console.error("Error fetching season details:", error);
         const seasonInfo = data.seasons?.find((s: any) => s.season_number === selectedSeason);
         if (seasonInfo) {
@@ -118,12 +223,82 @@ export default function TvDetails() {
           setEpisodesData([]);
         }
       } finally {
-        setIsFetchingSeason(false);
+        // NOT cleared when cancelled: a newer request is in flight and owns this
+        // flag. The cleanup and the next effect body run in the same synchronous
+        // commit, so the newer request has already set it before this line could
+        // run — clearing it here would hide the new season's spinner.
+        if (!cancelled) setIsFetchingSeason(false);
       }
     };
-    
+
     fetchSeasonDetails();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedSeason, id, data, langParam]);
+
+  /**
+   * Mirrors the selected slot into the address bar, and — when the viewer chose
+   * it — into watch history.
+   *
+   * One effect for the nine places that can change the slot (both dropdowns,
+   * both season lists, both episode grids, prev, next, and any added later),
+   * rather than the same two lines copied into each. What defines "the viewer
+   * chose it" is that it differs from the slot the page opened on, so no handler
+   * has to remember to announce anything.
+   *
+   * `window.history.replaceState` and NOT `router.replace`: the router would
+   * re-render the route, remount the player and interrupt playback — the defect
+   * the viewer reported on a phone. replaceState changes the address bar and
+   * nothing else, and it keeps `router.back()` meaning "the previous page",
+   * which is what the back button in the hero promises.
+   */
+  useEffect(() => {
+    if (!data?.name) return;
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("s", String(selectedSeason));
+    url.searchParams.set("e", String(selectedEpisode));
+    window.history.replaceState(null, "", url.toString());
+
+    // A slot the viewer did not choose is not written to history. Opening a
+    // series page is not watching it, and recording the default would fill
+    // Continue Watching with titles that were merely looked at — the same rule
+    // §13 states for progress, applied to the slot.
+    const restored = restoredSlotRef.current;
+    if (
+      restored &&
+      restored.season === selectedSeason &&
+      restored.episode === selectedEpisode
+    ) {
+      return;
+    }
+
+    try {
+      // No `timestamp` and no `duration`: nothing has been measured for this
+      // episode. The entry claims exactly what is known — which episode the
+      // viewer is on — and the UI reads the absence as "no position to resume",
+      // so the card offers "Regarder" rather than a "Reprendre" it cannot
+      // honour. The current provider is carried over so switching episode does
+      // not blank a badge the viewer has already seen.
+      const existing = getWatchHistoryItem("tv", String(id));
+      saveWatchHistory({
+        id: String(id),
+        type: "tv",
+        title: data.name,
+        poster_path: data.poster_path || "",
+        season: selectedSeason,
+        episode: selectedEpisode,
+        provider: existing?.provider ?? "",
+        last_watched: Date.now(),
+      });
+    } catch (error) {
+      // The store is a convenience; a browser that refuses to write must not
+      // break the page. The slot is still in the URL above.
+      console.error("[tv] could not record the selected episode", error);
+    }
+  }, [selectedSeason, selectedEpisode, data, id]);
 
   const scrollToPlayer = () => {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });

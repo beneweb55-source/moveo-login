@@ -1,3 +1,4 @@
+import { getJwtSecret } from '@/lib/jwtSecret';
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import pool from '@/lib/db';
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
     authLimiters.loginAccount.reset(accountKey(email));
 
     // Create JWT
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const secret = getJwtSecret();
     const token = await new SignJWT({ 
       userId: user.id, 
       email: user.email, 

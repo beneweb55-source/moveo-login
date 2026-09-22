@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { Activity, User, Globe, Clock } from 'lucide-react';
 import { useLanguage } from '@/context/LanguageContext';
@@ -9,26 +9,45 @@ export default function OnlineUsersManager() {
   const { t } = useLanguage();
   const [onlineData, setOnlineData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  // A 10-second poll that fails silently is the worst case for a live panel: the
+  // numbers stay on screen, the heading keeps its pulsing "live" icon, and the
+  // admin has no way to tell that what they are reading stopped updating minutes
+  // ago. These two pieces of state let the feed admit its own age.
+  // The reason is stored as a code, not as a translated sentence, so that
+  // nothing here depends on `t`: useLanguage() returns a new `t` on every
+  // render, so reading it inside a request callback either forces the callback's
+  // dependency list to be unstable (a re-fetch per render, §14) or silently
+  // freezes the message in whichever language was active when it was fetched.
+  // The translation happens at render time instead.
+  const [feedError, setFeedError] = useState<'permission' | 'network' | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
-  useEffect(() => {
-    fetchOnlineUsers();
-    const interval = setInterval(fetchOnlineUsers, 10000); // Refresh every 10 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchOnlineUsers = async () => {
+  // Stable, so the polling effect below can name it as its only dependency. It
+  // reads nothing but setState functions, which are themselves stable.
+  const fetchOnlineUsers = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/online');
       if (res.ok) {
         const data = await res.json();
         setOnlineData(data);
+        setFeedError(null);
+        setUpdatedAt(new Date());
+      } else {
+        setFeedError(res.status === 401 || res.status === 403 ? 'permission' : 'network');
       }
     } catch (error) {
       console.error('Failed to fetch online users', error);
+      setFeedError('network');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchOnlineUsers();
+    const interval = setInterval(fetchOnlineUsers, 10000); // Refresh every 10 seconds
+    return () => clearInterval(interval);
+  }, [fetchOnlineUsers]);
 
   if (loading && !onlineData) return <div className="text-zinc-400">{t.admin.loading}</div>;
 
@@ -37,10 +56,23 @@ export default function OnlineUsersManager() {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-1 flex items-center gap-3">
-            <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-emerald-500 animate-pulse" />
+            {/* The pulse means "this is live". It has to stop when it is not. */}
+            <Activity className={`w-6 h-6 sm:w-8 sm:h-8 ${feedError ? 'text-amber-500' : 'text-emerald-500 animate-pulse'}`} />
             {t.admin.online}
           </h2>
           <p className="text-zinc-400 text-sm">{t.admin.onlineDescription}</p>
+          {/* The numbers below are only meaningful next to when they were read.
+              Without this, a frozen feed is indistinguishable from a quiet site. */}
+          {feedError ? (
+            <p className="text-xs text-amber-500 mt-2">
+              {t.interpolate(t.admin.onlineStale, { time: updatedAt ? updatedAt.toLocaleTimeString() : '—' })}{' '}
+              {feedError === 'permission' ? t.admin.missingPermission : t.admin.loadFailed}
+            </p>
+          ) : updatedAt ? (
+            <p className="text-xs text-zinc-500 mt-2">
+              {t.interpolate(t.admin.onlineUpdated, { time: updatedAt.toLocaleTimeString() })}
+            </p>
+          ) : null}
         </div>
         <div className="w-full lg:w-auto bg-[#111] border border-white/10 rounded-xl px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between sm:justify-start gap-4 sm:gap-6">
           <div className="text-center flex-1 sm:flex-none">

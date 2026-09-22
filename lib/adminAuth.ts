@@ -1,3 +1,4 @@
+import { getJwtSecret } from '@/lib/jwtSecret';
 import { cookies } from 'next/headers';
 import { jwtVerify } from 'jose';
 import pool from '@/lib/db';
@@ -10,7 +11,7 @@ export async function checkAdminAccess(requiredPermission?: string) {
   if (!token) return null;
 
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const secret = getJwtSecret();
     const { payload: decoded } = await jwtVerify(token, secret);
 
     // `users.id` is an integer PRIMARY KEY, and the query below compared it as

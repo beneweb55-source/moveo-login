@@ -1,7 +1,9 @@
+import { getJwtSecret } from '@/lib/jwtSecret';
 import { NextResponse, NextRequest } from 'next/server';
 import { SignJWT } from 'jose';
 import pool from '@/lib/db';
 import { OAUTH_STATE_COOKIE, matchesCookie, verifyOAuthState } from '@/lib/oauthState';
+import { warnIfGoogleClientIsUnconfigured } from '@/lib/googleOAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +27,11 @@ export async function GET(req: NextRequest) {
   if (!code) {
     return NextResponse.json({ error: 'Missing code' }, { status: 400 });
   }
+
+  // The state gate above has already run, so this is reached only by a callback
+  // that passed it. Records the use of a compromised client without changing
+  // which credentials are used — see lib/googleOAuth.ts.
+  warnIfGoogleClientIsUnconfigured();
 
   const clientId = process.env.GOOGLE_CLIENT_ID || '630042598048-to0breshebpts9pmbke6kqnt8pth3n0l.apps.googleusercontent.com';
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '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';
@@ -115,7 +122,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Create JWT
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const secret = getJwtSecret();
     const token = await new SignJWT({ 
       userId: user.id, 
       email: user.email, 

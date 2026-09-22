@@ -1,3 +1,4 @@
+import { getJwtSecret } from '@/lib/jwtSecret';
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
@@ -14,7 +15,7 @@ export async function GET() {
       return NextResponse.json({ user: null }, { status: 401 });
     }
 
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const secret = getJwtSecret();
     const { payload } = await jwtVerify(token, secret);
 
     // `users.id` is an integer PRIMARY KEY, and the query below compared it as
@@ -67,6 +68,19 @@ export async function GET() {
     let role_name = user.role_name;
     let role_color = user.role_color;
     let priority = user.priority || 0;
+    // Always sent, and always a boolean. `checkAdminAccess` (lib/adminAuth.ts)
+    // has set `is_founder` for the founder since the override was written, and
+    // the client guards in `components/admin/UsersManager.tsx` read it — but
+    // this endpoint never passed it on, so on the client the flag was always
+    // `undefined`. The visible effect was small and one-directional: those
+    // guards read `!currentUser.is_founder`, so they sat permanently in their
+    // restrictive branch and the founder could not change their own role row in
+    // the panel even though the server would have allowed it. The reason to fix
+    // it is not that case — it is that a flag named `is_founder` that is always
+    // falsy is a trap for the next guard written to GRANT on it, which would
+    // silently never grant. Client and server now answer the same question the
+    // same way.
+    let is_founder = false;
 
     // Founder override — centralized via FOUNDER_EMAIL env var
     if (FOUNDER_EMAIL && user.email === FOUNDER_EMAIL) {
@@ -74,6 +88,7 @@ export async function GET() {
       role_name = 'Fondateur';
       role_color = '#FFD700';
       priority = 999;
+      is_founder = true;
     }
 
     // Ensure permissions is always an array
@@ -87,8 +102,9 @@ export async function GET() {
         permissions,
         role_name,
         role_color,
-        priority
-      } 
+        priority,
+        is_founder
+      }
     }, { status: 200 });
   } catch (error) {
     return NextResponse.json({ user: null }, { status: 401 });

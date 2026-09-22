@@ -470,7 +470,20 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
     },
     warningKey: "disableAdblock",
     frameOrigins: ["https://vidlink.pro"],
-    messageOrigins: [],
+    // MEASURED 2026-09-22, and the entry this field's own rule requires: this
+    // origin was OBSERVED emitting a well-formed position, not added from
+    // documentation. A live Chrome with a message recorder attached received,
+    // every 2000 ms from `https://vidlink.pro` while an episode played:
+    //
+    //   {"type":"MEDIA_DATA","data":{"1429":{... "show_progress":{"s1e1":{
+    //      "season":"1","episode":"1",
+    //      "progress":{"watched":21.206035,"duration":1439.2}}}}}}
+    //
+    // `watched` advanced in step with the media element (21.206035 while the
+    // element read 22 s), so it is a real playback position and not a
+    // placeholder. Reading it is lib/playerMessages.ts's job; this field only
+    // says the origin is permitted to speak.
+    messageOrigins: ["https://vidlink.pro"],
     buildUrl: ({type, id, season, episode}) => {
       const safeId = encodeId(id);
       return type === "movie"

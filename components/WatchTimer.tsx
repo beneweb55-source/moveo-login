@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from 'react';
+import { getAnonSessionId } from '@/utils/historyManager';
+import { hasPlaybackBeenObserved } from '@/lib/playbackSignal';
 
 interface WatchTimerProps {
   mediaType: string;
@@ -23,12 +25,11 @@ const WatchTimer = ({ mediaType, mediaId, title, posterPath, season, episode }: 
 
   useEffect(() => {
     lastActivityRef.current = Date.now();
-    let sessionId = localStorage.getItem('anon_session_id');
-    if (!sessionId) {
-      sessionId = `anon_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
-      localStorage.setItem('anon_session_id', sessionId);
-    }
-    sessionIdRef.current = sessionId;
+    // The key has ONE owner: utils/historyManager.ts, which is also the code
+    // that sends it. A second inline copy of the same literal here was a
+    // contract with nothing holding it together — renaming the key on one side
+    // would have looked like a working build and silently split the identity.
+    sessionIdRef.current = getAnonSessionId();
   }, []);
 
   // Track user activity to detect inactivity
@@ -65,12 +66,16 @@ const WatchTimer = ({ mediaType, mediaId, title, posterPath, season, episode }: 
         session_id: sessionIdRef.current,
         title: title || null,
         poster_path: posterPath || null,
-        // `??` and not `||`: season 0 is TMDB's SPECIALS season and must survive
-        // as 0. Currently unreachable from either mount site (neither passes
-        // season/episode), but the `||` here was the same trap that silently
-        // rewrote specials to season 1 in the URL builders.
-        season: season ?? null,
-        episode: episode ?? null,
+        // OMITTED, not nulled, when the mount site does not supply them.
+        // /api/watch-time reads a NUMERIC season/episode as "the caller is
+        // telling me where the viewer is"; a `null` would be indistinguishable
+        // from that statement with an empty value. This path must never touch
+        // progression — a minute count is not a position — and leaving the
+        // fields out of the payload is how it says so. `??` is still avoided in
+        // favour of a typeof test because season 0 is TMDB's SPECIALS season and
+        // is a real value.
+        ...(typeof season === 'number' ? { season } : {}),
+        ...(typeof episode === 'number' ? { episode } : {}),
       });
 
       if (isUnmount && navigator.sendBeacon) {
@@ -99,10 +104,24 @@ const WatchTimer = ({ mediaType, mediaId, title, posterPath, season, episode }: 
 
   useEffect(() => {
     intervalRef.current = setInterval(() => {
-      // Only count if page is visible AND user has been active recently
-      if (document.visibilityState === 'visible' && isActiveRef.current) {
+      // Count a minute only when the page is visible, the viewer has been active
+      // recently, AND something has actually played.
+      //
+      // The third condition is the fix, and it is not cosmetic. Before it, this
+      // interval counted page-presence as viewing: a tab left open on a detail
+      // page accrued an hour of "watch time", and because the write also bumps
+      // `last_updated` it pushed that title above what the viewer was actually
+      // watching in the resume list. The signal it reads is set by VideoPlayer
+      // only after a position has passed every validation check, so an iframe
+      // that merely loaded still counts for nothing — which is what §13 asks
+      // for.
+      if (
+        document.visibilityState === 'visible' &&
+        isActiveRef.current &&
+        hasPlaybackBeenObserved(mediaType, mediaId)
+      ) {
         minutesRef.current += 1;
-        
+
         if (minutesRef.current % SAVE_INTERVAL_MINUTES === 0) {
           saveWatchTime(SAVE_INTERVAL_MINUTES);
           minutesRef.current = 0;
@@ -118,7 +137,11 @@ const WatchTimer = ({ mediaType, mediaId, title, posterPath, season, episode }: 
         saveWatchTime(minutesRef.current, true);
       }
     };
-  }, [saveWatchTime]);
+    // `mediaType`/`mediaId` are listed because the interval reads them directly
+    // to ask whether playback was observed for THIS title. `saveWatchTime`
+    // already changes with them, so this is belt-and-braces for the linter and
+    // makes the dependency the code actually has visible at the call site.
+  }, [saveWatchTime, mediaType, mediaId]);
 
   return null; // Invisible component
 };

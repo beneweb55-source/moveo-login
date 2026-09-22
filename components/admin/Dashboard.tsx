@@ -53,7 +53,7 @@ export default function Dashboard() {
     <div className="space-y-6 sm:space-y-8">
       <div>
         <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">{t.admin.dashboard}</h2>
-        <p className="text-sm text-zinc-400">Aperçu global de l&apos;activité sur Moveo.</p>
+        <p className="text-sm text-zinc-400">{t.admin.dashboardDescription}</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

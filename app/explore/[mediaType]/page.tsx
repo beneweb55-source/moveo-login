@@ -145,7 +145,7 @@ const Explore = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, language, sortBy, selectedGenre, watchedIds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mediaType, language, sortBy, selectedGenre, watchedIds]);
 
   const fetchNextPageData = () => {
     // Guard 1: one in-flight request at a time. InfiniteScroll can fire `next`

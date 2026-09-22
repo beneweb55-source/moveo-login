@@ -11,7 +11,7 @@
  * Run: node --import tsx --test tests/oauthState.test.ts
  */
 
-import {describe, it} from 'node:test';
+import {after, before, describe, it} from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
@@ -20,6 +20,7 @@ import {
   matchesCookie,
   verifyOAuthState,
 } from '../lib/oauthState';
+import {MissingJwtSecretError} from '../lib/jwtSecret';
 
 const ORIGIN = 'https://www.moveo.blog';
 
@@ -30,6 +31,65 @@ const tamper = (state: string, change: (payload: any) => any): string => {
   const forged = Buffer.from(JSON.stringify(change(decoded))).toString('base64url');
   return `${forged}.${signature}`;
 };
+
+/**
+ * The state is HMAC'd with the app's JWT secret, so this suite has to configure
+ * one: lib/jwtSecret.ts throws when the variable is missing, which is the point
+ * of the block further down. The value is arbitrary here because what is under
+ * test is the state contract, not the strength of any particular key.
+ */
+const TEST_SECRET = 'oauth-state-test-secret-not-used-anywhere-else';
+let originalSecret: string | undefined;
+
+before(() => {
+  originalSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = TEST_SECRET;
+});
+
+after(() => {
+  if (originalSecret === undefined) {
+    delete process.env.JWT_SECRET;
+  } else {
+    process.env.JWT_SECRET = originalSecret;
+  }
+});
+
+describe('with no JWT_SECRET configured', () => {
+  // The fail-closed half of the fix, asserted through the real functions rather
+  // than by reading the source. Both cases manage the variable themselves instead
+  // of trusting the suite hook above, because that hook is exactly what they have
+  // to undo — and both restore it before returning.
+  it('cannot mint a state', () => {
+    const saved = process.env.JWT_SECRET;
+    delete process.env.JWT_SECRET;
+    try {
+      assert.throws(() => createOAuthState(ORIGIN), MissingJwtSecretError);
+    } finally {
+      process.env.JWT_SECRET = saved;
+    }
+  });
+
+  it('does not accept a state it cannot verify', () => {
+    const saved = process.env.JWT_SECRET;
+    const state = createOAuthState(ORIGIN);
+    delete process.env.JWT_SECRET;
+    try {
+      // Throwing and returning null are both refusals and either is acceptable
+      // here; what must never happen is an acceptance. Writing the assertion as
+      // "did anything come back that looks like a verified state" is what makes
+      // it survive a future change of refusal style.
+      let accepted = false;
+      try {
+        accepted = verifyOAuthState(state) !== null;
+      } catch {
+        accepted = false;
+      }
+      assert.equal(accepted, false);
+    } finally {
+      process.env.JWT_SECRET = saved;
+    }
+  });
+});
 
 describe('createOAuthState', () => {
   it('round-trips the origin through verifyOAuthState', () => {

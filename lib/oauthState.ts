@@ -26,6 +26,7 @@
  */
 
 import {createHmac, randomUUID, timingSafeEqual} from 'node:crypto';
+import {getJwtSecretString} from '@/lib/jwtSecret';
 
 /** Cookie that binds a state value to the browser that asked for it. */
 export const OAUTH_STATE_COOKIE = 'oauth_state';
@@ -43,7 +44,21 @@ export interface OAuthState {
   expiresAt: number;
 }
 
-const signingKey = (): string => process.env.JWT_SECRET || 'fallback_secret';
+/**
+ * The HMAC key for the state signature.
+ *
+ * This used to be `process.env.JWT_SECRET || 'fallback_secret'` — the last copy
+ * of that published literal outside lib/jwtSecret.ts. A `state` signed with a
+ * constant anyone can read is a `state` anyone can mint, and the callback
+ * accepts a state that verifies; the cookie binding below is a second, stronger
+ * check, but a check that only holds when the first one has already been
+ * bypassed is not the check to rely on.
+ *
+ * Delegating means an unconfigured deployment cannot complete a Google sign-in
+ * at all, which is the intended fail-closed outcome, and it uses the STRING
+ * reader because `createHmac` takes a key, not bytes.
+ */
+const signingKey = (): string => getJwtSecretString();
 
 const sign = (payload: string): string =>
   createHmac('sha256', signingKey()).update(payload).digest('base64url');

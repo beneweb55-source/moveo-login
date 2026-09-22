@@ -137,7 +137,7 @@ const Animes = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, language, sortBy, watchedIds, selectedGenre]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mediaType, language, sortBy, watchedIds, selectedGenre]);
 
   const fetchNextPageData = () => {
     // Guard 1: one in-flight request at a time. InfiniteScroll can fire `next`

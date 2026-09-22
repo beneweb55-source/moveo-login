@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { LanguageProvider } from '@/context/LanguageContext';
 import PingTracker from '@/components/PingTracker';
+import GuestHistorySync from '@/components/GuestHistorySync';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -56,6 +57,13 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
         <LanguageProvider>
           <StoreProvider>
             <PingTracker />
+            {/*
+              Renders nothing. Mounted here, and not on the login screen, so that
+              a visitor who arrives already signed in — an OAuth callback, a
+              restored cookie, a second tab — still has their guest history
+              carried into the account (§9).
+            */}
+            <GuestHistorySync />
             <Header />
             <main className="min-h-screen pt-0 lg:pt-20 pb-24 lg:pb-0">{children}</main>
             <Footer />

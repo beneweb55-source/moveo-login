@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { Logo } from "@/components/Logo";
 import { useLanguage } from "@/context/LanguageContext";
 import { buildSearchPath } from "@/lib/searchPath";
+import { clearWatchHistory, __resetServerSyncLatch } from "@/utils/historyManager";
 
 const Header = () => {
   const [show, setShow] = useState("top");
@@ -158,13 +159,9 @@ const Header = () => {
         
         const endpoint = isSemantic ? '/api/ai-search' : '/api/tmdb-proxy';
 
-        console.log(`[Search] Routing to ${endpoint} for query: "${query}"`);
-
         const res = await fetch(`${endpoint}?q=${encodeURIComponent(query)}&language=${langParam}`);
         const data = await res.json();
-        
-        console.log("[Search] API Response:", data);
-        
+
         if (data.ai_reasoning) {
           setAiReasoning(data.ai_reasoning);
         } else {
@@ -215,6 +212,18 @@ const Header = () => {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
+      // The stored history belongs to the account that just left. Keeping it
+      // would leave the previous person's titles on screen for the next visitor
+      // on this machine, and the next account to sign in here would inherit
+      // them — the local half of the rule that one account must never see
+      // another's history (§23). Clearing also announces the change, so a
+      // Continue Watching list already rendered empties instead of waiting for
+      // a manual reload.
+      clearWatchHistory();
+      // The session is over, so the "we already learned this visitor is a
+      // guest" latch no longer describes it. Leaving it set would make the next
+      // sign-in on this tab silently skip its guest → account merge (§9).
+      __resetServerSyncLatch();
       setUser(null);
       router.refresh();
     } catch (err) {

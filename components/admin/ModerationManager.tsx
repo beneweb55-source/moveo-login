@@ -13,12 +13,22 @@ export default function ModerationManager() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  // A 403 or a 500 left `reports` empty, which rendered as "Aucun signalement
+  // trouvé." — telling the admin that the moderation queue is clear when in fact
+  // the queue was never read. On a moderation surface that is the worst possible
+  // direction to be wrong in: it is the panel that says whether anything needs
+  // attention.
+  // Held as a code, translated at render time, so that the loader below reads no
+  // `t` and can keep a stable dependency list (§14).
+  const [loadError, setLoadError] = useState<'permission' | 'network' | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   };
 
+  // `t` is deliberately absent from the dependency list: useLanguage() returns a
+  // new `t` on every render, so depending on it would re-fetch on every render.
   const fetchReports = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/reports?status=${statusFilter}&page=${page}`);
@@ -26,9 +36,15 @@ export default function ModerationManager() {
         const data = await res.json();
         setReports(data.reports);
         setTotalPages(data.totalPages);
+        setLoadError(null);
+      } else {
+        setReports([]);
+        setLoadError(res.status === 401 || res.status === 403 ? 'permission' : 'network');
       }
     } catch (error) {
       console.error('Failed to fetch reports', error);
+      setReports([]);
+      setLoadError('network');
     } finally {
       setLoading(false);
     }
@@ -149,8 +165,18 @@ export default function ModerationManager() {
               {reports.length === 0 && (
                 <tr>
                   <td colSpan={5} className="p-12 text-center text-zinc-500">
-                    <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-zinc-700" />
-                    <p className="text-sm font-medium">{t.admin.noReportFound}</p>
+                    {loadError ? (
+                      // Same slot as the empty state, but it must not claim the
+                      // queue is empty when the queue was never read.
+                      <p className="text-sm font-medium text-amber-500">
+                        {loadError === 'permission' ? t.admin.missingPermission : t.admin.loadFailed}
+                      </p>
+                    ) : (
+                      <>
+                        <AlertTriangle className="w-10 h-10 mx-auto mb-3 text-zinc-700" />
+                        <p className="text-sm font-medium">{t.admin.noReportFound}</p>
+                      </>
+                    )}
                   </td>
                 </tr>
               )}

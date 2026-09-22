@@ -1,3 +1,4 @@
+import { getJwtSecret } from '@/lib/jwtSecret';
 import { NextResponse } from 'next/server';
 import pool from '@/lib/db';
 import { cookies } from 'next/headers';
@@ -15,7 +16,16 @@ import { v4 as uuidv4 } from 'uuid';
 // import would fail at module load. Its fallback literal also diverged from the
 // app's 'fallback_secret', so an unset JWT_SECRET would have made this route
 // reject tokens that every other route accepts.
-const SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+//
+// The secret now comes from lib/jwtSecret.ts, whose single reader THROWS on a
+// missing JWT_SECRET rather than substituting that published constant. The read
+// sits inside the token branch below and not at module scope, which matters
+// here more than elsewhere: this route logs anonymous sessions, so it must keep
+// answering when no secret is configured. A module-scope throw would have taken
+// the whole route down — including the tokenless traffic — while an
+// unconfigured deployment degrades correctly to "no session is attributed to a
+// user", which is exactly what the catch below already decides.
+
 
 export async function POST(req: Request) {
   try {
@@ -25,7 +35,7 @@ export async function POST(req: Request) {
 
     if (token) {
       try {
-        const { payload } = await jwtVerify(token, SECRET);
+        const { payload } = await jwtVerify(token, getJwtSecret());
         // The same guard as lib/adminAuth.ts and /api/auth/me: a claim that is
         // not an integer identifies no user, so the request continues as the
         // anonymous session it would have been without a token at all. This

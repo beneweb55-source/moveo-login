@@ -116,7 +116,6 @@ const Films = () => {
     };
 
     fetchInitialData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [language, sortBy, watchedIds, selectedGenre]);
 
   const fetchNextPageData = () => {

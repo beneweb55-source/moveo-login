@@ -1,3 +1,4 @@
+import { getJwtSecret } from '@/lib/jwtSecret';
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
@@ -10,7 +11,7 @@ async function getUserFromToken() {
 
     if (!token) return null;
 
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback_secret');
+    const secret = getJwtSecret();
     const { payload } = await jwtVerify(token, secret);
     return payload;
   } catch (error) {

@@ -2,85 +2,190 @@
 
 import React from "react";
 import Link from "next/link";
-import { Play, Clock } from "lucide-react";
+import { Play, Clock, RotateCcw, Trash2 } from "lucide-react";
 import Image from "next/image";
-import { WatchHistoryItem } from "@/utils/historyManager";
+import { WatchHistoryItem, isCompleted } from "@/utils/historyManager";
+import { formatProgress } from "@/lib/timecode";
 import { useLanguage } from "@/context/LanguageContext";
 
 interface HistoryCardProps {
   item: WatchHistoryItem;
+  /**
+   * Removes this entry. Provided by the section, which owns the store: the card
+   * asks, it does not write, so the list and the stored history cannot disagree.
+   * When it is absent the delete control is not rendered at all — a button that
+   * does nothing is worse than no button.
+   */
+  onRemove?: (item: WatchHistoryItem) => void;
 }
 
-const HistoryCard = ({ item }: HistoryCardProps) => {
+const HistoryCard = ({ item, onRemove }: HistoryCardProps) => {
   const { t } = useLanguage();
 
   const posterUrl = item.poster_path
     ? (item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`)
     : "https://picsum.photos/seed/poster/400/600";
 
+  /**
+   * `typeof` and not a truthiness check: season 0 is TMDB's SPECIALS season, and
+   * `item.season && item.episode` therefore hid the badge on exactly the
+   * episodes §12 asks to be able to navigate to. The types are checked rather
+   * than the values for the same reason.
+   */
+  const hasEpisode =
+    item.type === "tv" &&
+    typeof item.season === "number" &&
+    typeof item.episode === "number";
+
+  const seasonLabel = item.season === 0 ? t.details.specials : `${t.details.season} ${item.season}`;
+  const episodeLabel = hasEpisode
+    ? `${seasonLabel} · ${t.details.episode} ${item.episode}`
+    : "";
+
+  /**
+   * What the card can honestly claim.
+   *
+   *  - a measured position that is not finished → CONTINUE,
+   *  - a measured position that IS finished       → WATCH AGAIN (never
+   *    "Reprendre" on something already over),
+   *  - no measured position                       → WATCH.
+   *
+   * The third case is the one that matters. §13 forbids inferring playback from
+   * a page visit, so an entry can exist that says only "this is the episode you
+   * were on". Offering "Reprendre la lecture" for it would be the interface
+   * asserting a position we never measured.
+   */
+  const hasPosition = typeof item.timestamp === "number";
+  const finished = item.completed ?? isCompleted(item.timestamp, item.duration);
+  const actionLabel = !hasPosition
+    ? t.home.watchNow
+    : finished
+      ? t.home.replayFromStart
+      : t.home.continueWatching;
+  const ActionIcon = finished && hasPosition ? RotateCcw : Play;
+
+  const progressText = formatProgress(item.timestamp, item.duration);
+
+  // Clamped: a stored position past its own runtime is bad data, and a bar
+  // wider than its track is a rendering artefact on top of it.
+  const progressPercent =
+    hasPosition && typeof item.duration === "number" && item.duration > 0
+      ? Math.min(100, (item.timestamp! / item.duration) * 100)
+      : 0;
+
+  /**
+   * The episode goes in the URL, not only in history.
+   *
+   * §10 requires that reopening a title returns to the right episode. Carrying
+   * `?s=&e=` makes the link itself say where it goes, so the destination does
+   * not depend on the reader's localStorage still holding the entry.
+   */
+  const href = hasEpisode
+    ? `/${item.type}/${item.id}?s=${item.season}&e=${item.episode}`
+    : `/${item.type}/${item.id}`;
+
   return (
-    <Link
-      href={`/${item.type}/${item.id}`}
-      className="relative flex flex-col gap-3 cursor-pointer group/card w-full flex-shrink-0"
-    >
-      {/* Poster Container */}
-      <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a] transition-all duration-300 ease-in-out group-hover/card:shadow-[0_0_20px_rgba(229,9,20,0.4)] group-hover/card:scale-105 border border-white/5">
-        <Image
-          src={posterUrl}
-          alt={item.title}
-          fill
-          className="object-cover transition-transform duration-300 ease-in-out group-hover/card:scale-105"
-          referrerPolicy="no-referrer"
-        />
-        
-        {/* Progress Bar */}
-        <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800">
-           <div 
-             className="h-full bg-[#E50914]" 
-             style={{ width: item.duration && item.timestamp ? `${(item.timestamp / item.duration) * 100}%` : '0%' }}
-           />
-        </div>
+    <div className="relative w-full flex-shrink-0 group/card">
+      <Link
+        href={href}
+        className="relative flex flex-col gap-3 cursor-pointer w-full"
+      >
+        {/* Poster Container */}
+        <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a] transition-all duration-300 ease-in-out group-hover/card:shadow-[0_0_20px_rgba(229,9,20,0.4)] group-hover/card:scale-105 border border-white/5">
+          <Image
+            src={posterUrl}
+            alt={item.title}
+            fill
+            className="object-cover transition-transform duration-300 ease-in-out group-hover/card:scale-105"
+            referrerPolicy="no-referrer"
+          />
 
-        {/* Play Button Overlay */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-[2px]">
-          <div className="w-12 h-12 rounded-full bg-[#E50914] flex items-center justify-center transform scale-0 group-hover/card:scale-100 transition-transform duration-300 shadow-lg">
-            <Play className="w-6 h-6 text-white fill-current ml-1" />
+          {/* Progress Bar — rendered only against a runtime we actually hold. */}
+          {progressPercent > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800">
+              <div className="h-full bg-[#E50914]" style={{ width: `${progressPercent}%` }} />
+            </div>
+          )}
+
+          {/* Play Button Overlay */}
+          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 bg-black/40 backdrop-blur-[2px]">
+            <div className="w-12 h-12 rounded-full bg-[#E50914] flex items-center justify-center transform scale-0 group-hover/card:scale-100 transition-transform duration-300 shadow-lg">
+              <ActionIcon className="w-6 h-6 text-white fill-current ml-1" />
+            </div>
           </div>
+
+          {/* Season/Episode badge — season 0 renders as the specials season. */}
+          {hasEpisode && (
+            <div className="absolute top-2 right-2 z-10">
+              <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white bg-black/60 backdrop-blur-md rounded-md border border-white/10">
+                {item.season === 0 ? t.details.specials : `S${item.season}`} · E{item.episode}
+              </span>
+            </div>
+          )}
+
+          {/* Provider Badge */}
+          {item.provider && (
+            <div className="absolute bottom-3 left-2 z-10">
+              <span className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-zinc-300 bg-black/80 backdrop-blur-md rounded-md border border-white/5 flex items-center gap-1">
+                <Play className="w-2 h-2 fill-current" />
+                {item.provider}
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Badge for Season/Episode if TV */}
-        {item.type === 'tv' && item.season && item.episode && (
-          <div className="absolute top-2 right-2 z-10">
-            <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white bg-black/60 backdrop-blur-md rounded-md border border-white/10">
-              S{item.season} E{item.episode}
+        {/* Info Section */}
+        <div className="flex flex-col px-1">
+          <h3 className="text-sm font-semibold text-white truncate group-hover/card:text-[#E50914] transition-colors duration-300">
+            {item.title}
+          </h3>
+
+          {/* "Saison 2 · Épisode 7" — the episode line §10 asks for. */}
+          {episodeLabel && (
+            <p className="text-xs text-zinc-400 truncate mt-0.5">{episodeLabel}</p>
+          )}
+
+          <div className="flex items-center justify-between mt-1 opacity-80 group-hover/card:opacity-100 transition-opacity duration-300 gap-2">
+            <span className="text-xs text-zinc-400 flex items-center gap-1 min-w-0">
+              {finished && hasPosition ? (
+                <RotateCcw className="w-3 h-3 flex-shrink-0" />
+              ) : (
+                <Clock className="w-3 h-3 flex-shrink-0" />
+              )}
+              <span className="truncate">{actionLabel}</span>
             </span>
+            {/* "32:14 / 47:10" — present only when a position was measured. */}
+            {progressText && (
+              <span className="text-xs text-zinc-500 tabular-nums flex-shrink-0">
+                {progressText}
+              </span>
+            )}
           </div>
-        )}
-        
-        {/* Provider Badge */}
-        {item.provider && (
-           <div className="absolute bottom-3 left-2 z-10">
-            <span className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-zinc-300 bg-black/80 backdrop-blur-md rounded-md border border-white/5 flex items-center gap-1">
-              <Play className="w-2 h-2 fill-current" />
-              {item.provider}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Info Section */}
-      <div className="flex flex-col px-1">
-        <h3 className="text-sm font-semibold text-white truncate group-hover/card:text-[#E50914] transition-colors duration-300">
-          {item.title}
-        </h3>
-        <div className="flex items-center justify-between mt-1 opacity-60 group-hover/card:opacity-100 transition-opacity duration-300">
-          <span className="text-xs text-zinc-400 flex items-center gap-1">
-            <Clock className="w-3 h-3" />
-            {t.home.resumeWatching}
-          </span>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {/*
+        Outside the Link, not inside it: a button nested in an anchor is invalid
+        HTML, and a click on it would otherwise be a navigation. The handlers are
+        belt and braces — the button is a sibling, so there is nothing to bubble
+        to, but the intent is worth stating.
+      */}
+      {onRemove && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRemove(item);
+          }}
+          aria-label={`${t.home.removeFromHistory} — ${item.title}`}
+          title={t.home.removeFromHistory}
+          className="absolute top-2 left-2 z-20 p-1.5 rounded-md bg-black/60 hover:bg-[#E50914] text-white/70 hover:text-white backdrop-blur-md border border-white/10 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E50914]"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
   );
 };
 

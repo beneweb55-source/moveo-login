@@ -36,8 +36,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
-  const TMDB_API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-  const GEMINI_API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+  // The server-side names are read first, and both are accepted. Every other
+  // route that needs these keys (app/api/ai-recommend, app/api/admin/system,
+  // app/api/admin/stats) already reads `TMDB_API_KEY || NEXT_PUBLIC_TMDB_API_KEY`
+  // and `GEMINI_API_KEY || NEXT_PUBLIC_GEMINI_API_KEY`; this route and
+  // app/api/tmdb-proxy were the only two reading the `NEXT_PUBLIC_` name alone,
+  // so a deployment that set only the server-side variables would have had AI
+  // search answer 500 here while the admin health check reported TMDB online.
+  // Reading either is strictly more permissive than before, so it cannot turn a
+  // working deployment into a broken one.
+  const TMDB_API_KEY = process.env.TMDB_API_KEY || process.env.NEXT_PUBLIC_TMDB_API_KEY;
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY;
 
   if (!TMDB_API_KEY || !GEMINI_API_KEY) {
     return NextResponse.json({ error: "API keys missing" }, { status: 500 });

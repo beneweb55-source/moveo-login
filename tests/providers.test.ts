@@ -330,20 +330,41 @@ describe('provider list validation', () => {
     assert.ok(STORABLE_SERVERS.length > 0, 'nothing is selectable at all');
   });
 
-  it('has one non-empty messageOrigins allowlist, and it is Frembed', () => {
+  it('allowlists exactly the origins observed sending a message, and no others', () => {
+    // The rule this list enforces is in lib/providers.ts: an origin goes in only
+    // after it was OBSERVED emitting a real message, never from documentation.
+    // Both entries below meet it, and the set is asserted exhaustively so that
+    // adding an origin without a measurement fails here rather than silently
+    // widening what a third-party frame is allowed to say.
+    //
+    //   Frembed  — observed emitting {type:'episode_change',season,episode}.
+    //              It carries no position; the message is permitted, and
+    //              lib/playerMessages.ts rejects it as playback because treating
+    //              it as playback would be inventing an event.
+    //   VidLink  — observed 2026-09-22 emitting MEDIA_DATA with a per-episode
+    //              position that advanced with the media element (21.206035 s
+    //              while the element read 22 s). See lib/providers.ts.
     const withOrigins = PROVIDERS.filter((p) => p.messageOrigins.length > 0);
     assert.deepEqual(
-      withOrigins.map((p) => p.name),
-      ['Frembed'],
-      'only the origin observed emitting messages may be trusted',
+      withOrigins.map((p) => p.name).sort(),
+      ['Frembed', 'VidLink'],
+      'only origins observed emitting real messages may be trusted',
     );
     assert.deepEqual(getMessageOrigins('Frembed'), ['https://frembed.surf']);
+    assert.deepEqual(getMessageOrigins('VidLink'), ['https://vidlink.pro']);
   });
 
   it('accepts no messages at all from providers that have never been observed sending any', () => {
+    // Named explicitly rather than derived, so that this list has to be edited
+    // deliberately when a provider's behaviour is measured.
+    const observed = new Set(['Frembed', 'VidLink']);
     for (const provider of PROVIDERS) {
-      if (provider.name === 'Frembed') continue;
-      assert.deepEqual(getMessageOrigins(provider.name), []);
+      if (observed.has(provider.name)) continue;
+      assert.deepEqual(
+        getMessageOrigins(provider.name),
+        [],
+        `${provider.name} is allowed to send messages but was never observed sending one`,
+      );
     }
     assert.deepEqual(getMessageOrigins('Sibnet VF'), []);
     assert.deepEqual(getMessageOrigins('MOVEO PREMIUM'), []);

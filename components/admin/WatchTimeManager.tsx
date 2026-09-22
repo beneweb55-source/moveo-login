@@ -16,12 +16,28 @@ export default function WatchTimeManager() {
   const [totalPages, setTotalPages] = useState(1);
   const [saving, setSaving] = useState<number | null>(null);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  // A failed fetch used to leave `users` empty, and the table rendered that as
+  // "Aucun utilisateur trouvé" — a statement of fact about the data, produced by
+  // a request that never returned any. This is reachable without anything being
+  // broken: this panel lists users through /api/admin/users, which requires
+  // `view_users`, while the sidebar offers the section on `manage_watch_time`
+  // alone — so a custom role holding only the latter gets a 403 rendered as an
+  // empty user list. The two cases are now distinct.
+  // The failure is held as a code and translated at render time. Storing the
+  // translated sentence instead would mean reading `t` inside the effect below,
+  // and that object changes identity on every render — the effect would either
+  // re-fetch per render (§14) or freeze the message in whichever language was
+  // active when it failed.
+  const [loadError, setLoadError] = useState<'permission' | 'network' | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3500);
   };
 
+  // Note the dependency array: `t` is deliberately NOT in it. useLanguage()
+  // returns a fresh `t` object on every render, so depending on it would re-run
+  // this effect on every render and issue a request per render (§14).
   useEffect(() => {
     const fetchUsers = async () => {
       setLoading(true);
@@ -31,9 +47,15 @@ export default function WatchTimeManager() {
           const data = await res.json();
           setUsers(data.users);
           setTotalPages(data.totalPages);
+          setLoadError(null);
+        } else {
+          setUsers([]);
+          setLoadError(res.status === 401 || res.status === 403 ? 'permission' : 'network');
         }
       } catch (error) {
         console.error('Failed to fetch users', error);
+        setUsers([]);
+        setLoadError('network');
       } finally {
         setLoading(false);
       }
@@ -108,6 +130,12 @@ export default function WatchTimeManager() {
               {loading ? (
                 <tr>
                   <td colSpan={4} className="p-12 text-center text-zinc-500">{t.admin.loading}</td>
+                </tr>
+              ) : loadError ? (
+                <tr>
+                  <td colSpan={4} className="p-12 text-center text-amber-500">
+                    {loadError === 'permission' ? t.admin.missingPermission : t.admin.loadFailed}
+                  </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>

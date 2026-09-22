@@ -30,6 +30,17 @@ export interface MessageValidationContext {
   expectedSource: unknown;
   /** Exact origins permitted for the active provider. Empty = reject all. */
   allowedOrigins: readonly string[];
+  /**
+   * The content id we asked the provider to play, as a string.
+   *
+   * Required for `MEDIA_DATA`, whose payload is keyed by media id: without it we
+   * cannot tell which entry in the payload refers to what we mounted, and
+   * picking one would be a guess. When absent, `MEDIA_DATA` is rejected.
+   */
+  mediaId?: string;
+  /** The season/episode we asked for. Used to select the right per-episode entry. */
+  season?: number | null;
+  episode?: number | null;
 }
 
 /**
@@ -62,8 +73,91 @@ const toFiniteNumber = (value: unknown): number | null => {
 };
 
 /**
- * The message shapes our handler supports. These mirror the shapes the previous
- * implementation recognised, so no working contract is removed.
+ * Reads the position out of VidLink's `MEDIA_DATA` envelope.
+ *
+ * MEASURED, not inferred. Captured on a live Chrome from origin
+ * `https://vidlink.pro` at `https://vidlink.pro/tv/1429/1/1`, every 2000 ms:
+ *
+ *   {"type":"MEDIA_DATA","data":{"1429":{
+ *      "id":1429,"type":"tv","title":"…",
+ *      "progress":{"watched":0,"duration":1439.2},
+ *      "last_season_watched":"1","last_episode_watched":"1",
+ *      "show_progress":{"s1e1":{"season":"1","episode":"1",
+ *        "progress":{"watched":21.206035,"duration":1439.2}}}}}}
+ *
+ * Two properties of that shape decide this implementation, and both were
+ * observed rather than assumed:
+ *
+ *  1. The payload is KEYED BY MEDIA ID, so the entry we want can only be found
+ *     with the id we actually mounted. No id in context ⇒ no read.
+ *  2. The media-level `progress` object does NOT track the episode being
+ *     played. While the media element sat at 22 s, `show_progress.s1e1
+ *     .progress.watched` had advanced to 21.206035 and the media-level
+ *     `progress.watched` was still 0. Reading the obvious field would therefore
+ *     have persisted a permanent 0:00, which is worse than storing nothing.
+ *     The authoritative field for a series is the per-episode entry.
+ *
+ * The per-episode map is only consulted when we know which episode we asked
+ * for, and only under the exact `s{season}e{episode}` key. There is no
+ * fallback to `last_season_watched`: that describes wherever the provider's own
+ * viewer last stopped, which need not be the episode this page is showing, and
+ * storing it would attribute a position to the wrong episode.
+ */
+const readMediaData = (
+  data: Record<string, unknown>,
+  ctx: MessageValidationContext,
+): {currentTime: unknown; duration: unknown} | null => {
+  if (!isPlainObject(data.data)) return null;
+  if (typeof ctx.mediaId !== "string" || ctx.mediaId === "") return null;
+
+  const entry = (data.data as Record<string, unknown>)[ctx.mediaId];
+  if (!isPlainObject(entry)) return null;
+
+  // Series/movie discriminator comes from the provider's own `type` only to
+  // CHOOSE WHICH FIELD TO READ. It never decides identity: the id, season and
+  // episode we store are the ones we mounted, taken from our own route.
+  const providerType = typeof entry.type === "string" ? entry.type : "";
+
+  if (providerType === "tv") {
+    if (!isPlainObject(entry.show_progress)) return null;
+    const season = ctx.season;
+    const episode = ctx.episode;
+    if (typeof season !== "number" || typeof episode !== "number") return null;
+    const key = `s${season}e${episode}`;
+    const slot = (entry.show_progress as Record<string, unknown>)[key];
+    if (!isPlainObject(slot)) return null;
+    if (!isPlainObject(slot.progress)) return null;
+    const watched = (slot.progress as Record<string, unknown>).watched;
+    const duration = (slot.progress as Record<string, unknown>).duration;
+    return {currentTime: watched, duration};
+  }
+
+  // For a movie the media-level `progress` is the only position carrier.
+  //
+  // THE TYPE CHECK IS REQUIRED, not defensive. The media-level `progress` is
+  // also present on a SERIES entry — measured, carrying `watched: 0` while the
+  // episode was at 21.206 s. Falling through to it for anything whose type is
+  // not `movie` would therefore read the one field that is known to be stale.
+  // An envelope whose type we do not recognise stores nothing, which is the
+  // honest outcome: we cannot tell which field describes the viewer.
+  //
+  // MEASURED ONLY AT REST: the one movie entry observed carried
+  // `{watched: 0, duration: 0}`, so an ADVANCING movie position has not been
+  // observed. The shape is read because it is real and it is the only carrier a
+  // movie envelope has, and the numeric sanity checks below reject the
+  // `duration: 0` case outright; it is NOT claimed as verified. See
+  // docs/player-validation-2026-09-21.md.
+  if (providerType === "movie" && isPlainObject(entry.progress)) {
+    const progress = entry.progress as Record<string, unknown>;
+    return {currentTime: progress.watched, duration: progress.duration};
+  }
+
+  return null;
+};
+
+/**
+ * The message shapes our handler supports. The `timeupdate` shapes mirror what
+ * the previous implementation recognised, so no working contract is removed.
  *
  * `episode_change` is deliberately NOT here: the audit observed the provider
  * emit it, but it carries no position and is not evidence that playback is
@@ -71,12 +165,13 @@ const toFiniteNumber = (value: unknown): number | null => {
  */
 const extractPositionFields = (
   data: Record<string, unknown>,
+  ctx: MessageValidationContext,
 ): {currentTime: unknown; duration: unknown} | null => {
   if (data.event === "timeupdate" && isPlainObject(data.data)) {
     return {currentTime: data.data.currentTime, duration: data.data.duration};
   }
-  if (data.type === "MEDIA_DATA" && isPlainObject(data.data)) {
-    return {currentTime: data.data.currentTime, duration: data.data.duration};
+  if (data.type === "MEDIA_DATA") {
+    return readMediaData(data, ctx);
   }
   if (data.type === "timeupdate") {
     return {currentTime: data.currentTime, duration: data.duration};
@@ -111,7 +206,7 @@ export const parsePlaybackProgress = (
   try {
     // Payload must be a plain object in a shape we recognise.
     if (!isPlainObject(data)) return null;
-    const fields = extractPositionFields(data);
+    const fields = extractPositionFields(data, ctx);
     if (!fields) return null;
 
     // Numbers must be real, finite and internally consistent.

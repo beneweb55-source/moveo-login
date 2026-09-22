@@ -18,6 +18,7 @@ import {
 import Image from "next/image";
 
 import { saveWatchHistory } from "@/utils/historyManager";
+import { markPlaybackObserved } from "@/lib/playbackSignal";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   PREFERRED_SERVER_STORAGE_KEY,
@@ -493,6 +494,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         // episode / retry changes, so a stale frame no longer matches.
         expectedSource: iframeRef.current?.contentWindow ?? null,
         allowedOrigins: getMessageOrigins(serverRef.current),
+        // The id and the episode we ASKED FOR, so a `MEDIA_DATA` envelope —
+        // which is keyed by media id and carries a per-episode map — can be
+        // resolved to the entry that belongs to this page. Without these the
+        // parser rejects `MEDIA_DATA` rather than guessing which entry in the
+        // payload refers to what we mounted.
+        mediaId: String(id),
+        season: typeof season === "number" ? season : null,
+        episode: typeof episode === "number" ? episode : null,
       });
 
       // Silent rejection: unknown senders get no response of any kind.
@@ -501,6 +510,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (!playbackObservedRef.current) {
         playbackObservedRef.current = true;
         setPlaybackObserved(true);
+        // Publish the fact for the rest of the page. WatchTimer uses it to
+        // decide whether a minute of this visit counts as viewing; without it
+        // the timer was counting page-presence and calling it watch time.
+        // Reached only here — after a position has passed every validation
+        // check — so nothing downstream can learn "playback" from an iframe
+        // load, a mounted player, or a clock.
+        markPlaybackObserved(type, id);
       }
 
       const now = Date.now();

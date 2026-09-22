@@ -32,10 +32,14 @@
  * `fetch(url, {method:'POST', mode:'no-cors', credentials:'include', body:
  * JSON.stringify({...})})` therefore arrives with the cookie and a readable body.
  *
- * The reachable damage is concrete: POST /api/admin/system toggles
- * `maintenance_mode` for the whole site, POST /api/admin/sections creates a
- * home-page section, POST /api/admin/roles creates a role. An admin who merely
- * visits a hostile page can have any of those performed for them.
+ * The reachable damage is concrete, and the list below is the set of handlers
+ * that actually exist — it was corrected when `POST /api/admin/system` was
+ * removed along with its unenforced maintenance toggle: POST /api/admin/sections
+ * creates a home-page section, POST /api/admin/roles creates a role, and
+ * POST /api/admin/watch-time grants watch time to any account. An admin who
+ * merely visits a hostile page can have any of those performed for them. A
+ * comment that names a deleted endpoint as a live one is worse than no comment:
+ * it tells the next reader the surface has been enumerated when it has not.
  *
  * THE RULE, AND WHY IT IS SAFE
  *

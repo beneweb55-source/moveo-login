@@ -135,7 +135,7 @@ const KDramaPage = () => {
     };
 
     fetchInitialData();
-  }, [mediaType, sortBy, watchedIds, language, selectedGenre]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mediaType, sortBy, watchedIds, language, selectedGenre]);
 
   const fetchNextPageData = async () => {
     // Guard 1: one in-flight request at a time. InfiniteScroll can fire `next`
