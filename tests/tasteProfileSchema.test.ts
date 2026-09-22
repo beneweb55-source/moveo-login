@@ -9,18 +9,27 @@
  * the two things that carry identity say what they are supposed to say.
  *
  * WHAT THIS FILE CANNOT PROVE, stated rather than glossed: it does not prove
- * PostgreSQL ACCEPTS these statements. A syntax error, or a constraint PostgreSQL
- * evaluates differently from the way it reads, would pass every test below. The
- * dry run against the real database is what would catch that, and it has not been
- * run — the tables are not applied, because nothing reads them until the
- * recompute path exists.
+ * PostgreSQL ACCEPTS these statements or ENFORCES them. A syntax error, or a
+ * clause PostgreSQL reads differently from the way it looks, passes every test
+ * below. `scripts/verify-taste-schema.ts` is the executed half — it runs the same
+ * owner-key fixture against the real server, inside a transaction it rolls back,
+ * and it reports EXECUTED or SKIPPED rather than passing quietly.
  *
- * THE ONE PROPERTY WORTH THE WHOLE FILE is the owner-key suite: the key is the
- * only thing standing between two people's profiles, and it exists in two places
- * — as a type in `lib/historyOwnership.ts` and as a CHECK constraint in the
- * migration. If those two drift, nothing fails, nothing logs, and a profile is
- * written under a key that no read path will ever match. So the two are tested
- * against each other, here, from the constants rather than from the literals.
+ * THAT GAP BIT, AND THIS FILE IS CORRECTED BECAUSE OF IT. The first version of
+ * the owner-key suite asserted that the SQL CONTAINED the clauses that refuse the
+ * malformed keys. Every assertion passed. The constraint was then run against
+ * PostgreSQL by `scripts/verify-taste-schema.ts`, and it ACCEPTED `'guest: guest'`
+ * — a space is neither a colon nor an absent id, so neither clause saw it, while
+ * `parseOwnerKey` refuses it on `/[\s:]/`. A text assertion cannot tell a clause
+ * that bites from a clause that merely exists, which is why the suite below now
+ * EVALUATES the rule — against the exported `OWNER_ID_PATTERN` the SQL
+ * interpolates — instead of asserting its presence.
+ *
+ * THE ONE PROPERTY WORTH THE WHOLE FILE is still the owner key: it is the only
+ * thing standing between two people's profiles, and it exists in two places — as
+ * a type in `lib/historyOwnership.ts` and as a CHECK constraint in the migration.
+ * If those two drift, nothing fails, nothing logs, and a profile is written under
+ * a key that no read path will ever match.
  */
 
 import assert from 'node:assert/strict';
@@ -36,6 +45,8 @@ import {
   MIGRATION,
   NEW_ROWS_QUERY,
   OLD_ROWS_QUERY,
+  OWNER_ID_PATTERN,
+  REPAIR_OWNER_KEY_CONSTRAINT,
   rollbackStatements,
 } from '../scripts/migrate-taste-profile';
 import {
@@ -65,11 +76,20 @@ describe('the migration is additive, and cannot destroy a row', () => {
     // when its PROFILE row is deleted, at some future point and by someone else's
     // statement. It deletes nothing here, and it is what makes the sign-in merge
     // and any future "delete my data" path correct.
+    // `DROP CONSTRAINT` IS NOT EXCLUDED FROM THE LIST ABOVE, it is excluded from
+    // the PATTERN — and the difference matters. This migration now carries a
+    // repair (see REPAIR_OWNER_KEY_CONSTRAINT) that drops the first version of the
+    // owner-key CHECK and installs the allow-list one. That drops a RULE: no row,
+    // no column, no table, and the data is untouched on both statements. A regex
+    // written as a bare `\bDROP\b` cannot tell that from `DROP TABLE`, so it is
+    // written as the object-destroying forms specifically — and this comment is
+    // here because narrowing a safety pattern without saying why is how a safety
+    // pattern becomes decoration.
     for (const statement of MIGRATION) {
       const body = statement.sql.replace(/ON DELETE CASCADE/gi, '').toUpperCase();
       assert.doesNotMatch(
         body,
-        /\b(DROP|TRUNCATE)\b|\bDELETE\s+FROM\b|\bUPDATE\s+\w+\s+SET\b/,
+        /\bTRUNCATE\b|\bDROP\s+(TABLE|COLUMN|SCHEMA|DATABASE|INDEX|VIEW|SEQUENCE)\b|\bDELETE\s+FROM\b|\bUPDATE\s+\w+\s+SET\b/,
         `${statement.label} must not destroy or rewrite a row`,
       );
     }
@@ -91,11 +111,34 @@ describe('the migration is additive, and cannot destroy a row', () => {
   });
 
   it('is idempotent: every statement can be run twice', () => {
+    // The `ADD CONSTRAINT` is the one statement that cannot carry `IF NOT EXISTS`
+    // — PostgreSQL has no such form for a constraint — so it is idempotent by
+    // PAIRING instead: the statement immediately before it drops the same
+    // constraint. That pairing is asserted rather than assumed, because a rename
+    // on one side and not the other would make the second run fail with a
+    // duplicate-constraint error instead of doing nothing.
     for (const statement of MIGRATION) {
+      if (/ADD CONSTRAINT/.test(statement.sql)) continue;
       assert.match(
         statement.sql,
-        /IF NOT EXISTS/,
+        // Two forms, both meaning "this statement does not care what it finds":
+        // `IF NOT EXISTS` for the creates, and `DROP CONSTRAINT IF EXISTS` for the
+        // repair's first half, which is idempotent for the opposite reason.
+        /IF NOT EXISTS|DROP CONSTRAINT IF EXISTS/,
         `${statement.label} must be safe to run on a database that already has it`,
+      );
+    }
+
+    const added = MIGRATION.filter((statement) => /ADD CONSTRAINT/.test(statement.sql));
+    assert.ok(added.length > 0, 'the repair must still install the constraint');
+    for (const add of added) {
+      const name = /ADD CONSTRAINT\s+(\w+)/.exec(add.sql)?.[1];
+      assert.ok(name, `${add.label} must name the constraint it adds`);
+      const index = MIGRATION.indexOf(add);
+      const before = MIGRATION[index - 1];
+      assert.ok(
+        index > 0 && new RegExp(`DROP CONSTRAINT IF EXISTS\\s+${name}\\b`).test(before.sql),
+        `${add.label} must be preceded by a drop of the same constraint, or the second run fails`,
       );
     }
   });
@@ -237,24 +280,87 @@ describe('the owner key means THE SAME THING in the schema as in the code', () =
     );
   });
 
-  it('rejects every key form the parser rejects', () => {
-    // THE CORRESPONDENCE, and it was measured rather than assumed. These five are
-    // the forms `parseOwnerKey` returns null for; each has a clause in the
-    // constraint that rejects it too. The parser is checked by EXECUTION and the
-    // schema by TEXT, which is the strongest pairing available without a server —
-    // and it is honest about which half is which.
-    const rejected = ['guest:', 'user:', 'guest: guest', 'u:12', 'guest:guest:x'];
+  it('installs the same allow-list in the repair as in the create', () => {
+    // `CREATE TABLE IF NOT EXISTS` is a no-op on a database that already has the
+    // table, so the repair is the ONLY statement that fixes a database where the
+    // first, weaker constraint ran — and production is that database. If the two
+    // definitions drift, a fresh database gets one rule and an existing one gets
+    // another, and nothing reports it. So both are checked for the allow-list, and
+    // neither may still carry the deny-list clause that let `'guest: guest'`
+    // through in the first place.
+    for (const sql of [sqlOf(CREATE_TASTE_PROFILES), sqlOf(REPAIR_OWNER_KEY_CONSTRAINT)]) {
+      assert.ok(sql.includes(OWNER_ID_PATTERN), 'every definition must carry the allow-list');
+      assert.ok(!sql.includes('NOT LIKE'), 'the deny-list clause must be gone from every definition');
+    }
+  });
+
+  it('takes its alphabet from the exported pattern rather than a second copy', () => {
+    // If the SQL hard-coded `[A-Za-z0-9_-]` and `OWNER_ID_PATTERN` were edited,
+    // the schema would enforce a rule while the test evaluated a different one —
+    // the same class of drift the prefix assertion above guards against.
+    assert.equal(OWNER_ID_PATTERN, '^[A-Za-z0-9_-]+$');
+    assert.ok(profilesSql.includes(OWNER_ID_PATTERN), 'the SQL must interpolate the exported pattern');
+    // The substring offsets are computed from the prefix lengths, so a prefix
+    // that grows cannot leave the schema reading the id from the wrong position.
+    assert.ok(profilesSql.includes(`substring(owner_key from ${GUEST_PREFIX.length + 1})`));
+    assert.ok(profilesSql.includes(`substring(owner_key from ${USER_PREFIX.length + 1})`));
+  });
+
+  it('never accepts a key the parser refuses, evaluated rather than read', () => {
+    // THE CORRECTED TEST. The version this replaces asserted that the SQL
+    // CONTAINED the clauses refusing these keys, and it passed while the schema
+    // accepted `'guest: guest'`. So the rule is EVALUATED here instead: the mirror
+    // below applies the same exported pattern and the same prefix constants that
+    // the SQL interpolates, which is what makes this a check of the rule rather
+    // than of its spelling.
+    //
+    // A mirror can still drift from the SQL. That is why
+    // `scripts/verify-taste-schema.ts` runs this identical fixture against
+    // PostgreSQL and reports EXECUTED or SKIPPED: this test is the cheap check on
+    // every commit, that script is the proof the database agrees.
+    const constraintAccepts = (key: string): boolean => {
+      const prefix = [GUEST_PREFIX, USER_PREFIX].find((candidate) => key.startsWith(candidate));
+      if (prefix === undefined) return false;
+      return new RegExp(OWNER_ID_PATTERN).test(key.slice(prefix.length));
+    };
+
+    const rejected = [
+      'guest:',
+      'user:',
+      'guest: guest',
+      'guest:ano n',
+      'user:12 ',
+      'guest:\t7',
+      'u:12',
+      'guest:guest:x',
+      'user:1:2',
+      'GUEST:1',
+      'guest',
+      '',
+    ];
     for (const key of rejected) {
-      assert.equal(parseOwnerKey(key), null, `${JSON.stringify(key)} must be rejected by the parser`);
+      assert.equal(parseOwnerKey(key), null, `${JSON.stringify(key)} must be refused by the parser`);
+      assert.equal(
+        constraintAccepts(key),
+        false,
+        `${JSON.stringify(key)} must be refused by the schema — a space is not a colon`,
+      );
     }
 
-    // A bare prefix has no owner id: `length(...) > prefix.length`.
-    assert.ok(profilesSql.includes(`length(owner_key) > ${GUEST_PREFIX.length}`));
-    assert.ok(profilesSql.includes(`length(owner_key) > ${USER_PREFIX.length}`));
-    // A nested prefix is what a merge bug produces when one key is built from
-    // another, and it is a key no read path will ever match.
-    assert.ok(profilesSql.includes(`owner_key NOT LIKE '${GUEST_PREFIX}%:%'`));
-    assert.ok(profilesSql.includes(`owner_key NOT LIKE '${USER_PREFIX}%:%'`));
+    // The direction that matters, over the whole fixture: a key the parser
+    // REFUSES must never be one the schema ACCEPTS. The other direction is
+    // allowed to differ — the schema is a floor, not a translation — and
+    // `guest:1%` is the case that legitimately differs, since the parser tolerates
+    // a `%` and the allow-list does not.
+    for (const key of [...rejected, 'guest:anon_1734567890_abcdef', 'user:42', 'guest:1%']) {
+      if (constraintAccepts(key)) {
+        assert.notEqual(
+          parseOwnerKey(key),
+          null,
+          `${JSON.stringify(key)}: the schema accepts what the parser refuses (§23)`,
+        );
+      }
+    }
   });
 
   it('accepts every key the shared vocabulary produces', () => {

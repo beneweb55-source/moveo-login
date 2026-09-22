@@ -43,14 +43,19 @@
  * everything else, so an unowned profile is unrepresentable rather than merely
  * unused.
  *
- * The constraint is written to agree with `parseOwnerKey`, and the agreement was
- * MEASURED rather than assumed: a bare `guest:`, a bare `user:`, a padded
- * `guest: guest`, a `u:12` and — the one that is easy to miss — a NESTED
- * `guest:guest:x` are all rejected there, so all five are rejected here too. The
- * nested case is the one worth the extra clause: it is what a merge bug produces
- * when one key is built from another, and it is a key no read path will ever
- * match, so without the clause it would be a profile written and never seen.
- * The parser remains the strict authority; this is the floor under it.
+ * THE CONSTRAINT IS A FLOOR UNDER `parseOwnerKey`, NOT A TRANSLATION OF IT, and
+ * that distinction is the correction of a real defect rather than a preference.
+ * The first version tried to mirror the parser clause for clause, passed every
+ * text assertion in the test, and was then found by execution to accept
+ * `'guest: guest'` — see `OWNER_ID_PATTERN` above, which carries the whole
+ * account. The lesson is recorded rather than tidied away: the parser is the
+ * strict authority, the schema only has to never be more permissive, and a
+ * narrower allow-list gets that property by construction where a deny-list has to
+ * enumerate the infinite set of forms it is denying.
+ *
+ * The nested `guest:guest:x` is still refused — the allow-list has no colon — and
+ * it is worth keeping in mind as the form a merge bug produces when one key is
+ * built from another, because it is a key no read path will ever match.
  *
  * WHY `media_type` IS CONSTRAINED HERE AND NOT ON `watch_history`. The existing
  * history table legitimately stores `admin_adjustment` rows — the stats route
@@ -129,6 +134,42 @@ export const CREATE_TITLE_FEATURES: Statement[] = [
 ];
 
 /**
+ * The alphabet an owner id may use, and the fix for a defect found by EXECUTION.
+ *
+ * WHAT WENT WRONG. The first version of the constraint below refused a nested
+ * `guest:guest:x` and a bare `guest:` — the two forms that were easy to think of
+ * — by writing `owner_key NOT LIKE '<prefix>%:%'` and a length check. Every text
+ * assertion in `tests/tasteProfileSchema.test.ts` passed. Then the constraint was
+ * exercised against the real server, and `'guest: guest'` was ACCEPTED: a space is
+ * neither a colon nor an absent id, so neither clause saw it, while
+ * `parseOwnerKey` refuses it on `/[\s:]/` (lib/historyOwnership.ts:119). A profile
+ * written under that key is a profile no read path will ever match — silently,
+ * with no error and no log, which is §23's failure mode exactly.
+ *
+ * WHY AN ALLOW-LIST AND NOT A DENY-LIST. The parser's rule is "any suffix with no
+ * whitespace and no colon", an infinite set that SQL would have to re-implement
+ * exactly to agree with. It does not have to: the schema is a FLOOR, so it only
+ * has to avoid accepting what the parser refuses, and a narrower rule gets that
+ * for free. `[A-Za-z0-9_-]` covers every id the code can produce —
+ * `getDeviceId()` builds `anon_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`
+ * (lib/historyOwnership.ts:455), which is `[a-z0-9_]`, and a `users.id` is an
+ * INTEGER, so its string form is `[0-9]` — and refuses the space, the tab, the
+ * `%`, the `;` and the second colon all at once.
+ *
+ * THE `+` IS LOAD-BEARING. `substring('guest:' from 7)` is the empty string, and
+ * the empty string does not match `^[…]+$`, so a bare prefix is refused without a
+ * separate length check. That is why there is none.
+ *
+ * The pattern is EXPORTED so the test can run it against real keys in JS — which
+ * is what turns "the SQL contains these clauses" into "these keys are refused" —
+ * and so the SQL and the test cannot hold two copies of the rule. PostgreSQL ARE
+ * and JavaScript agree on this pattern: it uses no shorthand class, only a
+ * bracket expression and two anchors. `scripts/verify-taste-schema.ts` is the
+ * executed proof on the PostgreSQL side.
+ */
+export const OWNER_ID_PATTERN = '^[A-Za-z0-9_-]+$';
+
+/**
  * One row per owner, holding the counts that say how much was readable.
  *
  * `title_count` and `unknown_title_count` are stored rather than derived,
@@ -151,10 +192,10 @@ export const CREATE_TASTE_PROFILES: Statement[] = [
         title_count         INTEGER NOT NULL DEFAULT 0,
         unknown_title_count INTEGER NOT NULL DEFAULT 0,
         CONSTRAINT taste_profiles_owner_key_check CHECK (
-          (owner_key LIKE '${GUEST_PREFIX}%' AND length(owner_key) > ${GUEST_PREFIX.length}
-             AND owner_key NOT LIKE '${GUEST_PREFIX}%:%') OR
-          (owner_key LIKE '${USER_PREFIX}%'  AND length(owner_key) > ${USER_PREFIX.length}
-             AND owner_key NOT LIKE '${USER_PREFIX}%:%')
+          (owner_key LIKE '${GUEST_PREFIX}%'
+             AND substring(owner_key from ${GUEST_PREFIX.length + 1}) ~ '${OWNER_ID_PATTERN}') OR
+          (owner_key LIKE '${USER_PREFIX}%'
+             AND substring(owner_key from ${USER_PREFIX.length + 1}) ~ '${OWNER_ID_PATTERN}')
         )
       )`,
   },
@@ -188,11 +229,53 @@ export const CREATE_TASTE_TERMS: Statement[] = [
   },
 ];
 
+/**
+ * The repair, for a database where the FIRST version of the constraint ran.
+ *
+ * WHY THIS EXISTS AND WHY IT IS NOT A HOOK. `CREATE TABLE IF NOT EXISTS` is a
+ * no-op on a table that already exists, so correcting the CHECK in the CREATE
+ * above fixes every FUTURE database and no existing one — and the existing one is
+ * production, which is the only place the weak constraint was ever applied. A
+ * correction that silently does nothing on the one database that needs it is not
+ * a correction.
+ *
+ * `DROP CONSTRAINT IF EXISTS` then `ADD` makes the pair idempotent: running it
+ * twice ends in the same state, and a database that never had the old constraint
+ * is left exactly as it was. Nothing is dropped but a RULE — no row, no column,
+ * no table — and the data is untouched on both statements.
+ *
+ * THE ONE ORDERING NOTE, stated because it is a real failure mode rather than a
+ * theoretical one. If a future run finds rows that the STRICTER constraint
+ * refuses, the `ADD` fails and the table is left with no owner-key constraint at
+ * all until the offending rows are cleaned and this is re-run. That is the
+ * correct outcome — refusing to install a rule it cannot enforce, loudly, with a
+ * non-zero exit — but it is worth knowing before reading the failure. Here it
+ * cannot arise: the table was created minutes ago and holds zero rows, which the
+ * probe confirmed.
+ */
+export const REPAIR_OWNER_KEY_CONSTRAINT: Statement[] = [
+  {
+    label: 'taste_profiles: drop the first version of the owner-key check',
+    sql: `ALTER TABLE taste_profiles DROP CONSTRAINT IF EXISTS taste_profiles_owner_key_check`,
+  },
+  {
+    label: 'taste_profiles: install the allow-list owner-key check',
+    sql: `
+      ALTER TABLE taste_profiles ADD CONSTRAINT taste_profiles_owner_key_check CHECK (
+        (owner_key LIKE '${GUEST_PREFIX}%'
+           AND substring(owner_key from ${GUEST_PREFIX.length + 1}) ~ '${OWNER_ID_PATTERN}') OR
+        (owner_key LIKE '${USER_PREFIX}%'
+           AND substring(owner_key from ${USER_PREFIX.length + 1}) ~ '${OWNER_ID_PATTERN}')
+      )`,
+  },
+];
+
 /** Everything this migration does, in order. Profiles before the terms that cite them. */
 export const MIGRATION: Statement[] = [
   ...CREATE_TITLE_FEATURES,
   ...CREATE_TASTE_PROFILES,
   ...CREATE_TASTE_TERMS,
+  ...REPAIR_OWNER_KEY_CONSTRAINT,
 ];
 
 /** The tables this migration creates, for the rollback and for the shape test. */
