@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Users, Clock, Film, UserPlus, Activity, Eye, RefreshCw, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { RANKS } from '@/utils/ranks';
 import { useLanguage } from '@/context/LanguageContext';
-import { formatWatchTime } from '@/utils/formatDuration';
+import { formatSignedWatchTime, formatWatchTime } from '@/utils/formatDuration';
 
 /**
  * The shape `GET /api/admin/stats` returns, checked before it is rendered.
@@ -27,7 +27,7 @@ type StatsPayload = {
   totalWatchTime: number;
   adjustedWatchTime: number;
   totalTitlesWatched: number;
-  topMovies: Array<{
+  topTitles: Array<{
     media_id: number;
     media_type: string;
     total_minutes: number;
@@ -40,6 +40,33 @@ type StatsPayload = {
   usersByRank: Record<string, number>;
 };
 
+/**
+ * Whether one row of the most-watched list carries numbers this card can print.
+ *
+ * WHY THE ROWS ARE CHECKED AND NOT ONLY THE ARRAY. `Array.isArray` was the whole
+ * of the old check, and it accepted the payload that produced the defect this
+ * guard now closes: rows whose `total_minutes` were STRINGS, because Postgres
+ * returns `bigint` for a `SUM` and the driver renders `bigint` as text. The card
+ * then printed "0min" beside real totals — a wrong number, displayed with no
+ * error, on the strength of a check that had said the payload was fine.
+ *
+ * The route converts those two fields now, so this is the second lock on the same
+ * door. It is worth a second lock because the failure it catches is silent by
+ * construction: if the conversion is ever lost, the honest outcome is this card
+ * saying it cannot show the page, not this card inventing a zero.
+ */
+const isTopTitleRow = (value: unknown): boolean => {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.media_type === 'string' &&
+    typeof row.total_minutes === 'number' &&
+    Number.isFinite(row.total_minutes) &&
+    typeof row.viewer_count === 'number' &&
+    Number.isFinite(row.viewer_count)
+  );
+};
+
 const isStatsPayload = (value: unknown): value is StatsPayload => {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
@@ -49,7 +76,8 @@ const isStatsPayload = (value: unknown): value is StatsPayload => {
     typeof candidate.adjustedWatchTime === 'number' &&
     typeof candidate.totalTitlesWatched === 'number' &&
     typeof candidate.newUsersThisWeek === 'number' &&
-    Array.isArray(candidate.topMovies) &&
+    Array.isArray(candidate.topTitles) &&
+    candidate.topTitles.every(isTopTitleRow) &&
     !!candidate.usersByRank &&
     typeof candidate.usersByRank === 'object'
   );
@@ -188,12 +216,25 @@ export default function Dashboard() {
     </div>
   );
 
-  // Shown only when there IS a credit to declare. A permanent "Manual credits
-  // excluded (0min)" is noise that trains the reader to skip the line, so it
-  // appears exactly when it carries information.
+  // Shown whenever an adjustment EXISTS — a credit OR a debit.
+  //
+  // The condition used to be `> 0`, and the real database holds a NEGATIVE
+  // adjustment: a debit of several hours. The headline total excludes it, which is
+  // correct — it is not viewing time — and the `> 0` meant the card also said
+  // nothing about it, so the exclusion was invisible in exactly the case a reader
+  // would want to know about. The route's own comment already describes this note
+  // as appearing "when it is not zero"; the code is what disagreed with it.
+  //
+  // A permanent "Manual credits excluded (0min)" would be noise that trains the
+  // reader to skip the line, which is why nothing is shown at zero.
+  //
+  // The SIGNED formatter is required here and is not decoration: with
+  // `formatWatchTime`, which clamps a negative to `0min` on purpose, this note
+  // would read "Manual credits excluded (0min)" over a seven-hour debit — the
+  // silence replaced by a fabricated zero, which is worse than the silence.
   const creditNote =
-    stats.adjustedWatchTime > 0
-      ? t.interpolate(t.admin.manualCreditsExcluded, { minutes: formatWatchTime(stats.adjustedWatchTime) })
+    stats.adjustedWatchTime !== 0
+      ? t.interpolate(t.admin.manualCreditsExcluded, { minutes: formatSignedWatchTime(stats.adjustedWatchTime) })
       : undefined;
 
   return (
@@ -211,24 +252,24 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
-        {/* Top Movies */}
+        {/* Most watched titles — films AND series, ordered by minutes */}
         <div className="bg-[#111] border border-white/10 rounded-xl p-4 sm:p-6">
           <h3 className="text-lg sm:text-xl font-bold text-white mb-6 flex items-center gap-2">
             <Film className="w-5 h-5 text-rose-500" />
-            {t.admin.topMovies}
+            {t.admin.topTitles}
           </h3>
           <div className="space-y-3 sm:space-y-4">
-            {stats.topMovies.map((movie, index: number) => (
-              <div key={`${movie.media_type}:${movie.media_id}`} className="flex items-center justify-between p-3 sm:p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
+            {stats.topTitles.map((entry, index: number) => (
+              <div key={`${entry.media_type}:${entry.media_id}`} className="flex items-center justify-between p-3 sm:p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors">
                 <div className="flex items-center gap-3 sm:gap-4 min-w-0">
                   <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-rose-500/20 text-rose-500 flex items-center justify-center text-xs sm:text-sm font-bold shrink-0">
                     {index + 1}
                   </div>
-                  {movie.poster_path ? (
+                  {entry.poster_path ? (
                     <div className="relative w-10 h-14 sm:w-12 sm:h-18 shrink-0">
                       <Image
-                        src={`https://image.tmdb.org/t/p/w92${movie.poster_path}`}
-                        alt={movie.title}
+                        src={`https://image.tmdb.org/t/p/w92${entry.poster_path}`}
+                        alt={entry.title}
                         fill
                         className="object-cover rounded shadow-lg"
                         referrerPolicy="no-referrer"
@@ -240,22 +281,26 @@ export default function Dashboard() {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="font-bold text-white text-sm sm:text-lg leading-tight truncate">{movie.title}</p>
+                    <p className="font-bold text-white text-sm sm:text-lg leading-tight truncate">{entry.title}</p>
                     <p className="text-[10px] sm:text-xs text-zinc-400 line-clamp-1 sm:line-clamp-2 max-w-md mt-0.5 sm:mt-1 italic">
-                      {movie.overview}
+                      {entry.overview}
                     </p>
                     <p className="text-[10px] sm:text-xs text-rose-400 mt-1 sm:mt-2 flex items-center gap-1 font-medium">
-                       <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {movie.viewer_count || 0} {t.admin.peopleWatched}
+                       <Eye className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> {entry.viewer_count} {t.admin.peopleWatched}
                     </p>
                   </div>
                 </div>
                 <div className="text-right shrink-0 ml-2 sm:ml-4">
-                  <p className="font-bold text-white text-sm sm:text-xl">{formatWatchTime(movie.total_minutes || 0)}</p>
+                  {/* No `|| 0` on either number: the payload guard has already proved
+                      they are finite numbers, and defaulting a missing value to zero
+                      here is the very pattern that let "0min" be displayed beside a
+                      real total. */}
+                  <p className="font-bold text-white text-sm sm:text-xl">{formatWatchTime(entry.total_minutes)}</p>
                   <p className="text-[10px] sm:text-xs text-zinc-500">{t.admin.hoursWatched}</p>
                 </div>
               </div>
             ))}
-            {stats.topMovies.length === 0 && (
+            {stats.topTitles.length === 0 && (
               <p className="text-zinc-500 italic text-center py-8">{t.admin.noData}.</p>
             )}
           </div>

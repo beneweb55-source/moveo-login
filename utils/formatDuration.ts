@@ -46,3 +46,31 @@ export const formatWatchTime = (minutes: number): string => {
   const remainder = whole % 60;
   return remainder === 0 ? `${hours}h` : `${hours}h ${remainder}min`;
 };
+
+/**
+ * The same durations, with the sign kept — for a quantity that can be negative.
+ *
+ * WHY THIS IS NOT `formatWatchTime`. The clamp in `formatWatchTime` is deliberate
+ * and correct for what it is for: viewing time cannot be negative, and `-1h` beside
+ * a user was a wrong number. An admin ADJUSTMENT is not viewing time. The endpoint
+ * that writes one takes `minutesToAdd` and adds it to the row with no sign check,
+ * so a DEBIT is a real row — there is one in the real database today, and it is not
+ * a small one. The card that declares adjustments to the reader therefore cannot
+ * use the clamping formatter: it would print "Manual credits excluded (0min)" over
+ * a seven-hour debit, which is a fabricated figure standing exactly where the truth
+ * should be, and §3 forbids a displayed number that is not the real one whichever
+ * direction it is wrong in.
+ *
+ * The hours and minutes come from `formatWatchTime` and not from a second copy of
+ * the division: this file exists because four call sites each had their own, and a
+ * signed formatter that re-derived them would be the fifth.
+ */
+export const formatSignedWatchTime = (minutes: number): string => {
+  const magnitude = Math.abs(minutes);
+  // A fraction of a minute is no minutes, and nothing that rounds to zero has a
+  // sign worth printing: `-0min` is not a quantity an admin can act on.
+  if (!Number.isFinite(magnitude) || Math.floor(magnitude) === 0) return '0min';
+
+  const rendered = formatWatchTime(magnitude);
+  return minutes < 0 ? `-${rendered}` : rendered;
+};

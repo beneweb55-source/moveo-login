@@ -81,7 +81,18 @@ export async function GET() {
     `, [ADMIN_ADJUSTMENT]);
     const totalTitlesWatched = toNumber(totalTitlesWatchedRes.rows[0].count);
 
-    const topMoviesRes = await pool.query(`
+    // ─── THE MOST-WATCHED LIST IS NOT A FILM LIST, AND MAY NOT SAY IT IS ────
+    //
+    // There is no `media_type` filter here on purpose. The list answers "what is
+    // watched most", and a film is watched for two hours while a series is watched
+    // for two hundred, so restricting it to films would answer a different question
+    // than the card asks.
+    //
+    // What that costs is that the heading may not say "Films". On the real database
+    // all five rows are series, so a heading naming films above five series is a
+    // label contradicting its own data — the same defect as `totalMoviesWatched`,
+    // which this page already renamed once for exactly this reason.
+    const topTitlesRes = await pool.query(`
       SELECT media_id, media_type, SUM(minutes_watched) as total_minutes, COUNT(DISTINCT viewer_key) as viewer_count
       FROM (
         SELECT media_id, media_type, minutes_watched, user_id::text as viewer_key
@@ -96,10 +107,35 @@ export async function GET() {
       ORDER BY total_minutes DESC
       LIMIT 5
     `, [ADMIN_ADJUSTMENT]);
-    
-    const topMovies = await Promise.all(topMoviesRes.rows.map(async (movie: any) => {
+
+    // ─── WHY THE ROWS ARE REWRITTEN AND NOT SPREAD THROUGH ──────────────────
+    //
+    // `media_id` is an `integer` column and arrives as a number. `SUM()` and
+    // `COUNT()` are not: Postgres returns `bigint` for both, and the driver
+    // renders `bigint` as a STRING — "8377", not 8377.
+    //
+    // These rows used to be spread into the response as they came back, so
+    // `total_minutes` reached the card as a string. The card's formatter opens
+    // with `Number.isFinite`, which does not coerce, so `Number.isFinite("8377")`
+    // is FALSE and every row rendered "0min" beside a real total — an invented
+    // figure, and the exact kind §3 forbids, because it states that nobody
+    // watched a title that thousands of minutes were logged against. The tiles
+    // above were never affected: they already pass through `toNumber`. This is
+    // that same conversion, applied where it was missing.
+    //
+    // Both branches return THIS object, so a row whose artwork lookup failed
+    // still carries the real numbers instead of degrading into a second kind of
+    // row that the card has to know about.
+    const topTitles = await Promise.all(topTitlesRes.rows.map(async (row: any) => {
+      const metrics = {
+        media_id: row.media_id,
+        media_type: row.media_type,
+        total_minutes: toNumber(row.total_minutes),
+        viewer_count: toNumber(row.viewer_count),
+      };
+
       try {
-        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/${movie.media_type}/${movie.media_id}`, {
+        const tmdbRes = await axios.get(`https://api.themoviedb.org/3/${row.media_type}/${row.media_id}`, {
           headers: {
             Authorization: `Bearer ${process.env.TMDB_API_KEY || process.env.NEXT_PUBLIC_TMDB_API_KEY}`
           },
@@ -109,16 +145,16 @@ export async function GET() {
         });
         const data = tmdbRes.data;
         return {
-          ...movie,
+          ...metrics,
           title: data.title || data.name,
           poster_path: data.poster_path,
           overview: data.overview ? data.overview.substring(0, 100) + '...' : 'Pas de description',
         };
       } catch (e) {
-        console.error(`Failed to fetch TMDB for ${movie.media_type}/${movie.media_id}`, e);
+        console.error(`Failed to fetch TMDB for ${row.media_type}/${row.media_id}`, e);
         return {
-          ...movie,
-          title: `ID: ${movie.media_id}`,
+          ...metrics,
+          title: `ID: ${row.media_id}`,
           poster_path: null,
           overview: 'Données indisponibles',
         };
@@ -168,7 +204,7 @@ export async function GET() {
       totalWatchTime,
       adjustedWatchTime,
       totalTitlesWatched,
-      topMovies,
+      topTitles,
       newUsersThisWeek,
       usersByRank: rankCounts
     });

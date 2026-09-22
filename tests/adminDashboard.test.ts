@@ -27,7 +27,7 @@ import {readFileSync, readdirSync} from 'node:fs';
 import path from 'node:path';
 import {describe, it} from 'node:test';
 
-import {formatWatchTime} from '../utils/formatDuration';
+import {formatSignedWatchTime, formatWatchTime} from '../utils/formatDuration';
 import {translations} from '../lib/translations';
 
 const readSource = (relative: string): string =>
@@ -64,6 +64,36 @@ describe('formatWatchTime renders the minutes it is given', () => {
     // are not values, and `NaN` is what `parseInt(undefined)` produces.
     for (const value of [0, -1, -60, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
       assert.equal(formatWatchTime(value), '0min', `${value} must render as no minutes`);
+    }
+  });
+});
+
+describe('formatSignedWatchTime keeps a debit readable', () => {
+  it('renders a negative total instead of clamping it to nothing', () => {
+    // THE OTHER SILENT ZERO. `/api/admin/watch-time` adds `minutesToAdd` with no
+    // sign check, so a DEBIT is a real row — the real database holds one now. The
+    // clamping formatter renders it `0min`, which would have the card declare
+    // "Manual credits excluded (0min)" over a seven-hour debit: a fabricated
+    // number placed exactly where the truth belongs.
+    assert.equal(formatSignedWatchTime(-447), '-7h 27min');
+    assert.equal(formatSignedWatchTime(-60), '-1h');
+    assert.equal(formatSignedWatchTime(-30), '-30min');
+    assert.equal(formatSignedWatchTime(-3599), '-59h 59min');
+  });
+
+  it('renders a credit exactly as the unsigned formatter does', () => {
+    // Signing must not become a second formatting rule: every non-negative input
+    // is the same string, which is what keeps this one place to be wrong.
+    for (const value of [1, 30, 59, 60, 61, 210, 600, 3599]) {
+      assert.equal(formatSignedWatchTime(value), formatWatchTime(value), `${value} must be unchanged`);
+    }
+  });
+
+  it('prints nothing rather than "-0min" or "-NaN"', () => {
+    // A fraction of a minute rounds to no minutes, and no quantity that rounds to
+    // zero has a sign worth printing.
+    for (const value of [0, -0, 0.4, -0.4, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      assert.equal(formatSignedWatchTime(value), '0min', `${value} must render as no minutes`);
     }
   });
 });
@@ -138,6 +168,40 @@ describe('the stats route draws one line, and says where it is', () => {
     assert.match(source, /const toNumber = /);
   });
 
+  it('converts the aggregate columns before the rows leave the route', () => {
+    // THE DEFECT THE USER REPORTED. `SUM()` and `COUNT()` are `bigint` in Postgres
+    // and the driver returns `bigint` as a STRING, so `total_minutes` reached the
+    // card as "8377". The card's formatter opens with `Number.isFinite`, which does
+    // not coerce, so every row of the most-watched list rendered "0min" beside a
+    // real total — while the four tiles, which already passed through `toNumber`,
+    // were correct. The rows were the one place the conversion was missing.
+    const metrics = source.split('const metrics = {').slice(1);
+    assert.equal(metrics.length, 1, 'the list rows must be normalized in exactly one place');
+    assert.match(metrics[0], /total_minutes: toNumber\(row\.total_minutes\)/);
+    assert.match(metrics[0], /viewer_count: toNumber\(row\.viewer_count\)/);
+
+    // `media_id` is an `integer` column and already arrives as a number. Coercing it
+    // would be the same class of mistake from the other side: `toNumber` reads a
+    // prefix, so it would silently accept "1399abc" as 1399.
+    assert.match(metrics[0], /media_id: row\.media_id/);
+    assert.doesNotMatch(metrics[0], /media_id: toNumber/);
+
+    // Both branches spread the SAME object, so a row whose artwork lookup failed
+    // still carries the real numbers instead of degrading into a second shape the
+    // card would have to know about.
+    const spreads = metrics[0].match(/\.\.\.metrics,/g) ?? [];
+    assert.equal(spreads.length, 2, 'both the enriched and the degraded row carry the metrics');
+  });
+
+  it('names the list for what it actually lists', () => {
+    // The query has no `media_type` filter on purpose, and on the real database all
+    // five rows are series. The heading said "Films" over five series — a label
+    // contradicting its own data, the same defect as `totalMoviesWatched`.
+    assert.match(source, /const topTitles = await Promise\.all/);
+    assert.match(source, /^\s*topTitles,$/m);
+    assert.doesNotMatch(source, /topMovies/, 'the old name must be gone from the code');
+  });
+
   it('keeps the database message in the log and out of the response', () => {
     assert.doesNotMatch(source, /error\.message/);
     assert.match(source, /console\.error\('\[admin\/stats\] GET failed:', error\)/);
@@ -174,9 +238,43 @@ describe('the dashboard renders what the route sends, and says when it cannot', 
     assert.doesNotMatch(source, /\/ 60/);
   });
 
-  it('names the manual credit only when there is one to name', () => {
-    assert.match(source, /stats\.adjustedWatchTime > 0/);
+  it('declares an adjustment in either direction, and never as a fake zero', () => {
+    // The condition was `> 0`, and the real database holds a NEGATIVE adjustment.
+    // The headline total excludes it — correctly, it is not viewing time — and the
+    // `> 0` meant the card ALSO said nothing about it, so the exclusion was
+    // invisible in exactly the case a reader would want to know about. The route's
+    // own comment already describes the note as appearing "when it is not zero".
+    assert.match(source, /stats\.adjustedWatchTime !== 0/);
+    assert.doesNotMatch(source, /stats\.adjustedWatchTime > 0/);
     assert.match(source, /t\.admin\.manualCreditsExcluded/);
+
+    // And the note must use the SIGNED formatter: the clamping one renders a debit
+    // as `0min`, which would be a fabricated zero where the truth belongs.
+    assert.match(source, /formatSignedWatchTime\(stats\.adjustedWatchTime\)/);
+  });
+
+  it('checks the numbers inside each row, not only that rows exist', () => {
+    // `Array.isArray` alone accepted the payload that rendered "0min" beside real
+    // totals. Checking the row is what turns that regression into a visible failure
+    // instead of a confident zero.
+    assert.match(source, /const isTopTitleRow = \(value: unknown\): boolean/);
+    assert.match(source, /candidate\.topTitles\.every\(isTopTitleRow\)/);
+    assert.match(source, /typeof row\.total_minutes === 'number'/);
+    assert.match(source, /Number\.isFinite\(row\.total_minutes\)/);
+  });
+
+  it('lets no row default a missing number to zero', () => {
+    // `|| 0` is the signature of the defect: against a truthy STRING it changes
+    // nothing, so it never protected the card, and it would now hide the very
+    // regression the row check catches.
+    assert.doesNotMatch(source, /\.total_minutes \|\| 0/);
+    assert.doesNotMatch(source, /\.viewer_count \|\| 0/);
+    assert.match(source, /formatWatchTime\(entry\.total_minutes\)/);
+  });
+
+  it('labels the list for what the query returns', () => {
+    assert.match(source, /t\.admin\.topTitles/);
+    assert.doesNotMatch(source, /t\.admin\.topMovies/);
   });
 });
 
@@ -229,10 +327,13 @@ describe('every label exists in both languages', () => {
 
   it('carries the renamed and the new dashboard labels in both', () => {
     for (const [language, block] of [['fr', fr], ['en', en]] as const) {
-      for (const key of ['titlesWatched', 'manualCreditsExcluded', 'dashboardPermissionDenied', 'retry', 'statsUnavailable']) {
+      for (const key of ['titlesWatched', 'topTitles', 'manualCreditsExcluded', 'dashboardPermissionDenied', 'retry', 'statsUnavailable']) {
         assert.equal(typeof block.admin[key], 'string', `${language}.admin.${key} must exist`);
       }
       assert.ok(!('moviesWatched' in block.admin), `${language}.admin.moviesWatched must be gone`);
+      // `topMovies` named films over a list the query does not restrict to films,
+      // and on the real database all five rows are series.
+      assert.ok(!('topMovies' in block.admin), `${language}.admin.topMovies must be gone`);
     }
   });
 
