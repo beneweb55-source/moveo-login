@@ -68,6 +68,15 @@
  * its connection dies. The alternative, `pg_try_advisory_xact_lock` with a
  * retry budget, would trade that for dropped progress updates — which is the
  * wrong direction for a value the viewer expects to find on their next visit.
+ *
+ * And the wait happens while holding a POOLED CLIENT (`lib/db.ts` sets no `max`
+ * and no `connectionTimeoutMillis`, so `pg`'s defaults apply: ten clients, and a
+ * request for an eleventh waits for one indefinitely). The previous
+ * two-statement write held a client too, but never waited on a lock, so a hang
+ * could not hold a client open. What keeps this small is that the transaction is
+ * two short statements on one row, one lock per transaction, and `release()` in
+ * a `finally`; the residual risk is a transaction that hangs, and it is recorded
+ * in docs/watch-history-audit-2026-09-22.md §5.2 rather than left implicit.
  */
 
 import type { Pool } from 'pg';

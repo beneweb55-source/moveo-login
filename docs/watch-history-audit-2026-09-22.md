@@ -20,7 +20,7 @@ and it is 8/8 green (§5.2).
 **Claims below are marked with what they rest on:** a unit-test result, a source-level fact, a
 measurement taken in a real browser on production, or a measurement taken against a real
 PostgreSQL. §5.2, §5.3 and §5.5 are the sections whose central findings are measured; §7
-lists what none of them establishes.
+lists what none of them establishes, and §8 is the security re-pass over the diff that shipped.
 
 ---
 
@@ -203,6 +203,20 @@ the transaction blocks writes for the SAME title until its connection dies. The 
 `pg_try_advisory_xact_lock` with a retry budget, would trade that for dropped progress
 updates, which is the wrong direction. Each transaction takes exactly one lock, so no
 lock-ordering deadlock is possible, and writers are serialized per title rather than globally.
+
+**Availability, re-examined afterwards (§17).** One property of this fix is new in kind, so it
+is stated with its numbers rather than left to the docstring. The write now holds a **pooled
+client** for the length of its transaction and waits on a lock inside it. `lib/db.ts` sets no
+`max`, no `connectionTimeoutMillis` and no `statement_timeout`, so `pg`'s defaults apply — ten
+clients, and a request for an eleventh waits for one indefinitely. What keeps the exposure
+small: the transaction is two short statements on a single row, the lock is per title rather
+than global, each transaction takes exactly one lock, and `client.release()` is in a `finally`.
+The residual risk is the one the old two-statement write could not have had — a transaction
+that **hangs** holds a client *and* that title's lock until its connection dies, and ten such
+hangs on ten distinct titles would starve every other database call in the application, which
+shares this pool. No `lock_timeout` was added: bounding the wait converts a hang into a failed
+write (500, position dropped) and nothing here measures which of the two is better. The choice
+is recorded rather than made silently.
 
 **What is NOT proven about this fix.**
 
@@ -418,8 +432,50 @@ Stated plainly, because a report that omits these is not usable.
    playback for watch time (§5.3), make the signed-in write one serialized transaction (§5.2),
    and make the SQL able to run at all (§5.5); the parts of each that could not be proven are
    listed in §5.2, §5.3.1 and §5.5.
-6. **The deployed revision was not checked, and the 500 was not observed.** Everything in §5.5
-   rests on running the product's own statements against a local PostgreSQL. Verifying that
-   `https://www.moveo.blog/api/watch-time` answers a signed-in POST — and that it stops
-   answering `500` once this revision is deployed — needs credentials this session does not
-   have. Until then the code is measured and the deployment is not (§19).
+6. **The deployed revision was checked only where an unauthenticated probe reaches, and the 500
+   was not observed.** What *is* measured, on production, is the one change that changes the
+   answer to a request needing no session: `POST https://www.moveo.blog/api/watch-time` with
+   `{"media_type":"movie","media_id":550,"minutes":0}` now answers **`401 {"error":"Unauthorized"}`**.
+   The pre-fix guard answered **`400 {"error":"Missing required fields"}`** for that exact body
+   (measured 2026-09-21, recorded in `tests/watchTime.test.ts`), so the guard fix is **deployed**,
+   not merely committed — and the branch order means the 401 is the guard passing and the auth
+   check refusing, before any database access, so no production data was touched (§24). What
+   remains unestablished: whether the §5.2 transaction and the §5.5 quoting are deployed, since
+   reaching either needs a signed-in cookie this session does not have, and the `500` itself was
+   never observed, only reproduced as `42601` against a local server (§19).
+7. **The new transaction's cost under load is argued, not measured.** §5.2 states what the
+   advisory lock does to availability, with the pool's actual configuration (`lib/db.ts` sets
+   nothing, so `pg`'s ten-client default applies), and why the exposure is small. What is not
+   measured is throughput: per title, writers are now serialized where they were not before, and
+   no load test was run to price that. It is a wall-clock cost on a path that fires per minute
+   per viewer per title, and it is listed here so it is not mistaken for something the suite
+   covered.
+
+## 8. Security re-pass over the changes in this document (§17)
+
+Run after §5.2 and §5.5 landed — over the diff that shipped, not over the intention behind it.
+Each item says what was checked and how to re-check it.
+
+1. **No request value reaches the database as SQL text.** The only `${…}` in
+   `lib/watchHistoryWrite.ts` is the advisory-lock key, which is passed as a bound `$1` rather
+   than spliced into the statement; every other value goes through `$n`. `app/api/watch-time/route.ts`
+   contains no `${…}` in code at all. Re-check:
+   `grep -n '\${' lib/watchHistoryWrite.ts app/api/watch-time/route.ts`.
+2. **The lock key cannot be forged into another account's.** It is `userId:mediaType:mediaId`
+   with the account id **first**, and that id comes from the verified token. `mediaType` and
+   `mediaId` are caller-controlled, so a delimiter inside one of them can only produce a key
+   that already begins with the caller's own id — there is no key belonging to someone else that
+   a crafted `media_type` can reach. A `hashtext` collision between two unrelated titles merely
+   serializes them; it cannot let one write the other's row, because the row is matched by
+   `user_id = $1` in the statement itself.
+3. **Ownership is unchanged on every path.** The new write filters `user_id = $1` in both its
+   SELECT and its INSERT, and the id is filled from `jwtVerify`, never from the body — as do the
+   GET and the DELETE, which this change did not touch. The one new refusal (a token whose
+   `userId` is neither a number nor a string → 401) happens before any database access and
+   returns no detail about the token.
+4. **A client can still only reorder its own rows.** `observed_at` is advisory and self-scoped,
+   so a timestamp set in the future can misorder the caller's own history and nothing else: the
+   row it orders is selected and updated by `user_id`.
+5. **What the re-pass did not do.** It did not add `lock_timeout` or `statement_timeout`, did not
+   change the pool's configuration, and did not touch the guest branch or the DELETE handler. The
+   availability cost that follows from leaving those alone is recorded in §5.2 and §7.
