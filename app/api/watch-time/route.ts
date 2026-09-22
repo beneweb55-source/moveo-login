@@ -197,9 +197,27 @@ export async function GET(req: Request) {
     );
 
     return NextResponse.json({ progress: result.rows }, { status: 200 });
-  } catch (error: any) {
-    console.error('Error fetching watch progress:', error);
-    return NextResponse.json({ progress: [] }, { status: 200 });
+  } catch (error) {
+    // NOT `200 {progress: []}`. That is what this route used to answer, and it
+    // turned a failed read into a statement about the viewer's own data: the
+    // client was told, in the only vocabulary it had, that this account has
+    // watched nothing. §8 is explicit that HTTP 200 is not a result and that a
+    // displayed absence is not evidence of absence — and here the failure and
+    // the fact were the same three characters.
+    //
+    // The most common cause is a schema mismatch, and it is worth naming: the
+    // SELECT above reads `title`, `poster_path`, `current_time`,
+    // `total_duration`, `season` and `episode`, and on a database where
+    // `scripts/migrate-watch-history-episodes.ts` has not been applied those
+    // columns do not exist, so the query raises 42703 on every call. With the
+    // 200, that was indistinguishable from an empty history — which is how a
+    // whole feature goes missing while the status code, the network tab and the
+    // UI all look healthy.
+    //
+    // A guest never reaches this line with an error: no session short-circuits
+    // above with a real `200 {progress: []}`, which is a true answer and stays.
+    console.error('[watch-time] GET failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 

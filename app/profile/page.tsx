@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getRankFromWatchTime } from '@/utils/ranks';
-import { Shield, User, Settings, Bookmark, Heart, Eye, Loader2, Edit2, Camera, LogOut, Trash2, Key, Clock } from 'lucide-react';
+import { Shield, User, Settings, Bookmark, Heart, Eye, Loader2, Edit2, Camera, LogOut, Trash2, Key, Clock, History } from 'lucide-react';
 import Image from 'next/image';
+import ProfileHistoryTab from '@/components/ProfileHistoryTab';
 import { useLanguage } from '@/context/LanguageContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -89,7 +90,11 @@ function ProfileContent() {
   }, [router]);
 
   useEffect(() => {
-    if (activeTab === 'settings' || loadedTabs.has(activeTab)) return;
+    // 'history' is skipped for the same reason as 'settings': it is not backed by
+    // `/api/user/list`. Its rows come from `useWatchHistory`, which reads the
+    // account's watch history plus this browser's copy — a different table, and a
+    // different question from "which titles did you mark".
+    if (activeTab === 'settings' || activeTab === 'history' || loadedTabs.has(activeTab)) return;
     const fetchList = async () => {
       try {
         const res = await fetch(`/api/user/list?list_type=${activeTab}`);
@@ -457,6 +462,17 @@ function ProfileContent() {
               </div>
             </button>
             <button
+              onClick={() => setActiveTab('history')}
+              className={`px-4 py-3 sm:px-6 sm:py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === 'history' ? 'border-[#E50914] text-white' : 'border-transparent text-zinc-400 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <History className="w-4 h-4" />
+                {t.profile.history}
+              </div>
+            </button>
+            <button
               onClick={() => setActiveTab('settings')}
               className={`px-4 py-3 sm:px-6 sm:py-4 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                 activeTab === 'settings' ? 'border-[#E50914] text-white' : 'border-transparent text-zinc-400 hover:text-white'
@@ -473,6 +489,12 @@ function ProfileContent() {
             {activeTab === 'watchlist' && renderList(lists.watchlist)}
             {activeTab === 'favorites' && renderList(lists.favorites)}
             {activeTab === 'watched' && renderList(lists.watched)}
+
+            {/* Not `renderList`, on purpose: `user_list` rows and `watch_history`
+                rows are records of two different acts — a mark the viewer made
+                and a position the player wrote — and they carry different
+                fields. See components/ProfileHistoryTab.tsx. */}
+            {activeTab === 'history' && <ProfileHistoryTab />}
             
             {activeTab === 'settings' && (
               <div className="max-w-2xl bg-zinc-900/50 border border-white/5 rounded-2xl p-4 sm:p-8 mb-10">

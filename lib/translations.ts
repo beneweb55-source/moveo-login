@@ -75,6 +75,13 @@ export const translations = {
       */
       startedEpisodes: "Épisodes commencés",
       watchedUpTo: "vu jusqu'à",
+      /*
+        components/HistorySection.tsx. Shown when a PROVEN account's history
+        could not be read: the strip below is then this browser's copy only, and
+        it must not be presented as the whole of it (§8).
+      */
+      historyUnavailable:
+        "Impossible de lire l'historique enregistré sur votre compte. Seul l'historique de ce navigateur est affiché pour le moment.",
       trailer: "Bande-Annonce",
       cast: "Casting",
     },
@@ -278,6 +285,19 @@ export const translations = {
       myWatchlist: "Ma Watchlist",
       myFavorites: "Mes Favoris",
       alreadyWatched: "Déjà Vus",
+      /*
+        components/ProfileHistoryTab.tsx — the tab that reads `watch_history`
+        rather than `user_list`. It shows the same list as the home page's
+        "Reprendre la lecture" through the same hook, but keeps the films watched
+        to the end: the profile's subject is the record itself, so a finished
+        film is exactly what belongs in it (§10).
+      */
+      history: "Historique",
+      historyEmpty: "Aucun contenu dans votre historique",
+      historyHint: "Les films et les séries que vous commencez apparaîtront ici.",
+      historyUnavailable:
+        "Impossible de lire l'historique enregistré sur votre compte. Seule la copie de ce navigateur est affichée pour le moment.",
+      explore: "Explorer",
       settings: "Paramètres",
       accountInfo: "Informations du Compte",
       avatar: "Avatar",
@@ -549,6 +569,10 @@ export const translations = {
          claimed, and a row's caption states the last OBSERVED position. */
       startedEpisodes: "Started episodes",
       watchedUpTo: "watched up to",
+      /* See the French entry above: a proven account's copy could not be read,
+         so the strip below is this browser's copy only and is not the whole. */
+      historyUnavailable:
+        "Your saved history could not be read from your account. Only this browser's history is shown for now.",
       trailer: "Trailer",
       cast: "Cast",
     },
@@ -722,6 +746,14 @@ export const translations = {
       myWatchlist: "My Watchlist",
       myFavorites: "My Favorites",
       alreadyWatched: "Already Watched",
+      /* See the French entry above: the same list as the home page, keeping the
+         films watched to the end. */
+      history: "History",
+      historyEmpty: "Nothing in your history yet",
+      historyHint: "Films and series you start will appear here.",
+      historyUnavailable:
+        "Your saved history could not be read from your account. Only this browser's copy is shown for now.",
+      explore: "Explore",
       settings: "Settings",
       accountInfo: "Account Information",
       avatar: "Avatar",

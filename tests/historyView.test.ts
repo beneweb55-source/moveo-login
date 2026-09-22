@@ -250,13 +250,33 @@ describe('the consumers use the shared answer, and the list filters the LOCAL st
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/^[ \t]*\/\/.*$/gm, '');
 
-  it('HistorySection filters local entries through the display rule', () => {
+  it('the history list filters local entries through the display rule', () => {
     // The leak was here. The server list needs no filter (that route answers for
     // the account on the cookie and sends no `owner` field), but the local store
     // is shared by everyone who uses the browser.
-    const source = read('components/HistorySection.tsx');
-    assert.match(source, /visibleEntriesFor\(local, viewer\)/);
-    assert.match(source, /await resolveHistoryOwner\(\)/);
+    //
+    // The rule has MOVED since — out of the component and into
+    // lib/historyList.ts, when the profile gained a history tab over the same
+    // list. A copy of the filter in each surface is precisely how the two would
+    // come to disagree, and a disagreement here is one surface showing A's
+    // titles to B while the other refuses. So the pin follows the code to where
+    // it went; it is not relaxed to accommodate the move.
+    const rule = read('lib/historyList.ts');
+    assert.match(rule, /visibleEntriesFor\(local, viewer\)/);
+
+    // And both surfaces go through that rule rather than reading the store
+    // themselves — a third reader added later is what this loop is for.
+    for (const component of [
+      'components/HistorySection.tsx',
+      'components/ProfileHistoryTab.tsx',
+    ]) {
+      assert.match(
+        read(component),
+        /useWatchHistory\(/,
+        `${component} must read the history through the shared hook, not the store`,
+      );
+    }
+    assert.match(read('lib/useWatchHistory.ts'), /await resolveHistoryOwner\(\)/);
   });
 
   it('GuestHistorySync asks the resolver instead of fetching /api/auth/me itself', () => {

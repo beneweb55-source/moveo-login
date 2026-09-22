@@ -929,46 +929,65 @@ export const getAnonSessionId = (): string | null => getDeviceId();
 // ─── server read (connected users) ───
 
 /**
- * Fetch watch progress from server for logged-in users.
- * Returns server-side history items, mapped to WatchHistoryItem format.
+ * Reads the account's copy of the history, mapped to WatchHistoryItem format.
+ *
+ * IT THROWS WHEN IT COULD NOT READ, and that is the whole point of the
+ * signature. This used to answer `[]` for a refused request, for a network
+ * failure and for a genuinely empty history alike, so "we could not read your
+ * history" and "you have no history" arrived on screen as the same thing:
+ * nothing. A signed-in viewer whose server read failed saw an empty list and
+ * concluded their history was gone, with nothing to tell them otherwise — the
+ * false-success shape, where a failure is displayed as a fact about the data
+ * (§8: a displayed absence is not evidence of absence).
+ *
+ * A 200 carrying an empty `progress` array IS a real answer and returns `[]`:
+ * that is what a guest gets (no session, so no rows) and what an account with
+ * nothing recorded gets. A non-2xx, or a request that did not complete, is not
+ * an answer, and the caller is told so rather than handed an empty list.
+ *
+ * The route's half of this contract matters as much as this one: as long as
+ * `GET /api/watch-time` answered `200 {progress: []}` out of its own `catch`,
+ * no client could have distinguished the two cases however carefully it read
+ * the response.
  */
 export const getServerWatchHistory = async (): Promise<WatchHistoryItem[]> => {
-  try {
-    const res = await fetch("/api/watch-time");
-    if (!res.ok) return [];
-    const data = await res.json();
-
-    if (!data.progress || !Array.isArray(data.progress)) return [];
-
-    // Named and typed before mapping: `data` comes from `res.json()`, so
-    // `data.progress` is `any` and every callback below it would be implicitly
-    // `any` too — which is how a shape change on the server would have gone
-    // unnoticed by the compiler.
-    const rows: Record<string, unknown>[] = data.progress;
-
-    return rows
-      .map((item: Record<string, unknown>) => {
-        const timestamp = toFiniteOrUndefined(item.current_time);
-        const duration = toFiniteOrUndefined(item.total_duration);
-        return normaliseItem({
-          id: String(item.media_id ?? ""),
-          type: item.media_type,
-          title: item.title || `ID: ${item.media_id}`,
-          poster_path: item.poster_path || "",
-          // `??` and not `||`, for the same reason as the write path above: a
-          // stored season 0 must come back as 0, not as "no season".
-          season: item.season ?? undefined,
-          episode: item.episode ?? undefined,
-          provider: "",
-          last_watched: item.last_updated
-            ? new Date(item.last_updated as string).getTime()
-            : 0,
-          ...(timestamp === undefined ? {} : { timestamp }),
-          ...(duration === undefined ? {} : { duration }),
-        });
-      })
-      .filter((item): item is WatchHistoryItem => item !== null);
-  } catch {
-    return [];
+  const res = await fetch("/api/watch-time");
+  if (!res.ok) {
+    throw new Error(`watch history unavailable: HTTP ${res.status}`);
   }
+  const data = await res.json();
+
+  // Unparseable or shape-changed bodies are "no answer" as well, and they fall
+  // through to the empty list below only when the field is genuinely absent —
+  // `res.json()` throwing on a malformed body is allowed to propagate.
+  if (!data.progress || !Array.isArray(data.progress)) return [];
+
+  // Named and typed before mapping: `data` comes from `res.json()`, so
+  // `data.progress` is `any` and every callback below it would be implicitly
+  // `any` too — which is how a shape change on the server would have gone
+  // unnoticed by the compiler.
+  const rows: Record<string, unknown>[] = data.progress;
+
+  return rows
+    .map((item: Record<string, unknown>) => {
+      const timestamp = toFiniteOrUndefined(item.current_time);
+      const duration = toFiniteOrUndefined(item.total_duration);
+      return normaliseItem({
+        id: String(item.media_id ?? ""),
+        type: item.media_type,
+        title: item.title || `ID: ${item.media_id}`,
+        poster_path: item.poster_path || "",
+        // `??` and not `||`, for the same reason as the write path above: a
+        // stored season 0 must come back as 0, not as "no season".
+        season: item.season ?? undefined,
+        episode: item.episode ?? undefined,
+        provider: "",
+        last_watched: item.last_updated
+          ? new Date(item.last_updated as string).getTime()
+          : 0,
+        ...(timestamp === undefined ? {} : { timestamp }),
+        ...(duration === undefined ? {} : { duration }),
+      });
+    })
+    .filter((item): item is WatchHistoryItem => item !== null);
 };
