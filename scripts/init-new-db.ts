@@ -2,7 +2,18 @@ import { Pool } from 'pg';
 import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
-const dbUrl = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_htHL3N0DKzTA@ep-ancient-forest-ai8bpw82-pooler.c-4.us-east-1.aws.neon.tech/neondb?sslmode=require";
+// The connection string used to fall back to a hardcoded production Neon DSN,
+// owner credential included. That fallback was not a convenience: it meant a
+// run with no DATABASE_URL in the environment did not fail, it applied itself
+// to the live database — and this repository is public. It fails closed now.
+// NOTE: the credential is still present in this repository HISTORY. Removing
+// it here does not un-publish it; the password must be rotated.
+const dbUrl = process.env.DATABASE_URL;
+
+if (!dbUrl) {
+  console.error('DATABASE_URL is not set. Refusing to connect to an unknown database.');
+  process.exit(1);
+}
 
 const pool = new Pool({
   connectionString: dbUrl,
