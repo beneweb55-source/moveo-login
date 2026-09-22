@@ -98,6 +98,12 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editingRole, setEditingRole] = useState<any>(null);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  // A failed fetch left `roles` empty and rendered the management screen with no
+  // roles in it — no list, no message, and a "New Role" button beside it. That
+  // reads as "this installation has no roles", which is a statement about the
+  // data produced by a request that never returned any. Held as a code and
+  // translated at render time, so that `fetchRoles` below reads no `t`.
+  const [loadError, setLoadError] = useState<'permission' | 'network' | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -122,9 +128,15 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
         const data = await res.json();
         // Sort by priority DESC
         setRoles(data.sort((a: any, b: any) => b.priority - a.priority));
+        setLoadError(null);
+      } else {
+        setRoles([]);
+        setLoadError(res.status === 401 || res.status === 403 ? 'permission' : 'network');
       }
     } catch (error) {
       console.error('Failed to fetch roles', error);
+      setRoles([]);
+      setLoadError('network');
     } finally {
       setLoading(false);
     }
@@ -237,6 +249,25 @@ export default function RolesManager({ currentUser }: { currentUser: any }) {
   };
 
   if (loading) return <div className="text-zinc-500">{t.admin.loading}</div>;
+
+  if (loadError) {
+    return (
+      <div className="bg-[#111] border border-white/10 rounded-xl p-12 text-center space-y-4">
+        <p className="text-amber-500">
+          {loadError === 'permission' ? t.admin.missingPermission : t.admin.loadFailed}
+        </p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            fetchRoles();
+          }}
+          className="px-4 py-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors text-white text-sm font-medium"
+        >
+          {t.admin.retry}
+        </button>
+      </div>
+    );
+  }
 
   if (isEditing) {
     return (

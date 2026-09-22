@@ -8,20 +8,60 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const search = searchParams.get('search') || '';
-  const page = parseInt(searchParams.get('page') || '1');
-  const limit = parseInt(searchParams.get('limit') || '20');
+
+  // `?page=abc` parsed to `NaN`, and `(NaN - 1) * 20` reached Postgres as an
+  // OFFSET of NaN — a failed query and a 500 on the user list, from a URL. A
+  // bare `parseInt` also carries no radix. The same values are read defensively
+  // on the reports endpoint for the same reason.
+  const requestedPage = Number.parseInt(searchParams.get('page') || '1', 10);
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  // `?limit=0` made `Math.ceil(total / 0)` an infinity that JSON-serialised to
+  // `null`, and `?limit=-5` made `totalPages` negative, which left the "Next"
+  // button enabled forever: clicking it computed a `NaN` page and the following
+  // request 500'd. The cap keeps one request from being asked for the whole
+  // user table.
+  const requestedLimit = Number.parseInt(searchParams.get('limit') || '20', 10);
+  const limit = Number.isInteger(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 100) : 20;
   const sort = searchParams.get('sort') || 'created_at';
   const offset = (page - 1) * limit;
 
   try {
+    // ─── THIS DEFINITION MUST MATCH scripts/migrate-progression.ts ───────────
+    //
+    // It did not, and this is the drift that broke a WRITE path rather than a
+    // displayed number. This bootstrap declared `media_type` and `media_id`
+    // NULLABLE, `TIMESTAMP` without a time zone, and — the part that matters —
+    // NO `UNIQUE(session_id, media_type, media_id)`.
+    //
+    // app/api/watch-time/route.ts:158 upserts guest viewing with
+    // `ON CONFLICT (session_id, media_type, media_id)`, and Postgres resolves
+    // that clause ONLY against a real unique index or constraint. Without one it
+    // fails with 42P10, "there is no unique or exclusion constraint matching the
+    // ON CONFLICT specification" — a 500 on every guest watch-time write.
+    //
+    // `CREATE TABLE IF NOT EXISTS` means the FIRST definition to run wins and the
+    // other is a silent no-op, so which table a database ended up with depended
+    // on whether an admin opened the user list (`GET /api/admin/users`, the
+    // endpoint this route serves) before a signed-out visitor first saved
+    // progress. On that ordering, guest history was not merely unsynced: no guest
+    // write could succeed at all, and nothing in the UI would have said why. The
+    // NULL columns were a quieter version of the same bug — `media_type <> $1` is
+    // NULL for a NULL media_type, so such a row is excluded from every
+    // aggregation that filters, silently dropping the minutes it holds.
+    //
+    // It is kept as a fallback rather than deleted, for the same reason the
+    // pinned-sections bootstrap is: if no migration has been run, removing it
+    // leaves this endpoint reading a table that does not exist. What it may not
+    // do is disagree.
     await pool.query(`
       CREATE TABLE IF NOT EXISTS anonymous_watch_history (
         id SERIAL PRIMARY KEY,
         session_id VARCHAR(255) NOT NULL,
-        media_type VARCHAR(50),
-        media_id INTEGER,
+        media_type VARCHAR(50) NOT NULL,
+        media_id INTEGER NOT NULL,
         minutes_watched INTEGER DEFAULT 0,
-        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(session_id, media_type, media_id)
       );
     `);
 
@@ -61,15 +101,20 @@ export async function GET(req: Request) {
       countParams.push(`%${search}%`);
     }
     const countRes = await pool.query(countQuery, countParams);
-    const totalUsers = parseInt(countRes.rows[0].count);
+    const totalUsers = Number.parseInt(String(countRes.rows[0].count ?? '0'), 10) || 0;
 
     return NextResponse.json({
       users: usersRes.rows,
-      totalPages: Math.ceil(totalUsers / limit),
+      // `Math.max(1, …)` so an empty search result is "page 1 of 1" rather than
+      // "page 1 of 0", which the pagination row printed as a real page count.
+      totalPages: Math.max(1, Math.ceil(totalUsers / limit)),
       currentPage: page
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    // The database's own message was returned to the caller. It names tables,
+    // columns and constraints, and it is not the UI's to show.
+    console.error('[admin/users] GET failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -194,7 +239,8 @@ export async function PUT(req: Request) {
     }
 
     return NextResponse.json({ message: 'User updated successfully' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[admin/users] PUT failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

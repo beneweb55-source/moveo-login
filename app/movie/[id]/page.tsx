@@ -292,7 +292,21 @@ export default function MovieDetails() {
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-4">
                         <div className="w-1 h-8 bg-[#E50914] rounded-full" />
-                        <h2 className="text-3xl font-bold">{t.details.nowPlaying}</h2>
+                        {/*
+                          Names the section. It used to read "Lecture en cours"
+                          / "Now Playing", rendered unconditionally — before the
+                          frame had sent anything, and whether or not anything
+                          ever played. Measured on production 2026-09-22:
+                          `/movie/969681` ran for 132 s, the only position-bearing
+                          messages were the provider's stored snapshots at a
+                          2000 ms cadence, and every one of them was `{watched: 0,
+                          duration: 0}` — no playback occurred and the heading
+                          claimed it throughout. §15: "Aucune UI ne doit annoncer
+                          'Lecture en cours' sans signal fiable de lecture." See
+                          lib/translations.ts for why the honest label is a name
+                          rather than a state.
+                        */}
+                        <h2 className="text-3xl font-bold">{t.details.videoPlayer}</h2>
                     </div>
                     
                     <button 

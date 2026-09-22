@@ -21,6 +21,15 @@ export default function ContentManager() {
   const [sectionGenre, setSectionGenre] = useState('');
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  // Two independent reads behind one screen, so two independent failures. Both
+  // used to be swallowed: a non-ok response was simply not an `if (res.ok)`
+  // branch, so `settings` stayed `{}` and `pinnedSections` stayed `[]`, and the
+  // screen rendered the DEFAULTS of every control as though nothing had ever
+  // been configured. An admin could not tell "the hero film was never chosen"
+  // from "the request to read it failed", and the second one is a 500 they
+  // should be told about. Held as codes, translated at render time.
+  const [loadError, setLoadError] = useState<'permission' | 'network' | null>(null);
+  const [sectionsError, setSectionsError] = useState<'permission' | 'network' | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -90,9 +99,15 @@ export default function ContentManager() {
       if (res.ok) {
         const data = await res.json();
         setPinnedSections(data);
+        setSectionsError(null);
+      } else {
+        setPinnedSections([]);
+        setSectionsError(res.status === 401 || res.status === 403 ? 'permission' : 'network');
       }
     } catch (error) {
       console.error('Failed to fetch pinned sections', error);
+      setPinnedSections([]);
+      setSectionsError('network');
     }
   };
 
@@ -148,7 +163,12 @@ export default function ContentManager() {
       if (res.ok) {
         const data = await res.json();
         setSettings(data);
+        setLoadError(null);
         if (data.hero_movie) {
+          // The `typeof … === 'string'` branch is kept even though the column is
+          // JSONB and node-postgres parses it: an existing row written while the
+          // runtime bootstrap still declared TEXT holds a string, and this is a
+          // read of data that already exists.
           try {
             setSelectedHero(typeof data.hero_movie === 'string' ? JSON.parse(data.hero_movie) : data.hero_movie);
           } catch (e) {
@@ -156,9 +176,12 @@ export default function ContentManager() {
             setSelectedHero(data.hero_movie);
           }
         }
+      } else {
+        setLoadError(res.status === 401 || res.status === 403 ? 'permission' : 'network');
       }
     } catch (error) {
       console.error('Failed to fetch settings', error);
+      setLoadError('network');
     } finally {
       setLoading(false);
     }
@@ -203,6 +226,25 @@ export default function ContentManager() {
   };
 
   if (loading) return <div className="text-zinc-400">{t.admin.loading}</div>;
+
+  if (loadError) {
+    return (
+      <div className="bg-[#111] border border-white/10 rounded-xl p-12 text-center space-y-4">
+        <p className="text-amber-500">
+          {loadError === 'permission' ? t.admin.missingPermission : t.admin.loadFailed}
+        </p>
+        <button
+          onClick={() => {
+            setLoading(true);
+            fetchSettings();
+          }}
+          className="px-4 py-2 bg-white/5 rounded-lg hover:bg-white/10 transition-colors text-white text-sm font-medium"
+        >
+          {t.admin.retry}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 relative">
@@ -357,6 +399,16 @@ export default function ContentManager() {
           
           <div className="space-y-4">
             {/* D'abord : liste des sections existantes */}
+            {sectionsError && (
+              <p className="text-amber-500 text-sm mb-6">{t.admin.sectionsUnavailable}</p>
+            )}
+            {/* The list rendered nothing at all when it was empty, so a failed
+                read and a database with no pinned sections looked identical —
+                and the second is the state a fresh installation is in, which
+                makes the first invisible precisely where it is most likely. */}
+            {!sectionsError && pinnedSections.length === 0 && (
+              <p className="text-zinc-500 text-sm mb-6">{t.admin.noSectionsPinned}</p>
+            )}
             {pinnedSections.length > 0 && (
               <div className="space-y-2 mb-6">
                 <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-2">{t.admin.activeSections}</p>

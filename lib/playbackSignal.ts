@@ -29,6 +29,18 @@
  * no position, so they report no watch time either. The alternative was to keep
  * counting page-presence as viewing, and a figure that cannot be trusted is
  * worse than a figure that is absent.
+ *
+ * PER ATTEMPT, NOT PER PAGE SESSION — and that distinction had to be added.
+ * The Set was write-only: `markPlaybackObserved` was called, nothing ever
+ * removed a key, and the fact therefore outlived everything it was evidence
+ * about. On a series page an episode change is not a remount of `WatchTimer`
+ * (its interval is keyed on `type:id`, which the episode does not change), so
+ * one episode that had played once licensed the timer to keep counting for
+ * every later episode, and for every later source, on that page — minutes for a
+ * frame that had reported nothing at all. Withdrawing the fact when the player
+ * starts a new attempt (`clearPlaybackObserved`, called from
+ * `resetPlaybackObservation`) is what makes the paragraph above true of the
+ * CURRENT attempt rather than of the page's whole life.
  */
 
 const observed = new Set<string>();
@@ -50,6 +62,23 @@ export const hasPlaybackBeenObserved = (
   mediaType: string,
   mediaId: string | number,
 ): boolean => observed.has(playbackKey(mediaType, mediaId));
+
+/**
+ * Withdraws the fact for one title, because the evidence it stood on has been
+ * replaced. Called by the player when it starts a new attempt (a retry, a source
+ * change, an episode change) — the frame that earned the fact is gone, and the
+ * new one has reported nothing yet.
+ *
+ * It is NOT a "reset everything" call and must not be used as one: clearing a
+ * title the current attempt did not replace would suppress watch time for a
+ * player that is still the one being watched.
+ */
+export const clearPlaybackObserved = (
+  mediaType: string,
+  mediaId: string | number,
+): void => {
+  observed.delete(playbackKey(mediaType, mediaId));
+};
 
 /** Test seam: resets the module's memory between cases. */
 export const __resetPlaybackSignal = (): void => {

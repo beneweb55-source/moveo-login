@@ -51,9 +51,9 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { resolveHistoryOwner } from "@/lib/historyViewer";
 import {
   HISTORY_UPDATED_EVENT,
-  __resetServerSyncLatch,
   getWatchHistory,
   pushLocalHistoryToAccount,
 } from "@/utils/historyManager";
@@ -95,20 +95,35 @@ export default function GuestHistorySync() {
         // cost at one request per page load rather than one per navigation.
         if (mergeConcluded) return;
 
-        const res = await fetch("/api/auth/me");
-        if (!res.ok) return; // 401 for a guest, 403 for a banned account: nothing to merge.
-        const data = await res.json();
-        const userId = data?.user?.id;
-        if (userId === undefined || userId === null) return;
+        // ONE PROBE, SHARED. This used to be a `fetch("/api/auth/me")` of its
+        // own, and that was a real defect rather than duplication: two
+        // independent probes can answer differently — one lands after the other,
+        // or one fails while the other succeeds — and then this component would
+        // relay entries stamped for an account the list was NOT filtering
+        // against. The resolver is the single answer, and it owns the two side
+        // effects that have to follow it: the module owner (so every write from
+        // here on is stamped `user:<id>`) and the sync latch reset (so a tab that
+        // was anonymous and then signed in can write to the server at all —
+        // audit finding F2; the latch is set by a guest's first 401).
+        //
+        // Both are set by the resolver on the ANSWER only. Nothing is inferred:
+        // the id comes from the cookie via the server, never from anything the
+        // client chose (§6 — no email, no IP, no fingerprint).
+        const viewer = await resolveHistoryOwner({ refresh: true });
 
-        // A session EXISTS from here on, so this tab's write path must be usable.
-        // The latch is set by a guest's first 401 and was otherwise cleared only
-        // on sign-out, which left the session it was created in unable to write:
-        // every later observation went to localStorage alone while the server row
-        // stayed behind (audit finding F2). It is cleared here rather than inside
-        // the merge because the merge is skipped entirely once the marker below
-        // exists, so a reset placed there would not run on the second visit.
-        __resetServerSyncLatch();
+        // `loading` cannot occur here (`refresh` always probes) and `error`
+        // means the question was asked and not answered. Neither is a reason to
+        // conclude anything about the merge, so both return without marking it
+        // done — the next navigation asks again. Note the difference from a 401:
+        // that IS an answer, it arrives as `ready` with no owner, and it clears
+        // the stamp so a tab whose cookie expired stops writing as the departed
+        // account.
+        if (viewer.status !== "ready") return;
+
+        // No account behind this request: nothing to merge. A guest's entries
+        // stay a guest's.
+        if (viewer.owner === null || viewer.owner.kind !== "user") return;
+        const userId = viewer.owner.userId;
 
         const marker = `${MERGE_MARKER_PREFIX}:${userId}`;
         if (window.localStorage.getItem(marker)) {
@@ -116,7 +131,14 @@ export default function GuestHistorySync() {
           return;
         }
 
-        const { total, allSynced } = await pushLocalHistoryToAccount();
+        // The result's `withheld` count is read nowhere, deliberately. It counts
+        // entries stamped for a DIFFERENT account — someone else's history left
+        // in this browser by a session that ended without the logout button —
+        // which this merge must not carry into this account (§8). They are left
+        // in localStorage, and there is no action to take on them here: deleting
+        // another account's entries because a second person signed in would be
+        // data loss, and this component is not the owner of that decision.
+        const merge = await pushLocalHistoryToAccount(userId);
 
         // The marker is written ONLY for a relay that fully succeeded. Writing it
         // after a partial one is what made a partial merge permanent: the entries
@@ -124,7 +146,7 @@ export default function GuestHistorySync() {
         // done (audit finding F3). Left unset, the next navigation tries again —
         // and the merge is cheap, because each entry it does carry is already on
         // the server and the route's no-regression rule accepts it unchanged.
-        if (allSynced) {
+        if (merge.allSynced) {
           window.localStorage.setItem(marker, String(Date.now()));
           mergeConcluded = true;
         }
@@ -132,7 +154,7 @@ export default function GuestHistorySync() {
         // A list already on screen should pick the merged entries up. The event
         // is the same one the delete and sign-out paths use, and it is not fired
         // by playback (§14).
-        if (total > 0) {
+        if (merge.total > 0) {
           window.dispatchEvent(new Event(HISTORY_UPDATED_EVENT));
         }
       } catch {

@@ -479,3 +479,104 @@ Each item says what was checked and how to re-check it.
 5. **What the re-pass did not do.** It did not add `lock_timeout` or `statement_timeout`, did not
    change the pool's configuration, and did not touch the guest branch or the DELETE handler. The
    availability cost that follows from leaving those alone is recorded in §5.2 and §7.
+
+## 9. Snapshot vs real progression — answered by measurement on production (§7)
+
+The brief asks for the **observable** difference between `snapshot` and *vraie progression*, on the
+insistence that a signal which is not reliable must not be used as proof of playback. Two live
+sessions were instrumented by reading the messages a real browser receives from the frames, and the
+answer is unambiguous.
+
+**What was observed. All of it on `https://www.moveo.blog`, 2026-09-22.**
+
+| | `/movie/969681` (132 s) | `/tv/1429?s=1&e=1` (~150 s) |
+|---|---|---|
+| `{type:"MEDIA_DATA"}` snapshots | **65**, at a ~**2000 ms** cadence | **4**, at 1998–2000 ms |
+| `{type:"timeupdate", …}` (either accepted shape) | **0** | **0** |
+| `{event:"timeupdate", data:{…}}` | **0** | **0** |
+| `POST /api/watch-time` | **0** | **0** |
+| `POST /api/ping` | **8** | — |
+| `localStorage.watch_history` written? | **No** (unchanged after 132 s) | **No** |
+
+**Three properties of the snapshot make it structurally unlike a progression**, and they are the
+answer to the question:
+
+1. **It is addressed to the provider's own client, not to what is mounted.** The payload is a fixed
+   five-id bundle — `["550","1429","93405","372058","969681"]` — carrying the provider's stored
+   history for this browser. `entry550` arrives as `{watched: 338.211216, duration: 8348.3}` **every
+   two seconds while nothing plays**, on a page whose title is `969681`. A real progression is about
+   the thing being watched; this is a memory dump that happens to contain it.
+2. **The mounted title's own slot is sent ZEROED.** `entry969681` was
+   `{progress: {watched: 0, duration: 0}, last_updated: <mount time>}`, and on the series page
+   `sp_s1e1 = {progress: {watched: 0, duration: 0}}` with `sp_s2e7` also `{0, 0}`. The provider
+   stamps the slot it mounts and reports no position in it. So the *mount envelope* cannot be read
+   as playback: it says, in the provider's own words, "zero seconds watched".
+3. **It repeats; a progression advances.** The same values came back on every one of the 65
+   messages. Nothing about a message that repeats unchanged distinguishes a playing viewer from an
+   idle tab.
+
+**WATCH TIMER ≠ PAGE TIMER, measured.** Over the same 132 seconds the page sent **8** `POST
+/api/ping` requests and **zero** `POST /api/watch-time`. The page-presence clock ran; the watch-time
+clock did not, because `hasPlaybackBeenObserved` was never set — which is §13's rule holding in
+production rather than in a test.
+
+**A correction to the record, and the guard that was actually load-bearing.** §5.3 recorded that the
+provider rewrote a position while nothing played (`{timestamp: 0, duration: 8678}` for the movie,
+`21.206035 / 1439.2` for `s1e1`). **Neither value was present in this session.** What the provider
+sends for the mounted title today is a `0/0` envelope under a `last_updated` equal to the mount
+time, and `partitionPlaybackSnapshot` rejects a `0/0` pair on `duration > 0`, so the write never
+reached `saveWatchHistory` — hence "No" in the table above. So the honest statement of what protects
+this path is: **the `duration > 0` rejection is what held today**, and the *advance* rule
+(`isSnapshotAdvance`, commit `51f6191`, **not deployed** — it is one of three local commits) is the
+robust guard for the case a provider re-sends a **non-zero** duration with a zero or stale position,
+which is precisely the shape §5.3 measured on 2026-09-21. The two are not alternatives: one is
+sufficient for today's envelope, the other is sufficient for the envelope that was measured before
+it.
+
+## 10. Refresh / navigation persistence, tested one path at a time (§4)
+
+The product-reported symptom is *"quand je refresh ou active une extension, la progression est
+perdue"*. Each row below is **one** real action in a real browser against production, and is labelled
+on the observation alone. No row is generalised from another.
+
+| Action | Result | What was observed |
+|---|---|---|
+| Refresh on `?s=1&e=4` | **PERSIST** | Still S1E4 after the reload; no rewind |
+| Internal navigation (home card → TV page) | **PERSIST** | Entry retained; landed on the stored slot |
+| Browser **back** | **PERSIST** | Returned to the previous entry, position intact |
+| New tab (same profile) | **PERSIST** | Same entry **and the same `anon_session_id`** — not re-issued |
+| Tab closed, fresh page opened | **PERSIST** | `/tv/1429` came back at **S2E7** |
+| Browser reopen (`/tv/1429`, bare URL) | **PERSIST** | Resolved to the **stored** slot S2E7 — **never fell back to S1E1** |
+| Mounting S1E1 in the same browser | **PERSIST** | No rewind to S1E1 |
+| Mounting `/movie/969681` | **PERSIST** | No new entry, no overwrite of the series row |
+| **Extension enabled / disabled** | **NOT VERIFIED** | No extension is installed or controllable in this automation profile. Not attempted, and not inferred from the rows above. |
+
+**The named failure mode did not reproduce in any of the eight paths that were run.** The bare URL
+`/tv/1429` — the case where a rewind to S1E1 would be most likely — resolved to the **stored**
+episode. That is a result about these eight paths in this one browser profile, not a general
+guarantee, and the extension row is exactly the kind of path that could behave differently.
+
+**Episode advancement was verified, and the history entry deliberately does NOT follow it.** Three
+`Épisode Suivant` clicks moved the URL and the frame correctly (`?s=1&e=2` → `?s=1&e=3` →
+`?s=1&e=4`), while the stored row stayed at S2E7 / 1934 / 2830 throughout. This is §7.4 above
+operating as documented: a slot-only write is a no-op on a title that has a measured position, so
+the Continue-Watching card does not follow episode navigation. **The cost is real and it is on the
+UX side, not the data side**: §5 asks the component to reflect reality, and here reality is that the
+viewer has navigated to S1E4 while the card still offers S2E7. The alternative — letting a slot-only
+observation overwrite a measured position — is the rewind this whole document exists to prevent, so
+the trade-off is kept and the tension is recorded rather than resolved.
+
+**Guest half of §6, measured.** `GET /api/watch-time` answers `{progress: []}` for a request with no
+session, so the card on a fresh visit is driven entirely by the local entry. The signed-in half — the
+browser copy compared against the server row, and Writer A + Writer B run in a browser with two close
+updates — **needs an account this session does not have**, and is marked NOT VERIFIED rather than
+approximated. **No test data was deleted**, per the brief's instruction to observe the result first.
+
+**§3 (guest → account, and logout isolation) is NOT VERIFIED for the same reason** — no credentials.
+It is the one scenario in the brief that cannot be reached at all from this session, and it is the
+one where the merge logic (§3 of this document) most needs an end-to-end observation.
+
+**One incidental measurement, on every page load: `/api/auth/me` is requested three times, and all
+three answer 401 for a guest** (measured on three different pages, request ids 1316/1317/1349,
+24/25/58, 2263/2264/2288). A duplicated auth round-trip per load; recorded here because it was on the
+wire, not investigated further because it is not a watch-history defect.

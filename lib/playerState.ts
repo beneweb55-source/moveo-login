@@ -96,8 +96,40 @@ export const playerReducer = (state: PlayerState, action: PlayerAction): PlayerS
     }
 
     case "IFRAME_LOADED": {
-      if (state.phase !== "LOADING") return state;
-      return {...state, phase: "IFRAME_LOADED_PLAYBACK_UNKNOWN"};
+      // Already loaded: re-firing must not churn state (a re-render, or a
+      // provider that fires onLoad twice, is not new information).
+      if (state.phase === "IFRAME_LOADED_PLAYBACK_UNKNOWN") return state;
+      // UNAVAILABLE means no frame exists at all — the source never resolved —
+      // so a load event cannot belong to this attempt and must not be allowed to
+      // invent a phase for a player that is not mounted.
+      if (state.phase === "UNAVAILABLE") return state;
+
+      // ── From LOAD_FAILED, THIS IS A RETRACTION ────────────────────────────
+      //
+      // LOAD_FAILED is entered by a 20-second timer and by nothing else: it
+      // carries no evidence about the network, the provider's health, or
+      // anything the user could act on. §15 forbids exactly the verdict it
+      // renders — "aucune UI ne doit annoncer 'Lecteur indisponible' simplement
+      // parce qu'un provider est lent si celui-ci finit par fonctionner" — and
+      // refusing the load event made that verdict permanent: there is no
+      // automatic exit from LOAD_FAILED and no re-arm, so a provider that took
+      // twenty-one seconds and then loaded normally left the viewer staring at a
+      // failure panel over a working player until they pressed Retry.
+      //
+      // A document that loads late is positive evidence that it DID commit, so
+      // the verdict is withdrawn. `playbackUnverified` is cleared with it so the
+      // advisory notice does not inherit a decision it never earned: the new
+      // phase gets its own full verification window from this moment.
+      //
+      // The stale-frame hazard the old guard covered is handled where it
+      // belongs, and was already: the iframe is re-keyed per attempt, and the
+      // `onLoad` handler ignores an event whose `currentTarget` is not the
+      // mounted element. So a replaced frame's late load cannot reach this case.
+      return {
+        ...state,
+        phase: "IFRAME_LOADED_PLAYBACK_UNKNOWN",
+        playbackUnverified: false,
+      };
     }
 
     case "PLAYBACK_UNVERIFIED_TIMEOUT": {

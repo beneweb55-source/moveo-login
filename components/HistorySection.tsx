@@ -13,6 +13,8 @@ import {
   HISTORY_UPDATED_EVENT,
   WatchHistoryItem,
 } from "@/utils/historyManager";
+import { visibleEntriesFor, type HistoryViewer } from "@/lib/historyOwnership";
+import { resolveHistoryOwner } from "@/lib/historyViewer";
 import { History } from "lucide-react";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -39,12 +41,32 @@ const sameTitle = (a: WatchHistoryItem, b: WatchHistoryItem) =>
 const mergeHistories = (
   server: WatchHistoryItem[],
   local: WatchHistoryItem[],
+  viewer: HistoryViewer,
 ): WatchHistoryItem[] => {
   const byTitle = new Map<string, WatchHistoryItem>();
   const key = (item: WatchHistoryItem) => `${item.type}:${item.id}`;
 
+  // The server list passes through UNFILTERED, and that is not an exception to
+  // the display rule — it is the same rule applied where it belongs. Those rows
+  // came back from an endpoint that answers for the account named by the
+  // `auth_token` cookie and for nobody else (`GET /api/watch-time` filters
+  // `user_id = $1`), so they are already the viewer's own. Filtering them again
+  // against a locally stored owner would be worse than redundant: the server
+  // does not send an `owner` field, so every row would be read as `absent`,
+  // which is adoptable-and-visible — i.e. the filter would be a no-op that only
+  // looked like a check.
   for (const item of server) byTitle.set(key(item), item);
-  for (const item of local) {
+
+  // The LOCAL list is where the leak was, and this is the line that closes it.
+  // These entries sit in a store shared by everyone who uses this browser, and
+  // §5/§23 name the case precisely: A's session expires with no logout, so no
+  // code of ours ran and nothing removed A's entries — then B signs in here.
+  // Without this filter B is shown A's titles from their own machine. The rule
+  // is `isVisibleTo`, which fails closed on an account-stamped entry whenever
+  // the viewer is not that account, and withholds EVERYTHING while the session
+  // probe is still outstanding — so nothing private is painted for the few
+  // milliseconds before we know who is looking.
+  for (const item of visibleEntriesFor(local, viewer)) {
     const existing = byTitle.get(key(item));
     byTitle.set(key(item), mergeWatchEntries(existing, item));
   }
@@ -79,6 +101,17 @@ const HistorySection = () => {
     // storage read left this section on its loading state permanently, with
     // nothing on screen to say why.
     try {
+      // WHO IS LOOKING, resolved before anything owned is read (§2/§3).
+      //
+      // This is awaited FIRST and not in parallel with the fetches below, because
+      // the answer decides whether the local entries may be read at all: with the
+      // probe still outstanding the state is `loading`, every owned entry is
+      // withheld, and the list renders empty. That is the intended shape — the
+      // alternative paints A's titles for a frame on a browser where B is about
+      // to be identified. A later call resolves from memory and costs no request,
+      // so this is not one probe per render.
+      const viewer = await resolveHistoryOwner();
+
       // The server copy exists only for a signed-in viewer; a guest's request
       // answers 401 and yields an empty list, which the merge treats as "no
       // server copy" rather than as "no history".
@@ -90,7 +123,7 @@ const HistorySection = () => {
         // viewer's history and is used on its own.
       }
 
-      const merged = mergeHistories(serverItems, getWatchHistory());
+      const merged = mergeHistories(serverItems, getWatchHistory(), viewer);
       setHistory(merged.filter(belongsInContinueWatching));
     } finally {
       setLoading(false);

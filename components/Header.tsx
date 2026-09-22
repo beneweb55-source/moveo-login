@@ -9,7 +9,8 @@ import { motion, AnimatePresence } from "motion/react";
 import { Logo } from "@/components/Logo";
 import { useLanguage } from "@/context/LanguageContext";
 import { buildSearchPath } from "@/lib/searchPath";
-import { clearWatchHistory, __resetServerSyncLatch } from "@/utils/historyManager";
+import { removeEntriesOwnedBy, __resetServerSyncLatch } from "@/utils/historyManager";
+import { ownerForUserId, setCurrentOwner } from "@/lib/historyOwnership";
 
 const Header = () => {
   const [show, setShow] = useState("top");
@@ -212,18 +213,41 @@ const Header = () => {
   const handleLogout = async () => {
     try {
       await fetch('/api/auth/logout', { method: 'POST' });
-      // The stored history belongs to the account that just left. Keeping it
-      // would leave the previous person's titles on screen for the next visitor
-      // on this machine, and the next account to sign in here would inherit
-      // them — the local half of the rule that one account must never see
-      // another's history (§23). Clearing also announces the change, so a
-      // Continue Watching list already rendered empties instead of waiting for
-      // a manual reload.
-      clearWatchHistory();
+      // The records of the account that just left are removed from this
+      // machine — the local half of the rule that one account must never see
+      // another's history (§23). It is a SCOPED removal and no longer the blind
+      // `clearWatchHistory()` it used to be, and §5 is the reason: an
+      // unconditional wipe also deletes the current GUEST's own entries, and a
+      // guest has no server copy to read them back from, so that history is
+      // destroyed rather than scoped. `removeEntriesOwnedBy` removes exactly
+      // `user:<this account>` from both stores and leaves the device's guest
+      // entries and any other account's entries alone. What protects the next
+      // viewer from THOSE is the display rule (`isVisibleTo`), which never
+      // paints an account-stamped entry for a viewer who is not that account.
+      //
+      // This also announces the change, so a Continue Watching list already
+      // rendered updates instead of waiting for a manual reload.
+      //
+      // The id is resolved HERE, before `setCurrentOwner(null)` below, because
+      // that call is precisely what destroys the answer this needs: after it,
+      // `currentWriteOwner()` would fall back to the device's guest key and this
+      // removal would match nothing at all. `ownerForUserId` and not the raw id
+      // for the same reason the display path uses it — an id that cannot be read
+      // back as a key would silently remove nothing, and its round trip refuses
+      // that id instead of pretending to have acted.
+      removeEntriesOwnedBy(ownerForUserId(user?.id));
       // The session is over, so the "we already learned this visitor is a
       // guest" latch no longer describes it. Leaving it set would make the next
       // sign-in on this tab silently skip its guest → account merge (§9).
       __resetServerSyncLatch();
+      // And the OWNER goes with it, for the same reason and with a sharper
+      // consequence. Whoever browses anonymously next on this machine is a
+      // guest, but the in-memory owner still names the account that just left —
+      // so their entry would be stamped `user:<the departed account>`, and a
+      // later viewer signing in on this browser would have it WITHHELD as
+      // somebody else's. The stamp has to fall toward guest the moment the
+      // session stops being proven; see lib/historyOwnership.ts.
+      setCurrentOwner(null);
       setUser(null);
       router.refresh();
     } catch (err) {

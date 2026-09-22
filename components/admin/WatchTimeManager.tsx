@@ -6,6 +6,7 @@ import { Clock, Search, User, Plus, Minus, Save, ChevronLeft, ChevronRight } fro
 import { AnimatePresence, motion } from 'motion/react';
 import { getRankFromWatchTime } from '@/utils/ranks';
 import { useLanguage } from '@/context/LanguageContext';
+import { formatWatchTime } from '@/utils/formatDuration';
 
 export default function WatchTimeManager() {
   const { t } = useLanguage();
@@ -192,7 +193,7 @@ export default function WatchTimeManager() {
                       </td>
                       <td className="p-4">
                         <span className="font-mono text-white font-bold text-sm whitespace-nowrap">
-                          {Math.floor(user.total_watch_time / 60)}h <span className="text-zinc-500 text-[10px]">{user.total_watch_time % 60}m</span>
+                          {formatWatchTime(user.total_watch_time)}
                         </span>
                       </td>
                       <td className="p-4">

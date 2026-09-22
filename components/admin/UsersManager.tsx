@@ -7,6 +7,7 @@ import { Search, ShieldAlert, Mail, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getRankFromWatchTime } from '@/utils/ranks';
 import { useLanguage } from '@/context/LanguageContext';
+import { formatWatchTime } from '@/utils/formatDuration';
 
 export default function UsersManager({ currentUser }: { currentUser: any }) {
   const { t } = useLanguage();
@@ -217,7 +218,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                         );
                       })()}
                     </td>
-                    <td className="p-4 text-sm text-zinc-300">{Math.floor(user.total_watch_time / 60)}h</td>
+                    <td className="p-4 text-sm text-zinc-300">{formatWatchTime(user.total_watch_time)}</td>
                     <td className="p-4">
                       {user.is_banned ? (
                         <span className="px-2 py-1 bg-red-500/20 text-red-500 rounded text-xs font-bold uppercase">{t.admin.banned}</span>
@@ -318,7 +319,7 @@ export default function UsersManager({ currentUser }: { currentUser: any }) {
                 </div>
                 <div className="bg-white/5 p-4 rounded-lg text-center">
                   <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">{t.admin.time}</p>
-                  <p className="font-bold text-white">{Math.floor(selectedUser.total_watch_time / 60)}h</p>
+                  <p className="font-bold text-white">{formatWatchTime(selectedUser.total_watch_time)}</p>
                 </div>
               </div>
 

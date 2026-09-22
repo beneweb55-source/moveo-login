@@ -65,7 +65,8 @@ export async function GET() {
       registeredUsers,
       anonymousUsers
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[admin/online] GET failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

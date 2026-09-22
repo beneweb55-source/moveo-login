@@ -36,18 +36,45 @@ export const translations = {
       top10: "Top 10 en France",
       resumeWatching: "Reprendre la lecture",
       /**
-       * The three verbs a history card can carry, and they are NOT synonyms:
-       * a card with a measured position CONTINUES, a card whose episode is
-       * finished starts over (REVOIR), and a card that only knows which episode
-       * you were on — because nothing measurable was ever observed — merely
-       * WATCHES. Offering "Reprendre" for a position we do not have would be
-       * the interface asserting something we cannot observe.
+       * The verbs a history card can carry, and they are NOT synonyms. Two
+       * different questions decide which one: what we MEASURED, and what we can
+       * actually DO about it.
+       *
+       *   CONTINUER             a measured position, AND the provider can start
+       *                         there. Unreachable today: no provider's position
+       *                         resume has been observed. See
+       *                         lib/resumeCapability.ts, whose promise list is
+       *                         deliberately empty.
+       *   REPRENDRE L'ÉPISODE   a measured position the player will NOT honour.
+       *                         What is genuinely restored is the content and the
+       *                         season/episode — a real thing to offer, and this
+       *                         is the honest label for every card that carries a
+       *                         position right now.
+       *   REVOIR                finished; starting over is what will happen.
+       *   REGARDER              nothing measurable was ever observed, so the card
+       *                         knows only which episode you were on. Never
+       *                         "Reprendre": that would assert a position we never
+       *                         measured.
+       *
+       * The progress bar and its "32:14 / 47:10" stay on the card in every case.
+       * They are a statement about the RECORD, which we have; the label is the
+       * promise about PLAYBACK, which is the thing that must not be overstated.
        */
       continueWatching: "Continuer",
+      resumeEpisode: "Reprendre l'épisode",
       replayFromStart: "Revoir",
       finished: "Terminé",
       removeFromHistory: "Retirer de l'historique",
       youMightLike: "Vous aimerez aussi",
+      /*
+        components/StartedEpisodes.tsx. The heading names the SECTION (the other
+        episodes of this series the viewer has been on) and claims nothing about
+        playback; the caption under a row states the last OBSERVED position,
+        which is why it reads "vu jusqu'à" and never "reprendre à" — no provider
+        here is handed a time to seek to (§2).
+      */
+      startedEpisodes: "Épisodes commencés",
+      watchedUpTo: "vu jusqu'à",
       trailer: "Bande-Annonce",
       cast: "Casting",
     },
@@ -55,7 +82,23 @@ export const translations = {
       back: "Retour",
       watch: "Regarder",
       synopsis: "Synopsis",
-      nowPlaying: "Lecture en cours",
+      /*
+        The heading above the player box on /movie/[id] and /tv/[id]. It used to
+        read "Lecture en cours" — "playback in progress" — and it is rendered
+        unconditionally, before any message has arrived from the frame and
+        whether or not anything ever plays. No provider has been observed
+        emitting a position we accept on a first load (see lib/providers.ts and
+        tests/playerNotice.test.ts), so that heading was a playback claim with no
+        signal behind it, which is exactly what §15 forbids. It now NAMES THE
+        SECTION instead of claiming a state: true when the player is loading, true
+        when it is playing, true when it is broken.
+
+        The key is `videoPlayer` rather than a new one because an identical key
+        already existed here, unused, with this exact meaning — so the false claim
+        is gone and an orphan key is gone with it. `t.admin.nowPlaying`
+        ("En ce moment au cinéma") is a different key for a TMDB list and is
+        unchanged.
+      */
       reloadPlayer: "Recharger le lecteur en cas de problème",
       reload: "Recharger",
       backHome: "Retour à l'accueil",
@@ -72,9 +115,17 @@ export const translations = {
       tip: "💡 Conseil : Utilisez 'VOE' pour la vitesse. Pour la Version Française (VF), privilégiez '2Embed'.",
       adWarning: "Note : Les publicités proviennent des hébergeurs vidéo, nous vous conseillons fortement d'utiliser un bloqueur de publicités (comme uBlock Origin) pour une meilleure expérience.",
       noPoster: "Affiche non disponible",
-      searchingServer: "Recherche du meilleur serveur...",
+      /*
+        The label inside the LOADING overlay, which covers the frame until its
+        document commits. It used to read "Recherche du meilleur serveur..." — a
+        claim that servers are being searched and compared. Nothing is: the source
+        is resolved SYNCHRONOUSLY from the stored preference (see the effect in
+        components/VideoPlayer.tsx that says so in as many words), and there is no
+        health probe. What is actually in progress is the iframe's own load, so
+        that is what the label now says.
+      */
+      loadingPlayer: "Chargement du lecteur...",
       testing: "Test de",
-      slowServerDetected: "Serveur lent détecté",
       autoSwitching: "Changement automatique vers une autre source...",
       playbackSources: "Sources de lecture",
       openInNewTab: "OUVRIR DANS UN NOUVEL ONGLET",
@@ -319,7 +370,12 @@ export const translations = {
       unauthorized: "Accès refusé",
       success: "Paramètre enregistré avec succès",
       error: "Erreur",
+      statsUnavailable: "Impossible de charger les statistiques : le serveur n'a pas répondu correctement.",
+      dashboardPermissionDenied: "Votre rôle ne dispose pas de la permission « view_stats ». Demandez à un administrateur de vous l'accorder.",
+      retry: "Réessayer",
       errorAddSection: "Impossible d'ajouter la section",
+      noSectionsPinned: "Aucune section épinglée pour le moment.",
+      sectionsUnavailable: "Impossible de lire les sections épinglées : le serveur n'a pas répondu correctement.",
       sectionAdded: "Section ajoutée avec succès",
       sectionDeleted: "Section supprimée",
       errorDeleteSection: "Erreur lors de la suppression",
@@ -327,7 +383,8 @@ export const translations = {
       totalUsers: "Utilisateurs Inscrits",
       totalWatchTime: "Temps de Visionnage",
       newUsers: "Nouveaux Inscrits (7j)",
-      moviesWatched: "Films Regardés",
+      titlesWatched: "Titres Regardés",
+      manualCreditsExcluded: "Crédits manuels exclus ({minutes})",
       topMovies: "Top 5 Films les plus regardés",
       rankDistribution: "Répartition par Rang",
       noData: "Aucune donnée disponible",
@@ -478,11 +535,20 @@ export const translations = {
       week: "Week",
       top10: "Top 10 in France",
       resumeWatching: "Resume Watching",
+      // The four card verbs, and which one is honest is decided in
+      // components/HistoryCard.tsx: CONTINUE needs a provider that will seek
+      // (none observed), so a measured position reads as "Resume episode" — the
+      // content and the slot are what actually come back. Same rule as FR.
       continueWatching: "Continue",
+      resumeEpisode: "Resume episode",
       replayFromStart: "Watch again",
       finished: "Finished",
       removeFromHistory: "Remove from history",
       youMightLike: "You might also like",
+      /* See the French entry above: the section is named, playback is not
+         claimed, and a row's caption states the last OBSERVED position. */
+      startedEpisodes: "Started episodes",
+      watchedUpTo: "watched up to",
       trailer: "Trailer",
       cast: "Cast",
     },
@@ -490,7 +556,8 @@ export const translations = {
       back: "Back",
       watch: "Watch",
       synopsis: "Synopsis",
-      nowPlaying: "Now Playing",
+      /* See the French entry above: the heading names the section, it does not
+         claim that playback is in progress. */
       reloadPlayer: "Reload player in case of problem",
       reload: "Reload",
       backHome: "Back to Home",
@@ -507,9 +574,10 @@ export const translations = {
       tip: "💡 Tip: Use 'VOE' for speed. For French Version (VF), prefer '2Embed'.",
       adWarning: "Note: Ads come from video hosts, we strongly advise using an ad blocker (like uBlock Origin) for a better experience.",
       noPoster: "Poster unavailable",
-      searchingServer: "Searching for the best server...",
+      /* See the French entry above: this covers the iframe's load, and no server
+         is searched for. */
+      loadingPlayer: "Loading the player...",
       testing: "Testing",
-      slowServerDetected: "Slow server detected",
       autoSwitching: "Automatically switching to another source...",
       playbackSources: "Playback Sources",
       openInNewTab: "OPEN IN NEW TAB",
@@ -746,7 +814,12 @@ export const translations = {
       unauthorized: "Unauthorized",
       success: "Setting saved successfully",
       error: "Error",
+      statsUnavailable: "Statistics could not be loaded: the server did not respond correctly.",
+      dashboardPermissionDenied: "Your role does not have the view_stats permission. Ask an administrator to grant it.",
+      retry: "Retry",
       errorAddSection: "Unable to add section",
+      noSectionsPinned: "No pinned sections yet.",
+      sectionsUnavailable: "The pinned sections could not be read: the server did not respond correctly.",
       sectionAdded: "Section added successfully",
       sectionDeleted: "Section deleted",
       errorDeleteSection: "Error while deleting",
@@ -754,7 +827,8 @@ export const translations = {
       totalUsers: "Registered Users",
       totalWatchTime: "Watch Time",
       newUsers: "New Users (7d)",
-      moviesWatched: "Movies Watched",
+      titlesWatched: "Titles Watched",
+      manualCreditsExcluded: "Manual credits excluded ({minutes})",
       topMovies: "Top 5 Most Watched Movies",
       rankDistribution: "Rank Distribution",
       noData: "No data available",

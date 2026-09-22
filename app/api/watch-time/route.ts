@@ -41,6 +41,50 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // `media_type` IS AN ALLOWLIST, and it is checked here — before either write
+    // branch — because BOTH branches need it and only one of them had it.
+    //
+    // The value is not decorative: it is half of the ROW'S IDENTITY.
+    // `watch_history` is UNIQUE(user_id, media_type, media_id), so naming the
+    // type names which row gets written. One value in that space is reserved:
+    // `admin_adjustment`, which `/api/admin/watch-time` writes at
+    // (user_id, 'admin_adjustment', 0) to carry an admin's manual correction to
+    // someone's total. Because POST accepted ANY string, any signed-in caller
+    // could POST `{media_type: 'admin_adjustment', media_id: '0', minutes: N}`
+    // and land on that same row — the route's own ON CONFLICT adds `+ $4`, so
+    // the correction became a value the corrected person could raise themselves.
+    //
+    // `'0'` is the STRING and not the number, and that is not cosmetic. The
+    // presence guard above rejects the number 0 — `!media_id` is `!0` is `true` —
+    // which reads as though the reserved row were unreachable. But `'0'` is a
+    // non-empty string, so it passes that guard, and PostgreSQL casts it to the
+    // same `0` in the `media_id INTEGER` column. A presence check on a value
+    // that is later coerced cannot bound what the value means; only the
+    // allowlist below can. This is the `minutes: 0` regression one column over:
+    // `!x` and "x is invalid" are not the same test, and the difference is
+    // exactly the value the reserved row uses.
+    //
+    // That number is not inert. It is summed with no exclusion on this row type
+    // by `auth/me` and `profile/stats` (the viewer's own total), by
+    // `admin/users` and `admin/online` (the per-user figure an admin reads while
+    // moderating), and by `admin/stats` (the dashboard's global watch time,
+    // `SUM(minutes_watched)` over both tables). And the caller could not see
+    // their own doing: the GET below excludes `admin_adjustment` by name, so the
+    // row never appears in the history the viewer looks at. The admin's numbers
+    // moved and nothing on the viewer's screen said so — the "hidden UI is not
+    // security" shape, on the table this whole feature lives in.
+    //
+    // DELETE has validated this to exactly `movie`/`tv` since it was written
+    // (with the same reasoning in its own comment); POST was the half that
+    // trusted the caller. Requiring both closes the asymmetry rather than
+    // inventing a new rule: the three call sites that exist — the two detail
+    // pages passing a literal, and historyManager sending an item whose type
+    // `normaliseItem` has already narrowed — all send one of these two values,
+    // so no legitimate progression or minute count is refused.
+    if (media_type !== 'movie' && media_type !== 'tv') {
+      return NextResponse.json({ error: 'Invalid media_type' }, { status: 400 });
+    }
+
     if (!user && !session_id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

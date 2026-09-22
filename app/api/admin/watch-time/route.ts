@@ -33,7 +33,8 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ message: 'Watch time adjusted successfully' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[admin/watch-time] POST failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -18,7 +18,7 @@ import {
 import Image from "next/image";
 
 import { saveWatchHistory } from "@/utils/historyManager";
-import { markPlaybackObserved } from "@/lib/playbackSignal";
+import { clearPlaybackObserved, markPlaybackObserved } from "@/lib/playbackSignal";
 import { useLanguage } from "@/context/LanguageContext";
 import {
   PREFERRED_SERVER_STORAGE_KEY,
@@ -276,6 +276,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const resetPlaybackObservation = useCallback(() => {
     playbackObservedRef.current = false;
     setPlaybackObserved(false);
+    // ── AND THE PAGE-LEVEL FACT, which used to outlive the attempt ──────────
+    //
+    // `lib/playbackSignal.ts` holds one Set for the whole page session and
+    // nothing ever removed a key from it, so once a title had played once, every
+    // LATER attempt on that page — a retry, a source change, an episode change —
+    // was "playback observed" to `WatchTimer` with no new signal at all. On a
+    // series page that is not a corner case: `WatchTimer`'s interval is keyed on
+    // `type:id`, which an episode change does not alter, so the timer kept
+    // counting minutes for a frame that had reported nothing since the episode
+    // changed. Withdrawing the fact here is what makes the module's own stated
+    // intent ("minutes accrue only on providers that emit a verifiable
+    // position") true of the current attempt rather than of the page's history:
+    // a new frame earns the fact again, or does not get it.
+    clearPlaybackObserved(type, id);
     // The snapshot cursor belongs to the attempt as well. A new frame has its
     // own history and no comparable predecessor, so the next snapshot it sends
     // is a baseline rather than evidence — which is the correct reading of a
@@ -284,7 +298,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     // Dismissing the notice belongs to the attempt it was shown for, so a new
     // attempt (retry, server change, episode change) re-arms it.
     setNoticeDismissed(false);
-  }, []);
+    // `type`/`id` are the key of the fact being withdrawn, so this callback is
+    // no longer identity-stable across titles. Every caller is already inside an
+    // effect or handler that depends on them (`handleServerChange`, and the
+    // resolve effect whose dep list carries `id`, `type` and this callback), so
+    // nothing re-runs for a new reason.
+  }, [type, id]);
 
   // ---------------------------------------------------------------------------
   // 1. Resolve the content source for this title/episode.
@@ -692,12 +711,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     [player.server, strategy],
   );
 
-  const phaseLabel =
-    player.phase === "LOADING"
-      ? t.details.searchingServer || "Recherche du meilleur serveur..."
-      : player.phase === "IFRAME_LOADED_PLAYBACK_UNKNOWN"
-        ? t.details.slowServerDetected || "Serveur lent détecté"
-        : "";
+  /*
+    The label inside the LOADING overlay. That overlay is the only consumer
+    (see the `player.phase === "LOADING"` guard on the block that renders it), so
+    this describes the frame's load and nothing else.
+
+    Two corrections are folded in here, both of them removed claims:
+
+     - The copy was "Recherche du meilleur serveur..." — a server search and
+       comparison. No such thing happens: the effect above resolves the source
+       SYNCHRONOUSLY from the stored preference, and its own comment says there
+       is no resolving step for playback to wait behind. What is in flight is the
+       iframe's document load.
+     - The second branch labelled `IFRAME_LOADED_PLAYBACK_UNKNOWN` "Serveur lent
+       détecté". It was UNREACHABLE — nothing rendered `phaseLabel` outside the
+       LOADING branch — so it was never a status the user saw, and it asserted
+       slowness that is never measured anywhere. Deleted rather than left in
+       place as a latent false verdict, and `t.details.slowServerDetected` went
+       with it. This corrects an earlier reading of this file that reported the
+       string as a live defect.
+  */
+  const phaseLabel = t.details.loadingPlayer || "Chargement du lecteur...";
 
   return (
     <div className="w-full max-w-6xl mx-auto mt-8 mb-16 px-4 md:px-0">

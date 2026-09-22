@@ -6,11 +6,19 @@
  * PostgreSQL. No HTTP contract changes: same request body, same columns, same
  * response.
  *
- * SCHEMA: reads and writes `watch_history` only — id, user_id, media_type,
- * media_id, minutes_watched, title, poster_path, current_time, total_duration,
- * season, episode, last_updated, UNIQUE(user_id, media_type, media_id) — as
- * created by scripts/init-new-db.ts and extended by scripts/migrate-progression.ts.
- * No migration is introduced.
+ * SCHEMA: reads and writes `watch_history` — id, user_id, media_type, media_id,
+ * minutes_watched, title, poster_path, current_time, total_duration, season,
+ * episode, last_updated, UNIQUE(user_id, media_type, media_id) — as created by
+ * scripts/init-new-db.ts and extended by scripts/migrate-progression.ts, AND the
+ * per-episode child, `watch_history_episodes`, as declared by
+ * scripts/migrate-watch-history-episodes.ts.
+ *
+ * THIS FILE STILL INTRODUCES NO MIGRATION, and it does not assume the child table
+ * exists: the child write is guarded by a `to_regclass` probe and is SKIPPED —
+ * not failed — when the table is absent, so the parent row's write behaves
+ * exactly as it did before the migration is applied. Until it is applied, the
+ * multi-episode model is code-complete and stores nothing; that is the honest
+ * state and the report says so.
  *
  * `"current_time"` IS ALWAYS QUOTED, and that is load-bearing rather than
  * stylistic. `CURRENT_TIME` is a RESERVED word in PostgreSQL (`pg_get_keywords`
@@ -81,7 +89,18 @@
 
 import type { Pool } from 'pg';
 
-import { progressionColumns, type ProgressionFields } from '@/lib/progressionGuard';
+import {
+  isComplete,
+  progressionColumns,
+  slotOf,
+  type ProgressionFields,
+} from '@/lib/progressionGuard';
+
+/** The shape every helper here queries through, so the client and a test share it. */
+type Query = (
+  text: string,
+  values: unknown[],
+) => Promise<{ rows: Record<string, unknown>[] }>;
 
 export interface SignedInWrite {
   userId: number | string;
@@ -104,30 +123,21 @@ export interface SignedInWrite {
   progression: ProgressionFields | null;
 }
 
-/** The row this title already has, in the shape the guard reads. */
-const readStoredProgression = async (
-  query: (text: string, values: unknown[]) => Promise<{rows: Record<string, unknown>[]}>,
-  write: SignedInWrite,
-) => {
-  const existing = await query(
-    `SELECT "current_time", total_duration, season, episode, last_updated
-     FROM watch_history
-     WHERE user_id = $1 AND media_type = $2 AND media_id = $3`,
-    [write.userId, write.mediaType, write.mediaId],
-  );
-  const row = existing.rows[0];
-  if (!row) return undefined;
-
-  // `last_updated` arrives from `pg` as a Date; the string branch is there
-  // because the driver's type mapping is a configuration detail and a timestamp
-  // that arrives as text must not be read as absent.
-  //
-  // A value that cannot be read as a finite number is reported as ABSENT, never
-  // as NaN. The distinction matters: the guard treats a missing timestamp as
-  // "this is happening now", so an unreadable one is harmless, whereas NaN
-  // passes `typeof === "number"` and makes every comparison false — which would
-  // refuse every episode change on the account for as long as that row existed,
-  // with nothing in any log to say why.
+/**
+ * One stored row, in the shape the guard reads.
+ *
+ * `last_updated` arrives from `pg` as a Date; the string branch is there because
+ * the driver's type mapping is a configuration detail and a timestamp that
+ * arrives as text must not be read as absent.
+ *
+ * A value that cannot be read as a finite number is reported as ABSENT, never as
+ * NaN. The distinction matters: the guard treats a missing timestamp as "this is
+ * happening now", so an unreadable one is harmless, whereas NaN passes
+ * `typeof === "number"` and makes every comparison false — which would refuse
+ * every episode change on the account for as long as that row existed, with
+ * nothing in any log to say why.
+ */
+const fieldsFromRow = (row: Record<string, unknown>): ProgressionFields => {
   const raw = row.last_updated;
   const ms =
     raw instanceof Date
@@ -143,6 +153,80 @@ const readStoredProgression = async (
     episode: row.episode === null ? null : Number(row.episode),
     observedAt: Number.isFinite(ms) ? ms : null,
   };
+};
+
+/** The row this TITLE already has, in the shape the guard reads. */
+const readStoredProgression = async (
+  query: Query,
+  write: SignedInWrite,
+): Promise<ProgressionFields | undefined> => {
+  const existing = await query(
+    `SELECT "current_time", total_duration, season, episode, last_updated
+     FROM watch_history
+     WHERE user_id = $1 AND media_type = $2 AND media_id = $3`,
+    [write.userId, write.mediaType, write.mediaId],
+  );
+  const row = existing.rows[0];
+  return row ? fieldsFromRow(row) : undefined;
+};
+
+/**
+ * The row this EPISODE already has, in the shape the guard reads.
+ *
+ * A separate read against a separate table, and that separation is the point
+ * rather than an implementation detail: a write for S1E4 must be decided against
+ * S1E4's stored position. Judging it against the parent row — which holds S2E7
+ * after an episode switch — would read the lower episode number as a rewind and
+ * refuse a genuinely new episode, which is the defect §11's scenario is written
+ * to catch.
+ */
+const readStoredEpisode = async (
+  query: Query,
+  write: SignedInWrite,
+  slot: { season: number; episode: number },
+): Promise<ProgressionFields | undefined> => {
+  const existing = await query(
+    `SELECT "current_time", total_duration, season, episode, last_updated
+     FROM watch_history_episodes
+     WHERE user_id = $1 AND media_type = $2 AND media_id = $3
+       AND season = $4 AND episode = $5`,
+    [write.userId, write.mediaType, write.mediaId, slot.season, slot.episode],
+  );
+  const row = existing.rows[0];
+  return row ? fieldsFromRow(row) : undefined;
+};
+
+/**
+ * Whether `watch_history_episodes` exists, asked at most until it does.
+ *
+ * The child write must not run before the migration does, and it must not fail
+ * the parent write either. The table is created by
+ * scripts/migrate-watch-history-episodes.ts, which is a DRY RUN until `--apply`
+ * is passed and has not been applied (see that file's own header for the
+ * production measurement behind it). `to_regclass` is a catalog lookup that
+ * returns NULL when the relation does not exist — the honest answer, rather than
+ * an error to catch after the fact.
+ *
+ * ONLY A POSITIVE ANSWER IS CACHED. Caching a negative would make the feature
+ * permanently absent in a process that outlives the migration: a long-running
+ * server would keep its boot-time "no table" answer after an operator applied
+ * the migration, and the child rows would silently never be written — a
+ * capability that appears to exist in the code and never runs. A process that
+ * has SEEN the table can keep saying so, because nothing in the write path drops
+ * it (the migration's rollback plan does, and a rollback is not a state a live
+ * process should silently survive).
+ */
+let episodesTablePresent = false;
+
+const episodesTableExists = async (query: Query): Promise<boolean> => {
+  if (episodesTablePresent) return true;
+  const probe = await query(
+    `SELECT to_regclass('public.watch_history_episodes') AS relation`,
+    [],
+  );
+  const relation = probe.rows[0]?.relation;
+  episodesTablePresent = relation !== null && relation !== undefined;
+  return episodesTablePresent;
 };
 
 /**
@@ -226,6 +310,75 @@ export const writeSignedInProgress = async (
           writeEpisode,
         ],
       );
+
+      // ── the per-episode row, in the SAME transaction ──
+      //
+      // §16's requirement is one logical operation, and no "write A succeeded,
+      // write B failed". Both rows commit together or neither does. There is no
+      // second transaction and NO SECOND LOCK: the advisory lock taken above is
+      // per (user, media), i.e. it already serializes every episode of this
+      // title, so the property that a transaction takes exactly one lock — and
+      // therefore cannot deadlock on lock ordering — is preserved rather than
+      // weakened.
+      //
+      // WHICH SLOT: the CALLER's, never the winner's. The parent's slot may have
+      // stayed where it was because the guard refused a stale observation, and
+      // writing the child row under the parent's slot in that case would file an
+      // observation under an episode it does not describe. The slot the caller
+      // named is what the observation is about.
+      //
+      // A POSITION IS REQUIRED. A child row with no measured position adds
+      // nothing the parent pointer does not already say, and recording one would
+      // turn this table into a list of episodes that were OPENED — §13 forbids
+      // treating a visit as playback. So a slot change with no measurement
+      // updates the parent (which is what "you are on this episode now" means)
+      // and creates no child row.
+      //
+      // The child write cannot resurrect a refused observation either: it runs
+      // the SAME guard, against the child's own stored row, and `progressionColumns`
+      // returns all-nulls when the incoming observation loses — in which case
+      // nothing is written at all.
+      const incoming = write.progression;
+      if (incoming) {
+        const slot = slotOf(incoming.season, incoming.episode);
+        if (slot !== null && incoming.position !== null) {
+          if (await episodesTableExists((text, values) => client.query(text, values))) {
+            const storedEpisode = await readStoredEpisode(
+              (text, values) => client.query(text, values),
+              write,
+              slot,
+            );
+            const child = progressionColumns(storedEpisode, incoming);
+
+            if (child.currentTime !== null) {
+              await client.query(
+                `INSERT INTO watch_history_episodes (user_id, media_type, media_id, season, episode, "current_time", total_duration, completed, last_updated)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+                 ON CONFLICT (user_id, media_type, media_id, season, episode)
+                 DO UPDATE SET
+                   "current_time" = COALESCE($6, watch_history_episodes."current_time"),
+                   total_duration = COALESCE($7, watch_history_episodes.total_duration),
+                   completed = $8,
+                   last_updated = CURRENT_TIMESTAMP`,
+                [
+                  write.userId,
+                  write.mediaType,
+                  write.mediaId,
+                  slot.season,
+                  slot.episode,
+                  child.currentTime,
+                  child.totalDuration,
+                  // Derived from the values this write actually stored, using the
+                  // guard's own ratio — never a literal, so the ratio that decides
+                  // a rewatch in the browser and the one recorded here cannot
+                  // drift apart.
+                  isComplete(child.currentTime, child.totalDuration),
+                ],
+              );
+            }
+          }
+        }
+      }
 
       await client.query('COMMIT');
     } catch (error) {

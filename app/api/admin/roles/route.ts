@@ -9,8 +9,9 @@ export async function GET() {
   try {
     const rolesRes = await pool.query('SELECT * FROM roles ORDER BY priority DESC');
     return NextResponse.json(rolesRes.rows);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[admin/roles] GET failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -32,8 +33,9 @@ export async function POST(req: Request) {
     `, [name, color, JSON.stringify(permissions), priority, adminUser.id]);
 
     return NextResponse.json(res.rows[0]);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[admin/roles] POST failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -65,8 +67,9 @@ export async function PUT(req: Request) {
     `, [name, color, JSON.stringify(permissions), priority, id]);
 
     return NextResponse.json(res.rows[0]);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[admin/roles] PUT failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -104,8 +107,9 @@ export async function DELETE(req: Request) {
     await pool.query(`DELETE FROM roles WHERE id = $1`, [id]);
 
     return NextResponse.json({ message: 'Role deleted successfully' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[admin/roles] DELETE failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
@@ -232,7 +236,8 @@ export async function PATCH(req: Request) {
     }
 
     return NextResponse.json({ message: 'Roles reordered successfully' });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    console.error('[admin/roles] PATCH failed:', error);
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

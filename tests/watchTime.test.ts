@@ -155,6 +155,206 @@ describe('POST /api/watch-time — the guard still rejects malformed input', () 
   });
 });
 
+describe('POST /api/watch-time — media_type is an allowlist, not a label', () => {
+  const ACCEPTED = ['movie', 'tv'];
+
+  it('refuses the row type the admin adjustment reserves', async () => {
+    // ROW IDENTITY, which is what makes this a security bound and not a
+    // formatting preference. `watch_history` is UNIQUE(user_id, media_type,
+    // media_id), so `media_type` selects WHICH row is written — and one value in
+    // that space is reserved: `admin_adjustment`, which
+    // /api/admin/watch-time writes at (user_id, 'admin_adjustment', 0) to carry
+    // an admin's manual correction to someone's total.
+    //
+    // Because POST accepted any string, the corrected viewer could write that
+    // row themselves: the route's ON CONFLICT adds `+ $4`, and 5000 minutes in a
+    // single request is well inside the payload guard. The number is then summed
+    // with no exclusion on this row type by auth/me and profile/stats (the
+    // viewer's own total), by admin/users and admin/online (the figure an admin
+    // reads while moderating), and by admin/stats (the dashboard's global watch
+    // time). The viewer would not see their own doing, either: the GET excludes
+    // `admin_adjustment` by name, so the row never appears in the history they
+    // look at. The admin's numbers move and nothing on the viewer's screen says
+    // so.
+    //
+    // `media_id: '0'` — the STRING — and this is the detail that makes the case
+    // real rather than theoretical. The numeric `0` never gets this far:
+    // `!media_id` is `!0` is `true`, so the presence guard answers 400
+    // "Missing required fields" and the reserved row looks unreachable. `'0'` is
+    // a non-empty string, so it clears that guard, and PostgreSQL casts it to the
+    // same `0` in the `media_id INTEGER` column. Asserted below so the two paths
+    // are visibly different and the exploit shape is the one that is tested.
+    const viaString = await post({
+      media_type: 'admin_adjustment',
+      media_id: '0',
+      minutes: 5000,
+    });
+    assert.equal(viaString.status, 400, 'the reserved row type must not be writable');
+    assert.equal(
+      viaString.body.error,
+      'Invalid media_type',
+      'the allowlist is what refuses it — the presence guard does not',
+    );
+
+    // The same request with the NUMERIC zero, kept as the contrast: it is
+    // refused one guard earlier, for a different reason, which is exactly why
+    // the allowlist cannot be reasoned about from this case alone.
+    const viaNumber = await post({
+      media_type: 'admin_adjustment',
+      media_id: 0,
+      minutes: 5000,
+    });
+    assert.equal(viaNumber.status, 400);
+    assert.equal(viaNumber.body.error, 'Missing required fields');
+  });
+
+  it('accepts exactly the two values the client can send, and nothing else', async () => {
+    // The accept side first, so a guard that rejected everything would fail here
+    // rather than pass by refusing all of the cases below.
+    for (const media_type of ACCEPTED) {
+      const {status} = await post({media_type, media_id: 550, minutes: 0});
+      assert.equal(status, 401, `${media_type} must still clear the guard`);
+    }
+
+    // Near misses are the point: a guard written with a normalising step — trim,
+    // toLowerCase, startsWith — would pass several of these, and every one of
+    // them is a distinct string to PostgreSQL and therefore a distinct row.
+    for (const media_type of [
+      'admin_adjustment',
+      'ADMIN_ADJUSTMENT',
+      'Admin_Adjustment',
+      'admin_adjustment ',
+      ' admin_adjustment',
+      'admin_adjustment\t',
+      'admin_adjustment\n',
+      'admin_adjustments',
+      'adminadjustment',
+      'Movie',
+      'MOVIE',
+      'movie ',
+      ' movie',
+      'movies',
+      'TV',
+      'Tv',
+      'tv ',
+      'series',
+      'episode',
+      'anime',
+      ' ',
+      'movie,tv',
+      'movie|tv',
+      '__proto__',
+      'constructor',
+    ]) {
+      const {status} = await post({media_type, media_id: 550, minutes: 0});
+      assert.equal(
+        status,
+        400,
+        `media_type ${JSON.stringify(media_type)} must be refused, not stored as its own row`,
+      );
+    }
+  });
+
+  it('refuses a media_type that is not a string at all', async () => {
+    // `!==` and not `!=`, and this case is why. A single-element array coerces to
+    // its element under loose comparison — `['movie'] != 'movie'` is FALSE — so a
+    // guard written with `!=` would have accepted `{"media_type":["movie"]}` and
+    // handed an array to the driver as a text parameter. Strict comparison is
+    // load-bearing here rather than stylistic.
+    //
+    // The operands are typed `unknown` because that is what the guard actually
+    // receives from `JSON.parse`, and because the comparison is the subject: left
+    // as literals, TypeScript rejects `string[] != string` as a comparison between
+    // types with no overlap — a fair complaint about exactly the mistake being
+    // demonstrated, which is why the values have to arrive as unknowns.
+    const arrayValue: unknown = ['movie'];
+    const stringValue: unknown = 'movie';
+    assert.equal(arrayValue != stringValue, false, 'the loose comparison this avoids');
+    assert.equal(arrayValue !== stringValue, true, 'the strict comparison in use');
+
+    for (const body of [
+      '{"media_type":["movie"],"media_id":550,"minutes":0}',
+      '{"media_type":["admin_adjustment"],"media_id":0,"minutes":5000}',
+      '{"media_type":{"x":"movie"},"media_id":550,"minutes":0}',
+      '{"media_type":true,"media_id":550,"minutes":0}',
+      '{"media_type":550,"media_id":550,"minutes":0}',
+      '{"media_type":null,"media_id":550,"minutes":0}',
+    ]) {
+      const {status} = await post(body);
+      assert.equal(status, 400, `must be refused: ${body}`);
+    }
+  });
+
+  /**
+   * The two halves of this route validate the same set, and that is asserted at
+   * source because neither can see the other. DELETE has checked exactly
+   * `movie`/`tv` since it was written; POST trusted the caller. A future edit
+   * that relaxes one of them — or that adds a third accepted type to one side
+   * only — reopens the asymmetry from the direction that matters, and no runtime
+   * case in this file would notice, because each handler is tested on its own.
+   */
+  describe('the write path and the delete path agree on that set', () => {
+    const ALLOWLIST = "media_type !== 'movie' && media_type !== 'tv'";
+
+    /** One handler's body, from its declaration to the next one. */
+    const bodyOf = (text: string, name: string): string => {
+      const start = text.indexOf(`export async function ${name}(`);
+      assert.notEqual(start, -1, `${name} not found — this scan needs updating`);
+      const next = text.indexOf('export async function', start + 1);
+      return text.slice(start, next === -1 ? undefined : next);
+    };
+
+    it('checks the identical condition in POST and in DELETE', () => {
+      const route = source('app/api/watch-time/route.ts');
+      for (const handler of ['POST', 'DELETE']) {
+        assert.match(
+          bodyOf(route, handler),
+          /media_type !== 'movie' && media_type !== 'tv'/,
+          `${handler} must accept exactly the two types the client can send`,
+        );
+      }
+    });
+
+    it('checks it BEFORE the write, not after it', () => {
+      // Order is the whole point: a validation that runs after the statement has
+      // already decided whether the reserved row is writable. This is the
+      // "the endpoint protects the action" rule applied inside the handler.
+      const post = bodyOf(source('app/api/watch-time/route.ts'), 'POST');
+      const guard = post.indexOf(ALLOWLIST);
+      const write = post.indexOf('writeSignedInProgress(');
+      const anonWrite = post.indexOf('INSERT INTO anonymous_watch_history');
+
+      assert.notEqual(guard, -1, 'the allowlist is missing from POST');
+      assert.notEqual(write, -1, 'the signed-in write is missing from POST — update this scan');
+      assert.ok(guard < write, 'the allowlist must precede the signed-in write');
+      assert.ok(
+        anonWrite === -1 || guard < anonWrite,
+        'the allowlist must precede the anonymous write too — it is the same column, and ' +
+          'admin/stats sums anonymous_watch_history with no exclusion either',
+      );
+    });
+
+    it('the scan would catch the mistake it is there for', () => {
+      // The counter-example, so this cannot pass for the wrong reason: the fixed
+      // form must be recognised, and the form it replaces — presence only — must
+      // not satisfy the same scan.
+      const fixed = "if (media_type !== 'movie' && media_type !== 'tv') {";
+      assert.notEqual(
+        fixed.match(/media_type !== 'movie' && media_type !== 'tv'/),
+        null,
+        'the scan must recognise the fixed form',
+      );
+      assert.equal(
+        "if (!media_type || !media_id) {".match(
+          /media_type !== 'movie' && media_type !== 'tv'/,
+        ),
+        null,
+        'the scan must not pass a handler that only checks for presence',
+      );
+    });
+  });
+});
+
 // ---------------------------------------------------------------------------
 // The identifier rule. See the file header for why this is a test at all.
 // ---------------------------------------------------------------------------

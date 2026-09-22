@@ -86,6 +86,40 @@ export interface ProgressionFields {
   observedAt?: number | null;
 }
 
+/**
+ * A stored record, in the loose shape the stores actually hold.
+ *
+ * `timestamp` is the POSITION and `last_watched` is when it was observed — the
+ * names are the opposite way round from what they suggest, which is why the
+ * mapping is written once, here, instead of at each call site that needs it. The
+ * browser store (`utils/historyManager.ts`) and the per-episode store
+ * (`lib/episodeHistory.ts`) both map their entries through this, so the two
+ * cannot come to disagree about which field is the position.
+ */
+export interface StoredPositionRecord {
+  timestamp?: number | null;
+  duration?: number | null;
+  season?: number | null;
+  episode?: number | null;
+  last_watched?: number | null;
+}
+
+/**
+ * `??` and not `||` throughout: 0 is a real position and season 0 is TMDB's
+ * SPECIALS season, so both must survive as themselves rather than collapsing to
+ * "no value" — which is the defect that made a stored position unreadable and a
+ * special's slot indistinguishable from "not applicable".
+ */
+export const progressionFieldsFrom = (
+  record: StoredPositionRecord,
+): ProgressionFields => ({
+  position: record.timestamp ?? null,
+  duration: record.duration ?? null,
+  season: record.season ?? null,
+  episode: record.episode ?? null,
+  observedAt: record.last_watched ?? null,
+});
+
 export const isComplete = (
   position: number | null,
   duration: number | null,
@@ -109,6 +143,37 @@ export const sameSlot = (
 ): boolean =>
   (a.season ?? null) === (b.season ?? null) &&
   (a.episode ?? null) === (b.episode ?? null);
+
+/**
+ * A real episode slot, or null.
+ *
+ * ONE IMPLEMENTATION, TWO CONTINENTS. The browser decides whether an entry
+ * describes a slot (`lib/episodeHistory.ts`), and the server decides the same
+ * thing before it writes a row to `watch_history_episodes`; a mismatch is not
+ * cosmetic — the browser would keep a record the server refuses, or the server
+ * would accept a slot the client cannot key. So the numeric half of the rule
+ * lives here, beside `sameSlot`, and the client's `episodeSlotOf` adds only the
+ * media-type check on top of it.
+ *
+ * `Number.isInteger` on both, and neither negative:
+ *
+ *  - the database columns are `INTEGER`, so a fractional value sent as a
+ *    parameter is `22P02` and would abort the enclosing transaction — taking the
+ *    parent row's write with it. Refusing here means the slot is simply not
+ *    recorded and the parent write proceeds exactly as before;
+ *  - season 0 IS a real slot (TMDB's SPECIALS), so the test is `>= 0` and never a
+ *    truthiness check. `0` must survive as `0` and never become "no season".
+ */
+export const slotOf = (
+  season: unknown,
+  episode: unknown,
+): { season: number; episode: number } | null => {
+  if (!Number.isInteger(season) || !Number.isInteger(episode)) return null;
+  const s = season as number;
+  const e = episode as number;
+  if (s < 0 || e < 0) return null;
+  return { season: s, episode: e };
+};
 
 /**
  * True when `incoming` describes a moment recent enough to be the current one.

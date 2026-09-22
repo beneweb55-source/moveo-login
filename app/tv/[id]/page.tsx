@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { fetchDataFromApi } from "@/utils/api";
 import ContentWrapper from "@/components/ContentWrapper";
 import VideoPlayer from "@/components/VideoPlayer";
+import StartedEpisodes from "@/components/StartedEpisodes";
 import ActionButtons from "@/components/ActionButtons";
 import CastList from "@/components/CastList";
 import BottomSheet from "@/components/BottomSheet";
@@ -539,7 +540,10 @@ export default function TvDetails() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                     <div className="flex items-center gap-4">
                         <div className="w-1 h-8 bg-[#E50914] rounded-full" />
-                        <h2 className="text-3xl font-bold">{t.details.nowPlaying}</h2>
+                        {/* Names the section, not a playback state — same
+                            correction and the same measurement as the movie
+                            page's heading. See lib/translations.ts. */}
+                        <h2 className="text-3xl font-bold">{t.details.videoPlayer}</h2>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4">
@@ -802,6 +806,19 @@ export default function TvDetails() {
                         </BottomSheet>
                     </div>
                 </div>
+
+                {/* The other episodes of THIS series the viewer has started
+                    (§18). It sits above the player rather than below it because
+                    it is a way to CHOOSE what to watch next, not a summary of
+                    what was just watched. It reads the per-slot store in
+                    localStorage and, for a signed-in viewer, the per-slot rows
+                    on the server — and it renders nothing at all until it has
+                    something true to show. */}
+                <StartedEpisodes
+                    id={id as string}
+                    season={selectedSeason}
+                    episode={selectedEpisode}
+                />
 
                 <div className="bg-[#141414] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <VideoPlayer 

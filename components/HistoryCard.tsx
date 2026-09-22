@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Play, Clock, RotateCcw, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { WatchHistoryItem, isCompleted } from "@/utils/historyManager";
+import { promisesPositionResume } from "@/lib/resumeCapability";
 import { formatProgress } from "@/lib/timecode";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -43,25 +44,47 @@ const HistoryCard = ({ item, onRemove }: HistoryCardProps) => {
     : "";
 
   /**
-   * What the card can honestly claim.
+   * What the card can honestly claim — two questions, not one.
    *
-   *  - a measured position that is not finished → CONTINUE,
-   *  - a measured position that IS finished       → WATCH AGAIN (never
-   *    "Reprendre" on something already over),
-   *  - no measured position                       → WATCH.
+   * 1. WHAT WE MEASURED (`hasPosition`):
+   *      - no measured position → the entry says only "this is the episode you
+   *        were on". §13 forbids inferring playback from a page visit, so such an
+   *        entry genuinely exists and must not borrow the authority of one that
+   *        carries a number.
+   *      - a measured position that is finished → starting over is what will
+   *        happen, so the card says so rather than "Reprendre" on something over.
+   *      - a measured position, unfinished → the case below.
    *
-   * The third case is the one that matters. §13 forbids inferring playback from
-   * a page visit, so an entry can exist that says only "this is the episode you
-   * were on". Offering "Reprendre la lecture" for it would be the interface
-   * asserting a position we never measured.
+   * 2. WHAT WE CAN DO ABOUT IT (`promisesPositionResume`). This is the second
+   *    question and it is the one the card used to skip entirely. The player has
+   *    no way to be told where to start: no provider's URL carries a time, and no
+   *    provider's position resume has ever been observed. See
+   *    lib/resumeCapability.ts, where the list that could make this true is
+   *    deliberately empty.
+   *
+   * So an unfinished entry with a position on a SERIES reads "Reprendre
+   * l'épisode": content and slot ARE restored, which is a real offer, and it is
+   * what the link actually delivers via `?s=&e=`. On a FILM it reads "Regarder",
+   * because there is no episode to name and a film that restarts at 0:00 has not
+   * been continued — calling that "Continuer" would describe something that will
+   * not happen.
+   *
+   * The timecode and the progress bar stay on the card in both cases. They are a
+   * statement about the RECORD, which we do have; the label is the promise about
+   * PLAYBACK, which is the part that must not be overstated (§2, §19).
    */
   const hasPosition = typeof item.timestamp === "number";
   const finished = item.completed ?? isCompleted(item.timestamp, item.duration);
+  const positionResume = promisesPositionResume(item.provider);
   const actionLabel = !hasPosition
     ? t.home.watchNow
     : finished
       ? t.home.replayFromStart
-      : t.home.continueWatching;
+      : positionResume
+        ? t.home.continueWatching
+        : hasEpisode
+          ? t.home.resumeEpisode
+          : t.home.watchNow;
   const ActionIcon = finished && hasPosition ? RotateCcw : Play;
 
   const progressText = formatProgress(item.timestamp, item.duration);

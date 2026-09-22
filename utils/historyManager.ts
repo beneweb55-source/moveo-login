@@ -25,6 +25,16 @@
  * and must keep doing so — see components/HistoryCard.tsx.
  */
 
+import {
+  adoptEntries,
+  currentWriteOwnerKey,
+  getDeviceId,
+  isAdoptable,
+  ownerKeyOf,
+  readOwnerKey,
+  type HistoryOwner,
+} from "@/lib/historyOwnership";
+
 export interface WatchHistoryItem {
   id: string;
   type: "movie" | "tv";
@@ -45,6 +55,18 @@ export interface WatchHistoryItem {
   duration?: number;
   /** Derived at write time from timestamp/duration; 95% or more counts as done. */
   completed?: boolean;
+  /**
+   * WHO this entry belongs to, stamped from lib/historyOwnership.ts on every
+   * write: `guest:<device id>` or `user:<user id>`.
+   *
+   * It exists so that a merge can refuse to carry one account's history into
+   * another (§6/§8). Absent on entries written before the scheme existed, and
+   * absent means adoptable — which is why nothing may ever be stamped with a
+   * GUESSED user id: a wrong `user:<id>` silently withholds the genuine
+   * owner's own progression, whereas a wrong `guest:` only ever costs an extra
+   * adoption. See the module header for the full argument.
+   */
+  owner?: string;
 }
 
 /** Kept for continuity: existing visitors already have entries under this key. */
@@ -84,9 +106,26 @@ const announceHistoryChanged = (): void => {
  */
 import {
   isComplete,
+  progressionFieldsFrom,
   resolveProgression,
-  type ProgressionFields,
 } from "@/lib/progressionGuard";
+
+/**
+ * The per-episode model (§7–§12). `lib/episodeHistory.ts` owns the shape, the
+ * slot rule and the merge; this file owns the storage and the owner stamp, so
+ * that both copies are written by ONE function and cannot drift apart.
+ */
+import {
+  asEpisodeEntry,
+  episodesOfTitle,
+  episodeKeyOf,
+  episodeSlotKey,
+  episodeSlotOf,
+  MAX_EPISODE_ENTRIES,
+  otherStartedEpisodes,
+  upsertEpisodeEntry,
+  type EpisodeEntry,
+} from "@/lib/episodeHistory";
 
 /** Convenience wrapper so the store can pass its own optional fields. */
 export const isCompleted = (
@@ -182,26 +221,30 @@ const normaliseItem = (raw: unknown): WatchHistoryItem | null => {
       typeof item.completed === "boolean"
         ? item.completed
         : isCompleted(timestamp, duration),
+    // CARRIED THROUGH VERBATIM, and the cast is the point rather than an
+    // oversight. Only the ownership module may decide what a stamp means, and it
+    // decides by READING the raw value: absent means "adoptable", a recognised
+    // key means "governed by the rule", anything else means "refused". Dropping
+    // a value that merely looked wrong — a number, an empty string, `"user:12 "`
+    // — would turn it into absent, i.e. into adoptable, which is the fail-OPEN
+    // direction. So every present value survives normalisation, including the
+    // ones isAdoptable will refuse.
+    ...(item.owner === undefined || item.owner === null
+      ? {}
+      : { owner: item.owner as string }),
   };
 };
 
 // ─── merge (also the guest → account rule, §9) ───
 
 /**
- * Maps a stored entry onto the fields lib/progressionGuard.ts works in.
- *
- * `timestamp` is the POSITION and `last_watched` is when it was observed — the
- * names are the opposite way round from what they suggest, which is why the
- * mapping is written once, here, instead of at each call site. `?? null` and not
- * `||`: 0 is a real position and season 0 is TMDB's SPECIALS.
+ * THE MAPPING IS NOT HERE. It is `progressionFieldsFrom` in
+ * lib/progressionGuard.ts, because the per-episode store needs the identical
+ * mapping — `timestamp` is the POSITION and `last_watched` is when it was
+ * observed, the names being the opposite way round from what they suggest — and
+ * two copies of that fact is how the browser and the child store would come to
+ * disagree about which field holds the position.
  */
-const progressionFieldsOf = (item: WatchHistoryItem): ProgressionFields => ({
-  position: item.timestamp ?? null,
-  duration: item.duration ?? null,
-  season: item.season ?? null,
-  episode: item.episode ?? null,
-  observedAt: item.last_watched ?? null,
-});
 
 /**
  * Decides which of two records of the same title to keep.
@@ -231,12 +274,12 @@ export const mergeWatchEntries = (
 
   // The fields are built ONCE and held in variables. `resolveProgression`
   // returns one of its two arguments BY REFERENCE, and that identity is how the
-  // winner is identified — calling `progressionFieldsOf(incoming)` a second time
-  // would build a different object, the comparison would be false for every
+  // winner is identified — calling `progressionFieldsFrom(incoming)` a second
+  // time would build a different object, the comparison would be false for every
   // merge, and the stored position would freeze forever. The guard's own
   // contract test pins this, which is how the mistake below was caught.
-  const existingFields = progressionFieldsOf(existing);
-  const incomingFields = progressionFieldsOf(incoming);
+  const existingFields = progressionFieldsFrom(existing);
+  const incomingFields = progressionFieldsFrom(incoming);
   const winner = resolveProgression(existingFields, incomingFields);
   return winner === incomingFields ? incoming : existing;
 };
@@ -285,6 +328,11 @@ export const getWatchHistoryItem = (
  * this one function, which is the point: a second copy of the merge and the
  * write for the merge path is exactly how the two would drift apart.
  */
+const stampWriteOwner = (item: WatchHistoryItem): WatchHistoryItem => {
+  const key = currentWriteOwnerKey();
+  return key === null ? item : { ...item, owner: key };
+};
+
 const writeLocalHistory = (item: WatchHistoryItem): WatchHistoryItem | null => {
   if (typeof window === "undefined") return null;
 
@@ -303,13 +351,171 @@ const writeLocalHistory = (item: WatchHistoryItem): WatchHistoryItem | null => {
     normalised,
   );
 
+  // ── ownership: the entry belongs to whoever is writing it now ──
+  //
+  // Stamped AFTER the merge, not before, and that order is deliberate. The merge
+  // can return the PREVIOUS entry unchanged (its position is the newer one, or
+  // the incoming one carried no position at all), and that previous entry may be
+  // stamped with a different identity — A's `user:A` on a browser B is now using.
+  // Carrying that stamp forward would leave B's own observation recorded as A's,
+  // and the next merge would then refuse to sync B's genuine progress to B's own
+  // account: a silent loss, in the direction the brief forbids. The owner is the
+  // identity that made the LATEST observation of this title, which is exactly
+  // what the merge just produced.
+  //
+  // When no owner can be established — no storage to read a device id from — the
+  // entry is left as it was rather than stamped with a guess. See
+  // lib/historyOwnership.ts: every mis-stamp must fall toward guest, never
+  // toward an account.
+  const owned = stampWriteOwner(merged);
+
   const rest = index === -1 ? history : history.filter((_, i) => i !== index);
-  const next = [merged, ...rest]
+  const next = [owned, ...rest]
     .sort((a, b) => b.last_watched - a.last_watched)
     .slice(0, MAX_ITEMS);
 
   writeRaw(JSON.stringify(next));
-  return merged;
+
+  // ── and the per-episode copy, from the SAME merge result and the same owner ──
+  //
+  // Written HERE, inside the single write point, rather than at each caller. The
+  // player, the episode selector and the guest merge all reach the store through
+  // this function, so all three get per-episode records without having to
+  // remember to, and the owner stamp is applied once by the same code — a new
+  // caller cannot forget the child write, because it never performs it.
+  recordEpisodeFor(owned);
+
+  return owned;
+};
+
+// ─── the per-episode store (the child model, on the client) ───
+
+/**
+ * The per-episode copy, beside the pointer list.
+ *
+ * WHY A SECOND KEY RATHER THAN A RICHER ENTRY. `watch_history` is capped at
+ * MAX_ITEMS entries and each entry is ONE title. If a series' episodes were kept
+ * inside that entry, the cap would become a cap on titles and the Continue
+ * Watching shape would have to change; worse, the parent entry can hold exactly
+ * one slot by construction, so "keep the other episodes" is not expressible
+ * there at all. A separate key keeps the pointer list exactly as it is — the
+ * thing Continue Watching reads — and gives the per-slot records their own room,
+ * which is the same split the database now makes between `watch_history` and
+ * `watch_history_episodes`.
+ *
+ * Entries carry the same owner stamp as the pointer list, applied by the same
+ * function, because the rule that decides who may be SHOWN or RELAYED an entry
+ * must not have two implementations (§17).
+ *
+ * This store is bounded twice (per title and overall) by
+ * `upsertEpisodeEntry`; see lib/episodeHistory.ts for why the trim order is
+ * "least recently observed".
+ */
+const EPISODE_HISTORY_KEY = "watch_history_episodes";
+
+/**
+ * How many per-episode records a first sign-in relays to the account.
+ *
+ * Bounded deliberately: the relay is sequential (§9 — one writer, one table) and
+ * a device with a long back catalogue must not turn a sign-in into a request
+ * storm (§14). Records beyond the bound stay in the local store, and the next
+ * observation for that title relays its own slot through the ordinary write.
+ */
+const EPISODE_RELAY_LIMIT = 20;
+
+const readEpisodeRaw = (): string | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(EPISODE_HISTORY_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeEpisodeRaw = (value: string): boolean => {
+  if (typeof window === "undefined") return false;
+  try {
+    window.localStorage.setItem(EPISODE_HISTORY_KEY, value);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Every stored episode record, most recently observed first.
+ *
+ * Normalised on read through the same `normaliseItem` the pointer list uses, and
+ * then narrowed by `asEpisodeEntry`. An entry that does not describe a slot is
+ * DROPPED here rather than repaired: this store's whole contract is that every
+ * record is keyed by a season and an episode, so a record without one is not a
+ * damaged member of this store — it is not a member.
+ */
+export const getEpisodeHistory = (): EpisodeEntry[] => {
+  const raw = readEpisodeRaw();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item) => {
+        const normalised = normaliseItem(item);
+        return normalised === null ? null : asEpisodeEntry(normalised);
+      })
+      .filter((entry): entry is EpisodeEntry => entry !== null)
+      .sort((a, b) => b.last_watched - a.last_watched);
+  } catch {
+    return [];
+  }
+};
+
+const writeEpisodeHistory = (entries: readonly EpisodeEntry[]): void => {
+  writeEpisodeRaw(JSON.stringify(entries.slice(0, MAX_EPISODE_ENTRIES)));
+};
+
+/** The started episodes of one title, most recently watched first. */
+export const getEpisodesForTitle = (
+  type: "movie" | "tv",
+  id: string | number,
+): EpisodeEntry[] => episodesOfTitle(getEpisodeHistory(), type, id);
+
+/** The started episodes of a title, excluding the one currently pointed at. */
+export const otherStartedEpisodesFor = (
+  type: "movie" | "tv",
+  id: string | number,
+  season?: number | null,
+  episode?: number | null,
+): EpisodeEntry[] =>
+  otherStartedEpisodes(getEpisodeHistory(), { type, id, season, episode });
+
+/**
+ * Records one observation in the per-episode store, merged and owner-stamped.
+ *
+ * Returns the entry that ended up stored, or **null when the observation
+ * describes no slot** — a film, or a series entry with no episode number. Null
+ * is the ordinary answer for a film and is what keeps §8's promise that films
+ * produce no per-episode rows: the caller does not have to know the rule, and a
+ * movie write simply passes through.
+ *
+ * The merge is `mergeEpisodeEntries` → `resolveProgression`, i.e. the same
+ * no-regression rule the pointer list and the server apply. It is applied
+ * against the stored record FOR THIS SLOT and never against the parent row: a
+ * write for S1E4 must not be judged against S2E7's position, because the two are
+ * separate facts and the guard would read a lower episode number as a rewind.
+ */
+export const recordEpisodeFor = (item: WatchHistoryItem): EpisodeEntry | null => {
+  if (typeof window === "undefined") return null;
+
+  const incoming = asEpisodeEntry(item);
+  if (!incoming) return null;
+
+  const owned = stampWriteOwner(incoming) as EpisodeEntry;
+  const next = upsertEpisodeEntry(getEpisodeHistory(), owned);
+  writeEpisodeHistory(next);
+
+  const key = episodeKeyOf(owned);
+  return next.find((entry) => episodeKeyOf(entry) === key) ?? null;
 };
 
 export const saveWatchHistory = (item: WatchHistoryItem): void => {
@@ -357,21 +563,79 @@ export const removeFromHistory = (id: string, type?: "movie" | "tv"): void => {
 };
 
 /**
- * Empties the local history.
+ * Empties BOTH local stores, unconditionally.
  *
- * Called on sign-out. Without it, a shared browser keeps showing the previous
- * person's titles — and the next person to sign in on that machine inherits
- * them, which is the local half of the §23 rule that one account's history must
- * not be readable by another.
+ * This is NOT the sign-out path any more, and §5 is why. A blind wipe on logout
+ * also deletes the current GUEST's own entries, and nothing can restore them —
+ * a guest has no server copy to read them back from. The brief is explicit:
+ * "NE PAS supprimer aveuglément toute l'histoire locale si elle peut appartenir
+ * au guest courant." Sign-out calls `removeEntriesOwnedBy`, which removes
+ * exactly the departing account's records.
+ *
+ * Kept because "forget everything on this device" is a real request a viewer can
+ * make, and this is the honest name for what it does.
  */
 export const clearWatchHistory = (): void => {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.removeItem(HISTORY_KEY);
+    window.localStorage.removeItem(EPISODE_HISTORY_KEY);
   } catch {
     // Nothing to do: if the store is unreadable it is already empty to us.
   }
   announceHistoryChanged();
+};
+
+/**
+ * Removes exactly the entries stamped for ONE owner, from BOTH stores.
+ *
+ * THE SIGN-OUT RULE (§5): "Après logout : clear account ownership ; nouveau guest
+ * = nouveau contexte ; aucun historique privé du compte précédent visible. NE PAS
+ * supprimer aveuglément toute l'histoire locale si elle peut appartenir au guest
+ * courant. Le comportement doit être déterministe."
+ *
+ * So it is a SCOPED removal, not a wipe: entries stamped
+ * `user:<the account that just signed out>` go, and everything else stays —
+ * the device's own guest entries, and any other account's entries, which are not
+ * this session's to delete. What protects the next viewer from THOSE is the
+ * display rule (`isVisibleTo`), which never paints an account-stamped entry for a
+ * viewer who is not that account. This function is the other half: the records of
+ * the viewer who just left are also removed from the shared machine.
+ *
+ * Deleting an account's local records loses no progress. An account's history
+ * lives on the server, and the next sign-in reads it back through
+ * `getServerWatchHistory`.
+ *
+ * `null` removes NOTHING, and that is a decision rather than an oversight: there
+ * is no account to identify, and "we could not tell whose these are" must never
+ * resolve to "delete them anyway". That direction loses a guest's history, and
+ * the display rule already covers the visibility half.
+ *
+ * Deterministic: the same store and the same owner always produce the same
+ * result, and the count comes back so a caller can state what happened.
+ */
+export const removeEntriesOwnedBy = (
+  owner: HistoryOwner | null,
+): { removed: number; kept: number } => {
+  const pointers = getWatchHistory();
+  if (owner === null) return { removed: 0, kept: pointers.length };
+
+  const key = ownerKeyOf(owner);
+  const episodes = getEpisodeHistory();
+  const isMine = (entry: WatchHistoryItem | EpisodeEntry): boolean =>
+    readOwnerKey(entry) === key;
+
+  const keptPointers = pointers.filter((entry) => !isMine(entry));
+  const keptEpisodes = episodes.filter((entry) => !isMine(entry));
+  const removed =
+    pointers.length - keptPointers.length + (episodes.length - keptEpisodes.length);
+
+  if (removed === 0) return { removed: 0, kept: keptPointers.length };
+
+  writeRaw(JSON.stringify(keptPointers));
+  writeEpisodeHistory(keptEpisodes);
+  announceHistoryChanged();
+  return { removed, kept: keptPointers.length };
 };
 
 // ─── server sync (connected users) ───
@@ -518,8 +782,22 @@ export const removeServerHistoryItem = async (
  * one person, one device, a new account. The boundary that protects a shared
  * machine is sign-OUT, which clears the local history.
  */
-export const pushLocalHistoryToAccount = async (): Promise<{
+export const pushLocalHistoryToAccount = async (
+  userId?: string | number | null,
+): Promise<{
   total: number;
+  relayed: number;
+  withheld: number;
+  /**
+   * How many PER-EPISODE records were relayed alongside the pointers.
+   *
+   * A separate count because it is a separate question: a title's pointer can be
+   * carried while an episode's record is not, and the caller that decides
+   * whether to write the "merged for this account" marker needs to know that
+   * both stores landed. Folding it into `relayed` would make a merge that
+   * carried every title and no episode look complete.
+   */
+  episodes: number;
   allSynced: boolean;
 }> => {
   const items = getWatchHistory();
@@ -531,18 +809,103 @@ export const pushLocalHistoryToAccount = async (): Promise<{
   // per-account marker exists.
   __resetServerSyncLatch();
 
+  // ── WHO MAY BE CARRIED INTO THIS ACCOUNT (§6/§8) ──
+  //
+  // The filter, before anything is sent. The merge used to replay the whole local
+  // list into whoever was signed in; that is right for its intended case (one
+  // person, one device, a new account) and wrong for the case the brief names,
+  // because a local entry had no owner. Entries stamped for a DIFFERENT account —
+  // and entries whose stamp cannot be read — are left exactly where they are.
+  // They stay in localStorage; nothing is deleted.
+  //
+  // `userId` is optional and its absence is not permissive: without a known
+  // account, an entry stamped `user:<any>` is refused, because there is nothing
+  // to match it against. See lib/historyOwnership.ts.
+  const target = userId === undefined || userId === null ? null : userId;
+  const adoptable = items.filter((item) => isAdoptable(item, target));
+  const withheld = items.length - adoptable.length;
+
   let allSynced = true;
   // SEQUENTIALLY, not `Promise.all`. These are writes to one table for one user,
   // and the route reads the current row before it writes it; firing twenty of
   // them at once invites those read-modify-write pairs to interleave, including
   // with a player that is writing the same title in this very tab. One at a time
   // costs a few hundred milliseconds on a first sign-in and cannot race.
-  for (const item of items) {
+  for (const item of adoptable) {
     const synced = await writeLocalAndSync(item);
     if (!synced) allSynced = false;
   }
 
-  return { total: items.length, allSynced };
+  // ── the OTHER started episodes of those same titles ──
+  //
+  // The loop above carries ONE slot per title — the last one, which is all the
+  // parent row holds. §7's whole point is that a guest who watched S1E4 and then
+  // S2E7 on this device keeps BOTH when they sign in, so the per-episode records
+  // the pointer loop did not already cover are relayed as well, most recently
+  // observed first.
+  //
+  // Bounded by EPISODE_RELAY_LIMIT and filtered by the same `isAdoptable` rule as
+  // the pointer list — one adoption rule, two stores. The slot each pointer
+  // already sent is skipped rather than re-sent: the parent write carries its own
+  // slot, and sending it twice would be two decisions over one fact.
+  const alreadySent = new Set(
+    adoptable
+      .map((item) => {
+        const slot = episodeSlotOf(item);
+        return slot === null
+          ? null
+          : episodeSlotKey(item.type, item.id, slot.season, slot.episode);
+      })
+      .filter((key): key is string => key !== null),
+  );
+
+  const episodeRelay = getEpisodeHistory()
+    .filter((entry) => isAdoptable(entry, target))
+    .filter((entry) => !alreadySent.has(episodeKeyOf(entry)))
+    .slice(0, EPISODE_RELAY_LIMIT);
+
+  for (const episode of episodeRelay) {
+    const synced = await syncItemToServer(episode);
+    if (!synced) allSynced = false;
+  }
+
+  // ── adoption: the device's history is now this account's ──
+  //
+  // After the relay, so an entry that failed to sync is still owned correctly
+  // when the next navigation retries it. This closes the window the model would
+  // otherwise leave open: an entry written while signed in, but before the
+  // session probe had answered, is stamped `guest:<device>` — and a guest stamp
+  // is adoptable by ANY account, so without this step a later viewer on the same
+  // browser would inherit it. Adoption is what makes §8's "B ne doit jamais
+  // récupérer l'historique A" hold on the expiry path, where no sign-out code of
+  // ours ever runs.
+  //
+  // Only when the account is known: there is nothing to adopt INTO otherwise.
+  if (target !== null) {
+    const owner: HistoryOwner = { kind: "user", userId: target };
+    const adopted = adoptEntries(getWatchHistory(), owner);
+    if (adopted.changed) {
+      writeRaw(JSON.stringify(adopted.entries));
+    }
+
+    // The per-episode store is adopted by the same call, for the same reason and
+    // with the same owner. Skipping it would leave the child records stamped
+    // `guest:<device>` after the merge, i.e. adoptable by whoever signs in on
+    // this browser next — which is the leak the adoption step exists to close,
+    // and it would be open on the store the brief is about.
+    const adoptedEpisodes = adoptEntries(getEpisodeHistory(), owner);
+    if (adoptedEpisodes.changed) {
+      writeEpisodeHistory(adoptedEpisodes.entries);
+    }
+  }
+
+  return {
+    total: items.length,
+    relayed: adoptable.length,
+    withheld,
+    episodes: episodeRelay.length,
+    allSynced,
+  };
 };
 
 // ─── anonymous session id ───
@@ -550,25 +913,18 @@ export const pushLocalHistoryToAccount = async (): Promise<{
 /**
  * The guest's storage handle.
  *
- * Lives here, next to the code that sends it, because the alternative — reading
- * a key some other component happens to own — is a contract with nothing
- * holding it together. It is a random opaque string, not an identifier for a
- * person: no email, no IP, no device fingerprint.
+ * Now a thin alias: the value, the key it lives under and the rule for creating
+ * it all belong to lib/historyOwnership.ts, which needs the same string to stamp
+ * an entry with `guest:<device id>`. Two copies of that literal would be a
+ * contract with nothing holding it together — renaming it on one side would look
+ * like a working build while splitting the identity in two, and an entry stamped
+ * with a key no session can be matched to is an entry that silently stops being
+ * adoptable.
+ *
+ * It is a random opaque string, not an identifier for a person: no email, no IP,
+ * no device fingerprint (§6).
  */
-const ANON_SESSION_KEY = "anon_session_id";
-
-export const getAnonSessionId = (): string | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const existing = window.localStorage.getItem(ANON_SESSION_KEY);
-    if (existing) return existing;
-    const created = `anon_${Math.random().toString(36).substring(2, 15)}_${Date.now()}`;
-    window.localStorage.setItem(ANON_SESSION_KEY, created);
-    return created;
-  } catch {
-    return null;
-  }
-};
+export const getAnonSessionId = (): string | null => getDeviceId();
 
 // ─── server read (connected users) ───
 

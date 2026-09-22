@@ -138,6 +138,49 @@ describe('phase transitions prove only what is observable', () => {
     assert.equal(reduce(once, {type: 'IFRAME_LOADED'}), once);
   });
 
+  it('retracts a load failure when the document loads late', () => {
+    // §15, verbatim: "Aucune UI ne doit annoncer 'Lecteur indisponible'
+    // simplement parce qu'un provider est lent si celui-ci finit par
+    // fonctionner."
+    //
+    // LOAD_FAILED is armed by a 20-second timer and by nothing else, so it is a
+    // guess about the network rather than a measurement of it. A document that
+    // arrives afterwards is positive evidence that the frame DID commit — and
+    // refusing it made the guess permanent, because nothing else leaves
+    // LOAD_FAILED: there is no automatic exit and no re-arm. A provider that
+    // took twenty-one seconds therefore left the viewer on a failure panel over
+    // a player that had loaded perfectly well.
+    const failed = reduce(createInitialPlayerState('Frembed'), {type: 'LOAD_TIMEOUT'});
+    assert.equal(failed.phase, 'LOAD_FAILED');
+
+    const late = playerReducer(failed, {type: 'IFRAME_LOADED'});
+    assert.equal(late.phase, 'IFRAME_LOADED_PLAYBACK_UNKNOWN');
+    assert.equal(isHardFailure(late.phase), false, 'the failure panel must go away');
+    assert.equal(
+      late.attempt,
+      failed.attempt,
+      'a late load is the same attempt finishing, not a new one',
+    );
+    assert.equal(late.server, 'Frembed', 'and the same server');
+
+    // The advisory notice gets its own full window rather than inheriting a
+    // verdict from the phase that was just retracted.
+    assert.equal(late.playbackUnverified, false);
+    assert.equal(
+      reduce(late, {type: 'PLAYBACK_UNVERIFIED_TIMEOUT'}).playbackUnverified,
+      true,
+      'a late-loaded frame can still be reported as unverified, 15s later',
+    );
+  });
+
+  it('still refuses a load event when no frame exists at all', () => {
+    // UNAVAILABLE means the source never resolved, so there is no iframe and a
+    // load event cannot belong to this player. Accepting one would move the
+    // state into a phase the component renders as a mounted, working frame.
+    const unavailable = reduce(createInitialPlayerState('Frembed'), {type: 'MARK_UNAVAILABLE'});
+    assert.equal(playerReducer(unavailable, {type: 'IFRAME_LOADED'}), unavailable);
+  });
+
   it('flags unverified playback only from the loaded-but-unknown phase', () => {
     const stillLoading = reduce(createInitialPlayerState('Frembed'), {
       type: 'PLAYBACK_UNVERIFIED_TIMEOUT',
