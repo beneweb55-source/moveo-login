@@ -17,6 +17,7 @@ import Carousel from "@/components/Carousel";
 import { useLanguage } from "@/context/LanguageContext";
 import WatchTimer from "@/components/WatchTimer";
 import { getWatchHistoryItem, saveWatchHistory } from "@/utils/historyManager";
+import { chooseSlot, parseSlotQuery } from "@/lib/episodeSlot";
 
 export default function TvDetails() {
   const { id } = useParams();
@@ -77,14 +78,12 @@ export default function TvDetails() {
 
   useEffect(() => {
     const mediaId = String(id);
-    const params = new URLSearchParams(window.location.search);
-    const urlSeason = Number.parseInt(params.get("s") ?? "", 10);
-    const urlEpisode = Number.parseInt(params.get("e") ?? "", 10);
 
-    // `Number.isInteger` and not a truthiness test: season 0 is TMDB's SPECIALS
-    // season and must be a usable value (§12).
-    if (Number.isInteger(urlSeason) && Number.isInteger(urlEpisode)) {
-      requestedSlotRef.current = { season: urlSeason, episode: urlEpisode };
+    // What the address bar asks for. Parsed by lib/episodeSlot.ts so the rule is
+    // testable; a malformed link asks for nothing and the fallback below answers.
+    const fromUrl = parseSlotQuery(window.location.search);
+    if (fromUrl) {
+      requestedSlotRef.current = fromUrl;
       return;
     }
 
@@ -128,39 +127,28 @@ export default function TvDetails() {
 
         // The slot the viewer asked for — by URL or by having been there before
         // — wins over the S1E1 default, but ONLY if that season exists on this
-        // title. A stale link must not select a season that was removed, and a
-        // season whose number TMDB no longer lists must not leave the page with
-        // no season selected at all.
-        const seasons: any[] = res.seasons || [];
+        // title, and every fallback in that sentence is lib/episodeSlot.ts,
+        // where it is testable. This only wires the answer to state.
         const requested = requestedSlotRef.current;
-        const requestedSeason = requested
-          ? seasons.find((s: any) => s.season_number === requested.season)
-          : undefined;
+        const chosen = chooseSlot(requested, res.seasons || []);
 
-        if (requested && requestedSeason) {
-          // When the season's episode count is unknown, the requested episode is
-          // kept and validated later against the real episode list rather than
-          // being silently dropped here.
-          const count =
-            typeof requestedSeason.episode_count === "number" ? requestedSeason.episode_count : 0;
-          const episode =
-            requested.episode >= 1 && (count === 0 || requested.episode <= count)
-              ? requested.episode
-              : 1;
-          setSelectedSeason(requested.season);
-          setSelectedEpisode(episode);
-          setEpisodesCount(requestedSeason.episode_count);
-          restoredSlotRef.current = { season: requested.season, episode };
-        } else {
-          const firstSeason = seasons.find((s: any) => s.season_number === 1) || seasons[0];
-          if (firstSeason) {
-            setSelectedSeason(firstSeason.season_number);
-            setEpisodesCount(firstSeason.episode_count);
-            restoredSlotRef.current = {
-              season: firstSeason.season_number,
-              episode: 1,
-            };
-          }
+        if (chosen) {
+          setSelectedSeason(chosen.season);
+          // Only a REQUEST moves the episode. This effect re-runs when the
+          // language changes, and on the season-1 fallback — no slot in the
+          // address bar and none stored — writing 1 here would pull a viewer who
+          // had navigated to a later episode back to the first one. A fallback
+          // chooses the season; it does not choose the episode. The distinction
+          // is reported by chooseSlot so it stays a tested rule.
+          if (chosen.fromRequest) setSelectedEpisode(chosen.episode);
+          // `?? 1` because this state drives `Array.from({length: episodesCount})`
+          // for the episode list, so an `undefined` count renders as NO episodes
+          // rather than as an unknown one. lib/episodeSlot.ts passes the declared
+          // count through unchanged — absent means TMDB has not published it —
+          // and 1 is both what this state already holds and what the real
+          // episode list replaces as soon as it arrives.
+          setEpisodesCount(chosen.episodeCount ?? 1);
+          restoredSlotRef.current = { season: chosen.season, episode: chosen.episode };
         }
       } catch (error) {
         console.error("Error fetching details:", error);
@@ -220,7 +208,10 @@ export default function TvDetails() {
         console.error("Error fetching season details:", error);
         const seasonInfo = data.seasons?.find((s: any) => s.season_number === selectedSeason);
         if (seasonInfo) {
-          setEpisodesCount(seasonInfo.episode_count);
+          // `?? 1` for the same reason as in the details effect above: this is
+          // the season request that FAILED, so the declared count is all there
+          // is, and an absent one must not become an empty episode list.
+          setEpisodesCount(seasonInfo.episode_count ?? 1);
           setEpisodesData([]);
         }
       } finally {
