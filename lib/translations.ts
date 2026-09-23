@@ -119,7 +119,6 @@ export const translations = {
       serverSlow: "Ce serveur semble lent. Essayez le serveur '2Embed' recommandé.",
       serverUnavailable: "Ce serveur est indisponible. Passage automatique au suivant...",
       allServersSlow: "Tous les serveurs semblent lents. Veuillez patienter ou réessayer plus tard.",
-      tip: "💡 Conseil : Utilisez 'VOE' pour la vitesse. Pour la Version Française (VF), privilégiez '2Embed'.",
       adWarning: "Note : Les publicités proviennent des hébergeurs vidéo, nous vous conseillons fortement d'utiliser un bloqueur de publicités (comme uBlock Origin) pour une meilleure expérience.",
       noPoster: "Affiche non disponible",
       /*
@@ -594,7 +593,6 @@ export const translations = {
       serverSlow: "This server seems slow. Try the recommended '2Embed' server.",
       serverUnavailable: "This server is unavailable. Automatically switching to the next one...",
       allServersSlow: "All servers seem slow. Please wait or try again later.",
-      tip: "💡 Tip: Use 'VOE' for speed. For French Version (VF), prefer '2Embed'.",
       adWarning: "Note: Ads come from video hosts, we strongly advise using an ad blocker (like uBlock Origin) for a better experience.",
       noPoster: "Poster unavailable",
       /* See the French entry above: this covers the iframe's load, and no server

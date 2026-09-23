@@ -1340,6 +1340,15 @@ fallback makes `login`'s `if (!secret)` "skipping hCaptcha verification" branch 
 
 ## Corrections to figures stated earlier in this document
 
+- The tracked scratch files listed above were **deleted on 2026-09-23**: `test-voe.js`,
+  `test-voe-bad.js`, `test-api.js`, `test-check-server.js`, `test_tmdb.ts`, `test_tmdb2.js`,
+  `test_tmdb3.js`, plus the two the list omitted (`test-alts.js`, `test-alts-len.js`). All nine
+  were root-level `fetch`/`axios` probes against placeholder ids, unreferenced by `package.json`
+  (whose `test` script covers `tests/*.test.ts` only); `test-api.js` queried `/api/catalogue`, a
+  route that no longer exists, and both `test_tmdb2.js` and `test_tmdb3.js` carried a hardcoded
+  TMDB API key. What remains of that list is `fix_backticks.js` and `tsconfig.tsbuildinfo` — and
+  copies of the same probes under `app/applet/`.
+
 - The CSRF section's reduction is **25 → 13**, not 26 → 13.
 - Banned users **are** blocked on API paths — `middleware.ts` keys on the 403 from `/api/auth/me`.
 - `animes` and `explore` **do** have translated empty states; it was `films`/`series` that carried
