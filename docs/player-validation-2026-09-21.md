@@ -1172,3 +1172,66 @@ measured applying correctly (`sm:p-6` → 24px, `sm:text-lg` → 18px, `sm:text-
 
 **Still unverified:** no real device. This is EMULATED MOBILE only, and §10's rule applies
 unchanged — an emulated phone is not a phone.
+
+## 26. The player sandbox, removed — what was measured, and the one link that decides it
+
+Reported by the user: *« dans le projet moveo dans le FRembed le lecteur VOE et DOOD ont un
+probleme sandbox not allowed »*. Investigated on **2026-09-23**, in the revision that carried the
+sandbox (`56eb0c4`, same day), and reverted at the owner's instruction once the measurements below
+were on the table.
+
+**What the message is.** "Sandbox not allowed" is not an error of ours: it is a page **served by
+VOE's own document** (`/blocked`, *"Browser sandbox settings to suppress ads are not allowed"*),
+reached by VOE's own detector through `setTimeout(() => location.href = "/blocked", 900)`.
+
+**What triggers it, proven.** A `sandbox` attribute on **VOE's own `<iframe>` element**. It is not a
+token problem: the block reproduces with **all twelve sandbox tokens granted** — `allow-popups`,
+`allow-modals` and `allow-downloads` included — so no token list avoids it.
+
+**And what does not trigger it.** Sandbox flags reaching VOE by **inheritance** from an ancestor.
+Two runs: VOE nested under a `data:` intermediate frame, then under a real `http://` intermediate
+frame shaped like Moveo → frembed.surf → `/api/stream` → VOE. No `/blocked` either time, and after
+pressing **Play** the media element reported Fight Club's real runtime — `0 of 2 hours, 19 minutes,
+8 seconds`. Moveo's attribute sat on the **Frembed** frame, an ancestor, and Frembed sets
+`sandboxAttr: null` on its own frames — measured on `#player` and on `/api/stream`.
+
+**Driving Frembed's real UI under Moveo's exact sandbox** (SERVEURS → Voe, through the accessibility
+tree): `/api/stream` → `tracylocalschool.com` → `eugenemakedraw.com`, **no `/blocked` request and no
+"Sandbox not allowed" text**. The chain failed three times on that last mirror host
+(`ERR_CONNECTION_TIMED_OUT`) — a provider-side outage, not a refusal.
+
+**The one link that was not measured, and it decides this.** Whether Frembed copies a `sandbox` onto
+its own player frame *when it is itself framed*. Those attributes cannot be read cross-origin from
+outside Frembed. If it does, our attribute becomes an attribute on VOE's own frame, and removing it
+is the **only** possible fix. The check that settles it, in the app: DevTools → Elements → the frame
+holding VOE (src ending in `/e/…`) — a `sandbox` attribute there means something is putting it
+there; its absence means the block came from elsewhere (browser or extension level, which is what
+the provider's own wording targets).
+
+**DOOD remains unattributed.** `playmogo.com` refused the connection both **with and without** the
+sandbox, so its failure mode was never isolated. It is not recorded here as a sandbox refusal.
+
+**The cost of no sandbox, measured the same day.** VOE opened **two popup tabs**
+(`cf.true-junction.site/middle.html`), and driving Frembed's own server list opened a **1xBet
+clickunder** tab (`q1ayxwi7tuwrn.bar/…clickunder`) while the Frembed page went blank. That is the
+path §20 and §4.2 recorded, and it returns with the attribute.
+
+**Decision, and the shape it was given.** The owner asked for the no-sandbox state, and it was
+delivered as a **revert of `56eb0c4` on top of HEAD** rather than as a checkout of `9a44fef`: the
+player frame returns to its pre-sandbox form — `sandbox` gone, `allow` and `allowFullScreen` kept,
+and the two "Ouvrir dans un nouvel onglet" links with the `openInNewTab` keys restored, because a
+revert is the faithful inverse — while the four commits that follow it (`3479c1b`, `44a8ef1`,
+`c1d2639`, `bea1f9f`, the watch-history work) stay in the tree. Those four are unrelated to the
+player and were never part of the request.
+
+**What this takes out of the record's coverage.** `lib/playerFramePolicy.ts` and
+`tests/playerFramePolicy.test.ts` are gone with the revert, so **nothing now asserts the withheld
+token set**, and the module that cited §4.2 no longer exists. The suite went from **697 assertions
+to 686**: the eleven that left are exactly that file's. No measurement recorded above changes —
+every provider session here (20/21/22-09) predates the sandbox, and §4.2's popup attribution stands
+as the finding that put the attribute there in the first place.
+
+**Still unverified:** that VOE or Dood actually **plays** inside Frembed with the attribute removed.
+The live chain could not be completed from the measuring environment (the `eugenemakedraw.com` hop
+times out), so what was delivered is the removal of a containment control — not a confirmed playback
+fix.
