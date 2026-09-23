@@ -99,7 +99,13 @@ export default function MovieDetails() {
         provider: existing?.provider,
         now: Date.now(),
       });
-      if (record) saveWatchHistory(record);
+      // `announce` is what makes the entry appear. Every list on the page is
+      // built from the local store by `lib/useWatchHistory.ts`, which re-reads on
+      // mount and on `HISTORY_UPDATED_EVENT` and on nothing else — so without
+      // this, the title the viewer just started is stored and invisible until
+      // something else remounts the list. The player's own writes stay silent
+      // (§14, see the event's own note); this one is deliberate and happens once.
+      if (record) saveWatchHistory(record, { announce: true });
     } catch (error) {
       // The store is a convenience: a browser that refuses to write must not
       // break the page, and the player below still scrolls into view.

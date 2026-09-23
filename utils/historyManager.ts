@@ -79,12 +79,32 @@ const MAX_ITEMS = 20;
  * Fired when the history changes because of a DIRECT action: an entry deleted,
  * or the whole list cleared on sign-out.
  *
- * It is deliberately NOT fired by `saveWatchHistory`. The player persists a
- * position every `WATCH_PROGRESS_THROTTLE_MS` while a video plays, so an event
- * from there would have every mounted list re-fetching on that same beat — one
- * request per five seconds per open view, which is exactly the shape §14
- * forbids. A list that needs to notice new progress is re-read on the next
+ * It is deliberately NOT fired by `saveWatchHistory`'s ordinary path. The player
+ * persists a position every `WATCH_PROGRESS_THROTTLE_MS` while a video plays, so
+ * an event from there would have every mounted list re-fetching on that same
+ * beat — one request per five seconds per open view, which is exactly the shape
+ * §14 forbids. A list that needs to notice new progress is re-read on the next
  * mount instead, where the cost is paid once.
+ *
+ * ─── THE ONE EXCEPTION, AND WHY IT IS NOT THE SAME THING ─────────────────────
+ *
+ * `saveWatchHistory(item, {announce: true})` does fire it, and exactly one kind
+ * of caller asks for that: the detail pages, on the viewer pressing the button
+ * that starts a title. That write happens once per visit, not once per five
+ * seconds, so the reason for the rule above does not apply to it — and the rule
+ * itself is what left a hole.
+ *
+ * The hole, measured 2026-09-23. `lib/useWatchHistory.ts` re-reads on mount and
+ * on this event, and on nothing else. So a watched title could be recorded in
+ * the store while the list on screen was never told: `HistorySection` and
+ * `components/StartedEpisodes.tsx` both keep rendering the set they read before,
+ * and the entry appears only once something else remounts them. The viewer's
+ * report was that shape — "j'ai tenté d'aller regarder un film … résultat NON" —
+ * and a store is not the thing they are looking at.
+ *
+ * The distinction is DELIBERATE versus PERIODIC, not large versus small: the
+ * player's periodic write still announces nothing, which is what keeps §14
+ * satisfied.
  */
 export const HISTORY_UPDATED_EVENT = "watch-history-updated";
 
@@ -550,12 +570,30 @@ export const recordEpisodeFor = (item: WatchHistoryItem): EpisodeEntry | null =>
   return next.find((entry) => episodeKeyOf(entry) === key) ?? null;
 };
 
-export const saveWatchHistory = (item: WatchHistoryItem): void => {
+/**
+ * Records an observation and mirrors it to the server.
+ *
+ * `announce` is the deliberate/periodic distinction `HISTORY_UPDATED_EVENT`
+ * documents above. The player omits it — it writes every few seconds and an
+ * event from there would have every mounted list re-fetching on that beat (§14).
+ * The detail pages pass `true`, because a viewer pressing "Regarder" must see the
+ * entry they just created without waiting for something to remount the list.
+ *
+ * The announce happens AFTER the local write and regardless of what the server
+ * answers: the viewer's own list is built from the local store, so gating the
+ * event on the network would make the screen depend on a round trip §9 does not
+ * promise.
+ */
+export const saveWatchHistory = (
+  item: WatchHistoryItem,
+  options?: { readonly announce?: boolean },
+): void => {
   const merged = writeLocalHistory(item);
   if (!merged) return;
   // Fire-and-forget: the player calls this every few seconds while a video plays
   // and has nothing to do with the answer. See syncItemToServer.
   void syncItemToServer(merged);
+  if (options?.announce === true) announceHistoryChanged();
 };
 
 /**

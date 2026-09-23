@@ -330,7 +330,12 @@ export default function TvDetails() {
         episode: selectedEpisode,
         now: Date.now(),
       });
-      if (record) saveWatchHistory(record);
+      // `announce` is what makes the entry appear: the lists on this page read
+      // the local store through `lib/useWatchHistory.ts`, which re-reads on mount
+      // and on `HISTORY_UPDATED_EVENT` and on nothing else. The player's own
+      // writes stay silent on purpose (§14); this one is the viewer's deliberate
+      // act and happens once per visit.
+      if (record) saveWatchHistory(record, { announce: true });
     } catch (error) {
       // The store is a convenience: a browser that refuses to write must not
       // break the page, and the player below still scrolls into view.
