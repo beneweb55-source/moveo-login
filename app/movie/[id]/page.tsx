@@ -112,7 +112,29 @@ export default function MovieDetails() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-[#E50914] selection:text-white pb-20 overflow-x-hidden">
-      <WatchTimer mediaType="movie" mediaId={id as string} />
+      {/*
+        THE TITLE AND THE POSTER ARE NOT DECORATION HERE.
+
+        WatchTimer is the only writer on this page that always carries a
+        `session_id` to /api/watch-time, which makes it the only one this route
+        can attribute for a viewer whose session it cannot verify — and it was
+        mounted with `mediaType` and `mediaId` alone, so it posted `title: null`
+        and the route's `COALESCE($5, watch_history.title)` stored NULL.
+
+        Measured on the live database, 2026-09-23: 107 of the 108 rows in
+        `watch_history` had a NULL title, and `GET /api/watch-time` filtered on
+        `title IS NOT NULL`, so those rows could not be returned by any read. The
+        viewer's own viewing was recorded, counted in every total, and invisible
+        on every screen. A movie page has the title in `data` before this element
+        is rendered; passing it costs nothing and is the difference between a
+        history entry and a row nothing can name.
+      */}
+      <WatchTimer
+        mediaType="movie"
+        mediaId={id as string}
+        title={data?.title}
+        posterPath={data?.poster_path}
+      />
       {/* Navigation */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}

@@ -145,7 +145,7 @@ const USER_PREFIX = 'user:';
  *
  * `poster_path` is stored EXACTLY as TMDB returns it — a bare path like
  * `/abc123.jpg`, with the leading slash and no host. That is the form the client
- * already expects (`components/HistoryCard.tsx:27` prepends
+ * already expects (`components/HistoryCard.tsx:28` prepends
  * `https://image.tmdb.org/t/p/w500` unless the value already starts with `http`),
  * and the form the write path stores today. Storing a full URL here would be
  * double-prefixed at render time and the image would 404 — so this is a

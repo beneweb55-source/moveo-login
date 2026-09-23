@@ -134,7 +134,7 @@ describe('a TMDB detail payload becomes one row of the cache', () => {
   });
 
   it('keeps the poster path exactly as TMDB returns it', () => {
-    // Not a formatting preference. `components/HistoryCard.tsx:27` prepends
+    // Not a formatting preference. `components/HistoryCard.tsx:28` prepends
     // `https://image.tmdb.org/t/p/w500` unless the value already starts with `http`,
     // so storing a full URL here would produce a double-prefixed path and a 404 —
     // and the write path already stores the bare form, so a different form here

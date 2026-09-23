@@ -2,10 +2,11 @@
 
 import React from "react";
 import Link from "next/link";
-import { Play, Clock, RotateCcw, Trash2 } from "lucide-react";
+import { Play, Clock, RotateCcw, Trash2, Film } from "lucide-react";
 import Image from "next/image";
 import { WatchHistoryItem, isCompleted } from "@/utils/historyManager";
 import { promisesPositionResume } from "@/lib/resumeCapability";
+import { displayTitleFor } from "@/lib/historyList";
 import { formatProgress } from "@/lib/timecode";
 import { useLanguage } from "@/context/LanguageContext";
 
@@ -25,7 +26,7 @@ const HistoryCard = ({ item, onRemove }: HistoryCardProps) => {
 
   const posterUrl = item.poster_path
     ? (item.poster_path.startsWith('http') ? item.poster_path : `https://image.tmdb.org/t/p/w500${item.poster_path}`)
-    : "https://picsum.photos/seed/poster/400/600";
+    : null;
 
   /**
    * `typeof` and not a truthiness check: season 0 is TMDB's SPECIALS season, and
@@ -89,6 +90,15 @@ const HistoryCard = ({ item, onRemove }: HistoryCardProps) => {
 
   const progressText = formatProgress(item.timestamp, item.duration);
 
+  /**
+   * NOT ALWAYS `item.title` — an entry that was stored without a name still has
+   * to be identifiable on the card. The rule, and the measurement behind it, live
+   * in lib/historyList.ts (`displayTitleFor`) beside the other display decisions,
+   * so that the home page's strip and the profile's history tab cannot disagree
+   * about what an unnamed entry is called.
+   */
+  const displayTitle = displayTitleFor(item);
+
   // Clamped: a stored position past its own runtime is bad data, and a bar
   // wider than its track is a rendering artefact on top of it.
   const progressPercent =
@@ -115,13 +125,36 @@ const HistoryCard = ({ item, onRemove }: HistoryCardProps) => {
       >
         {/* Poster Container */}
         <div className="relative w-full aspect-[2/3] rounded-xl overflow-hidden shadow-lg bg-[#1a1a1a] transition-all duration-300 ease-in-out group-hover/card:shadow-[0_0_20px_rgba(229,9,20,0.4)] group-hover/card:scale-105 border border-white/5">
-          <Image
-            src={posterUrl}
-            alt={item.title}
-            fill
-            className="object-cover transition-transform duration-300 ease-in-out group-hover/card:scale-105"
-            referrerPolicy="no-referrer"
-          />
+          {/*
+            NO ARTWORK IS NOT AN INVITATION TO INVENT SOME.
+
+            This slot used to fall back to `https://picsum.photos/seed/poster/…`,
+            a RANDOM photograph, in the position where a title's own poster goes.
+            It was harmless while only the rare entry lacked a poster. It is not
+            harmless now: measured 2026-09-23, 107 of the 108 rows in
+            `watch_history` carry no poster_path, and the GET no longer hides
+            them, so a fabricated image would be shown as the artwork of a real
+            title — §3's prohibition, and a third-party request per card on top.
+
+            A film mark on the card's own background says "no artwork held",
+            which is true, and says it without a network call.
+          */}
+          {posterUrl ? (
+            <Image
+              src={posterUrl}
+              alt={displayTitle}
+              fill
+              className="object-cover transition-transform duration-300 ease-in-out group-hover/card:scale-105"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div
+              className="absolute inset-0 flex items-center justify-center"
+              aria-hidden="true"
+            >
+              <Film className="w-10 h-10 text-zinc-800" />
+            </div>
+          )}
 
           {/* Progress Bar — rendered only against a runtime we actually hold. */}
           {progressPercent > 0 && (
@@ -160,7 +193,7 @@ const HistoryCard = ({ item, onRemove }: HistoryCardProps) => {
         {/* Info Section */}
         <div className="flex flex-col px-1">
           <h3 className="text-sm font-semibold text-white truncate group-hover/card:text-[#E50914] transition-colors duration-300">
-            {item.title}
+            {displayTitle}
           </h3>
 
           {/* "Saison 2 · Épisode 7" — the episode line §10 asks for. */}
@@ -201,7 +234,7 @@ const HistoryCard = ({ item, onRemove }: HistoryCardProps) => {
             event.stopPropagation();
             onRemove(item);
           }}
-          aria-label={`${t.home.removeFromHistory} — ${item.title}`}
+          aria-label={`${t.home.removeFromHistory} — ${displayTitle}`}
           title={t.home.removeFromHistory}
           className="absolute top-2 left-2 z-20 p-1.5 rounded-md bg-black/60 hover:bg-[#E50914] text-white/70 hover:text-white backdrop-blur-md border border-white/10 transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#E50914]"
         >

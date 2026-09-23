@@ -369,7 +369,33 @@ export default function TvDetails() {
 
   return (
     <div className="min-h-screen bg-black text-white font-sans selection:bg-[#E50914] selection:text-white pb-20 overflow-x-hidden">
-      <WatchTimer mediaType="tv" mediaId={id as string} />
+      {/*
+        Same reason as the movie page, plus the slot.
+
+        WatchTimer is the only writer that always carries a `session_id`, so it
+        is the one /api/watch-time can attribute for a viewer whose session it
+        cannot verify — and it was mounted with `mediaType` and `mediaId` alone,
+        so it posted `title: null` and the row it created could never be returned
+        by the GET (measured: 107 of 108 rows title-less, all invisible).
+
+        `season`/`episode` are passed for the case the effect above cannot cover:
+        that write is the one that records the slot, and when it does not reach
+        the server, the row this timer creates would carry a title and no episode
+        — a series entry that cannot say which episode it is. They are safe to
+        send because a minute count is not a position: /api/watch-time reads a
+        numeric slot as a progression, and the shared guard then only ever lands
+        it on a row that has none (a row holding a position for another slot
+        wins, and a row holding one for this slot wins). Nothing here can move a
+        stored position, which is the §1 rule.
+      */}
+      <WatchTimer
+        mediaType="tv"
+        mediaId={id as string}
+        title={data?.name}
+        posterPath={data?.poster_path}
+        season={selectedSeason}
+        episode={selectedEpisode}
+      />
       {/* Navigation */}
       <motion.nav
         initial={{ opacity: 0, y: -20 }}

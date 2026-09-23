@@ -281,7 +281,39 @@ export const mergeWatchEntries = (
   const existingFields = progressionFieldsFrom(existing);
   const incomingFields = progressionFieldsFrom(incoming);
   const winner = resolveProgression(existingFields, incomingFields);
-  return winner === incomingFields ? incoming : existing;
+  if (winner === incomingFields) return incoming;
+
+  // ─── THE POSITION IS NOT THE WHOLE ENTRY ─────────────────────────────────
+  //
+  // `existing` won the PROGRESSION. That says which stored position is current,
+  // and it must not be read as saying anything about the title or the poster:
+  // those are IDENTITY, decided by what is known, not by which observation is
+  // newer. The guard's fields do not include them, so the winner carries them
+  // whatever they happen to be — and for a row read back from the server that is
+  // frequently `title: null`/`""`, because 107 of the 108 rows in the live table
+  // were written by a mount site that passed no title (see the note at the GET
+  // in app/api/watch-time/route.ts).
+  //
+  // Without this, that NULL wins: the server's position beats this device's older
+  // one, `existing` is returned whole, and the card loses a name this browser has
+  // held in `watch_history` all along — the history gets LESS informative the
+  // more it syncs. That is the same class of mistake as taking the server list
+  // wholesale (see lib/historyList.ts), one field down.
+  //
+  // So the winner's progression is kept and its identity is FILLED from the side
+  // that has one. `||` is right here and not `??`: the values are strings whose
+  // "unknown" spelling is the empty string, which `normaliseItem` produces from
+  // anything that is not a string, so `""` and absent mean the same thing.
+  const title = existing.title || incoming.title;
+  const poster_path = existing.poster_path || incoming.poster_path;
+
+  // Returned by reference when there is nothing to fill, so the common path does
+  // not allocate and `existing`'s identity is preserved for any caller that
+  // compares it.
+  if (title === existing.title && poster_path === existing.poster_path) {
+    return existing;
+  }
+  return { ...existing, title, poster_path };
 };
 
 // ─── local storage (the guest's copy, and the local mirror) ───

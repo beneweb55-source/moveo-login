@@ -438,3 +438,111 @@ describe('the SQL names `current_time` as a quoted identifier', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// The read path's half: a row the viewer owns must not be dropped for being
+// unnamed. See the note at the GET in app/api/watch-time/route.ts.
+// ---------------------------------------------------------------------------
+
+/**
+ * The regression these pin, measured by introspection on the live database on
+ * 2026-09-23:
+ *
+ *     watch_history   108 rows
+ *                     count(*) FILTER (WHERE title IS NOT NULL) -> 1
+ *                     count(*) FILTER (WHERE title IS NULL)     -> 107
+ *                     count("current_time")                     -> 0
+ *
+ * The GET carried `AND title IS NOT NULL`, so it could return 1 row of 108 and
+ * the other 107 — 6715 minutes of the viewers' own viewing, summed into every
+ * total the dashboard shows — were unreachable from every surface. That is §8's
+ * failure shape from the read side: a displayed absence, read as an absence of
+ * the thing. The rows are title-less because the writer that always carries a
+ * `session_id` (components/WatchTimer.tsx, the only one this route can attribute
+ * for an unverifiable session) was mounted without a title, not because they are
+ * junk and not because they belong to anyone else.
+ *
+ * WHY A SOURCE SCAN AND NOT A HANDLER CALL. `GET` cannot be invoked without a
+ * verified `auth_token` cookie, so the only two outcomes reachable from a test
+ * are "no session -> 200 {progress: []}" and "no database -> 500". Neither one
+ * exercises the WHERE clause, and a test that could not fail for the right
+ * reason would pass here whatever the SQL said. The rule is therefore pinned at
+ * the source, the way the `current_time` quoting rule above is pinned — and, as
+ * there, with the counter-example that proves the scan is not vacuous.
+ */
+describe('GET /api/watch-time — it returns the rows the viewer owns', () => {
+  const route = source('app/api/watch-time/route.ts');
+
+  /** The GET handler's body, from its declaration to the next export. */
+  const getHandler = (): string => {
+    const start = route.indexOf('export async function GET(');
+    assert.notEqual(start, -1, 'GET not found — this scan needs updating');
+    const next = route.indexOf('export async function', start + 1);
+    return route.slice(start, next === -1 ? undefined : next);
+  };
+
+  /** Statements from the GET body that look like SQL. */
+  const getStatements = (): string[] => sqlStatements(getHandler());
+
+  const TITLE_FILTER = /title\s+IS\s+NOT\s+NULL/i;
+
+  it('does not require a title, which 107 of the 108 live rows do not have', () => {
+    const statements = getStatements();
+    // If this fails the scan is broken, not the file.
+    assert.ok(statements.length > 0, 'no SQL statements found in GET');
+
+    const offenders = statements.filter((statement) => TITLE_FILTER.test(statement));
+    assert.deepEqual(
+      offenders,
+      [],
+      'GET requires a non-null title again, so every row written by a mount ' +
+        'site that passed no title becomes invisible — measured at 107 of 108 ' +
+        `rows on the live database:\n${offenders.join('\n')}`,
+    );
+  });
+
+  it('still scopes the read to the caller and still excludes the reserved row type', () => {
+    // The other half, asserted so "the filter was removed" cannot be read as
+    // "the WHERE clause was removed". This is the §23 bound and the
+    // admin_adjustment exclusion, and neither is negotiable.
+    const select = getStatements().find((statement) =>
+      /FROM\s+watch_history/i.test(statement),
+    );
+    assert.ok(select, 'the history SELECT is missing from GET — update this scan');
+
+    assert.match(
+      select,
+      /user_id\s*=\s*\$1/,
+      'the read must be scoped by the parameter the verified token fills, or one ' +
+        'account could read another account history (§23)',
+    );
+    assert.match(
+      select,
+      /media_type\s+NOT\s+IN\s*\(\s*'admin_adjustment'\s*\)/,
+      'the GET must keep excluding the row type /api/admin/watch-time writes',
+    );
+  });
+
+  it('the scan would catch the filter it is there for', () => {
+    // The counter-example, so this cannot pass for the wrong reason: the exact
+    // statement as it was shipped before the fix must be flagged, and the fixed
+    // form must not be.
+    assert.ok(
+      TITLE_FILTER.test(
+        `SELECT media_type, media_id FROM watch_history
+          WHERE user_id = $1
+            AND media_type NOT IN ('admin_adjustment')
+            AND title IS NOT NULL
+          ORDER BY last_updated DESC
+          LIMIT 20`,
+      ),
+      'the scan must flag the pre-fix statement',
+    );
+    for (const fixed of [
+      `SELECT title FROM watch_history WHERE user_id = $1 AND media_type NOT IN ('admin_adjustment')`,
+      'SELECT title FROM watch_history WHERE user_id = $1',
+    ]) {
+      assert.ok(!TITLE_FILTER.test(fixed), `the scan must not flag: ${fixed}`);
+    }
+  });
+});

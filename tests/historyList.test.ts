@@ -41,7 +41,13 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {belongsInContinueWatching, historyForDisplay, mergeHistories, sameTitle} from '../lib/historyList';
+import {
+  belongsInContinueWatching,
+  displayTitleFor,
+  historyForDisplay,
+  mergeHistories,
+  sameTitle,
+} from '../lib/historyList';
 import {guestOwnerKey, userOwnerKey, type HistoryViewer} from '../lib/historyOwnership';
 import type {WatchHistoryItem} from '../utils/historyManager';
 
@@ -219,5 +225,146 @@ describe('what belongs in which list', () => {
       }).map((item) => item.id),
       ['550'],
     );
+  });
+});
+
+/**
+ * The position winner is not the identity winner.
+ *
+ * `mergeWatchEntries` returns ONE of its two arguments by reference, decided by
+ * `resolveProgression`. That is right for the position and wrong for the name,
+ * and until this was separated the two were the same object.
+ *
+ * The live shape it comes from, measured 2026-09-23: 107 of the 108 rows in
+ * `watch_history` carry a NULL title, because the only writer that always
+ * carries a `session_id` — the one the route can attribute for a session it
+ * cannot verify — was mounted without a title at both of its call sites. Once
+ * the GET stopped hiding those rows they reached this merge. The account's row
+ * usually has the BETTER position (it is the side that keeps syncing), so the
+ * account's row wins — and it is the one with no name. Taking the winner whole
+ * therefore replaced a title this browser had held all along with an empty
+ * string, so the history became LESS informative the more it synced.
+ *
+ * What must not change is the position decision. Every case below asserts both:
+ * the name comes from whichever side knows it, and the position still comes from
+ * `resolveProgression` alone.
+ */
+describe('a title one side knows survives a merge with a side that does not', () => {
+  it("keeps this browser's title when the account's newer position wins", () => {
+    // The measured case. The account's row is the winner: 500 > 100 on the same
+    // runtime, so `resolveProgression` returns it.
+    const onTheAccount = film('550', {title: '', poster_path: '', timestamp: 500, duration: 8_000});
+    const inThisBrowser = film('550', {
+      title: 'Fight Club',
+      poster_path: '/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
+      timestamp: 100,
+      duration: 8_000,
+    });
+
+    const [shown] = mergeHistories([onTheAccount], [inThisBrowser], readyGuest);
+
+    assert.equal(shown.title, 'Fight Club', 'the account row blanked a name we hold');
+    assert.equal(shown.poster_path, '/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg');
+    assert.equal(
+      shown.timestamp,
+      500,
+      'filling the name must not have moved the position: the winner is still ' +
+        'the one resolveProgression chose',
+    );
+    assert.equal(shown.duration, 8_000);
+  });
+
+  it('does not let a blank local title overwrite the one the account has', () => {
+    // The reverse direction, which the same rule must not break. A local entry
+    // that never knew the name must not blank the account's.
+    const onTheAccount = film('550', {title: 'Fight Club', timestamp: 500, duration: 8_000});
+    const inThisBrowser = film('550', {title: '', timestamp: 100, duration: 8_000});
+
+    const [shown] = mergeHistories([onTheAccount], [inThisBrowser], readyGuest);
+
+    assert.equal(shown.title, 'Fight Club');
+    assert.equal(shown.timestamp, 500);
+  });
+
+  it('fills from the local side when the local side wins', () => {
+    // Same slot, the local position is newer, so the local entry is the winner
+    // and is returned as it stands. Asserted because the fix must not have made
+    // the filling one-directional: whichever side wins, the name comes from
+    // whoever knows it.
+    const onTheAccount = film('550', {title: '', timestamp: 100, duration: 8_000});
+    const inThisBrowser = film('550', {title: 'Fight Club', timestamp: 500, duration: 8_000});
+
+    const [shown] = mergeHistories([onTheAccount], [inThisBrowser], readyGuest);
+
+    assert.equal(shown.title, 'Fight Club');
+    assert.equal(shown.timestamp, 500);
+  });
+
+  it('invents nothing when neither side has a title', () => {
+    // §3. An unnamed entry stays unnamed in the DATA. What the card then paints
+    // for it is a separate decision, and the one below.
+    const onTheAccount = film('550', {title: '', poster_path: '', timestamp: 500, duration: 8_000});
+    const inThisBrowser = film('550', {title: '', poster_path: '', timestamp: 100, duration: 8_000});
+
+    const [shown] = mergeHistories([onTheAccount], [inThisBrowser], readyGuest);
+
+    assert.equal(shown.title, '');
+    assert.equal(shown.poster_path, '');
+    assert.equal(shown.timestamp, 500);
+  });
+});
+
+/**
+ * An entry with no name still has to be identifiable.
+ *
+ * Measured in the browser on 2026-09-23, after the GET stopped hiding title-less
+ * rows: the card rendered an `<h3>` containing the empty string — a poster, a
+ * provider badge, a real timecode, and no way to tell what the entry was. This is
+ * the second half of what "the history doesn't work" looks like from outside, and
+ * the first half (the rows never arriving) is pinned in tests/watchTime.test.ts.
+ *
+ * The rule must satisfy both halves of §3 at once: name the entry as precisely as
+ * what we hold allows, and invent nothing. An id is a fact we hold; a title we
+ * never stored is not, and must not be guessed at.
+ */
+describe('what an unnamed entry is called', () => {
+  it('paints the stored title when there is one', () => {
+    assert.equal(
+      displayTitleFor(film('550', {title: 'Fight Club'})),
+      'Fight Club',
+    );
+  });
+
+  it('names the entry by its id when no title was ever stored', () => {
+    // Not decoration: this is the only true statement available about the entry,
+    // and it is what makes it recognisable to the viewer who watched it.
+    assert.equal(displayTitleFor(film('550', {title: ''})), 'ID: 550');
+    assert.equal(displayTitleFor(series('1399', {title: ''})), 'ID: 1399');
+  });
+
+  it('does NOT put the type in the label — a deliberate limit, stated', () => {
+    // A film 550 and a series 550 with neither title painted both read
+    // "ID: 550". That is a real ambiguity in the LABEL, and it is left in place
+    // rather than papered over with "Film 550": the type is carried by the link
+    // (`/movie/550` vs `/tv/550`), and inventing a prefix would be this function
+    // asserting something the entry's name was never asked to say. Pinned so that
+    // a later reader sees a decision and not an oversight.
+    assert.equal(displayTitleFor(film('550', {title: ''})), 'ID: 550');
+    assert.equal(displayTitleFor(series('550', {title: ''})), 'ID: 550');
+  });
+
+  it('never paints "undefined" — the id is always a fact we hold', () => {
+    // The storage layer refuses an entry with no usable id, so an absent id
+    // cannot reach here from the store. Asserted anyway, because the failure mode
+    // is a card that looks like a rendering bug rather than missing data.
+    for (const id of ['0', '1', '550', '1399']) {
+      const painted = displayTitleFor(film(id, {title: ''}));
+      assert.equal(painted, `ID: ${id}`);
+      assert.ok(!painted.includes('undefined'), painted);
+    }
+  });
+
+  it('prefers a real title over the id, whatever the id is', () => {
+    assert.equal(displayTitleFor(film('550', {title: 'Fight Club'})), 'Fight Club');
   });
 });

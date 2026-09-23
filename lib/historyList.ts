@@ -40,6 +40,35 @@ import { visibleEntriesFor, type HistoryViewer } from "@/lib/historyOwnership";
 export const sameTitle = (a: WatchHistoryItem, b: WatchHistoryItem): boolean =>
   a.id === b.id && a.type === b.type;
 
+/**
+ * The name to paint for an entry, which is not always `item.title`.
+ *
+ * Measured in the browser on 2026-09-23, once `GET /api/watch-time` had stopped
+ * hiding title-less rows: an entry whose title was never stored rendered as an
+ * `<h3>` holding the empty string — a poster, a provider, a timecode and no name.
+ * The viewer cannot tell what it is, which is what "the history doesn't work"
+ * looks like from the outside.
+ *
+ * `ID: <id>` is the spelling this codebase already uses for exactly this
+ * situation, in the server read path (utils/historyManager.ts,
+ * `getServerWatchHistory`, where a NULL title becomes `ID: <media_id>`). That one
+ * must stay there rather than be folded into this: on that path the string is the
+ * entry's IDENTITY and enters `mergeWatchEntries` as such, which is what lets it
+ * beat a local empty title. This is the same fallback for a LOCAL row — one that
+ * knows its id and not its name.
+ *
+ * Nothing is invented. The id is a fact we hold, and when we hold no name it is
+ * the only thing that can honestly be said about the entry. A real title always
+ * wins.
+ *
+ * `||` and not `??`: the storage layer normalises every non-string title to the
+ * empty string (`normaliseItem`), so `""` and absent mean the same thing here.
+ * `id` is guaranteed non-empty — `normaliseItem` returns null for an entry
+ * without one, so an entry cannot exist in the store with nothing to name it by.
+ */
+export const displayTitleFor = (item: WatchHistoryItem): string =>
+  item.title || `ID: ${item.id}`;
+
 /** The key the per-title merge is indexed by. */
 export const historyKey = (item: WatchHistoryItem): string =>
   `${item.type}:${item.id}`;

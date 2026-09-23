@@ -96,7 +96,7 @@ export interface TitleFeature {
   title: string | null;
   /**
    * Exactly as TMDB returns it: a bare path such as `/pB8BM7pd.jpg`, which is
-   * what `components/HistoryCard.tsx:27` expects to prefix.
+   * what `components/HistoryCard.tsx:28` expects to prefix.
    */
   posterPath: string | null;
 }

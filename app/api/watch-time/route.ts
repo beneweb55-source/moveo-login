@@ -184,13 +184,50 @@ export async function GET(req: Request) {
     // row came back with a text clock in that field and the viewer's position
     // was silently dropped by the numeric coercion on the client. Measured on
     // PostgreSQL 18.4; see docs/watch-history-audit-2026-09-22.md.
+    //
+    // ─── WHY THERE IS NO `AND title IS NOT NULL` HERE ANY MORE ───────────────
+    //
+    // There was one, and it was hiding almost the entire feature. Measured by
+    // introspection on 2026-09-23: `watch_history` held 108 rows and exactly ONE
+    // had a title, so this query could return 1 row out of 108 and the other 107
+    // — 6715 minutes of the viewers' own viewing — were unreachable from every
+    // surface, forever. The rows were not junk and they were not another
+    // account's: they were the viewer's own, counted in every total the
+    // dashboard shows, and silently dropped here at read time. §8's failure
+    // shape exactly, and the same one the `catch` below was already fixed for —
+    // a displayed absence presented as a fact about the viewer's data.
+    //
+    // THE ROWS HAVE NO TITLE BECAUSE OF WHO WROTE THEM. `components/WatchTimer.tsx`
+    // is the only writer that always carries a `session_id`, so it is the only
+    // one that reliably reaches this route for a viewer whose session the route
+    // cannot verify — and both of its mount sites passed only `mediaType` and
+    // `mediaId`, so it posted `title: null` and this route's
+    // `COALESCE($5, watch_history.title)` stored NULL. Both mount sites now pass
+    // the title, so no new row is written identity-less; this filter is removed
+    // because it cannot undo the old ones and hiding them was not the remedy.
+    //
+    // The remedy that CAN name them is `scripts/backfill-title-features.ts`,
+    // which fetches each title from TMDB once. It is not applied and it is not a
+    // prerequisite for this query: it needs `title_features.title`, a column that
+    // migration creates, and that migration has never been applied here
+    // (`title_features` today holds its original five columns and zero rows).
+    // A read path whose correctness waits on an unapplied migration and an API
+    // key is a read path that is off until someone remembers it — so the
+    // display decision is made where the data is, and it was already made:
+    // `utils/historyManager.ts` maps a title-less row to `ID: <media_id>`, which
+    // is a statement about the data rather than an invented name (§3), and
+    // `mergeWatchEntries` now lets a title this device DOES know outrank a stored
+    // NULL, so the viewing device shows the real name and only a device that has
+    // never seen the title falls back.
+    //
+    // `admin_adjustment` stays excluded by name. It is bookkeeping a viewer must
+    // not see, and unlike the title it is a row type this route reserves.
     const result = await pool.query(
       `SELECT media_type, media_id, minutes_watched, title, poster_path,
               "current_time", total_duration, season, episode, last_updated
        FROM watch_history
        WHERE user_id = $1
          AND media_type NOT IN ('admin_adjustment')
-         AND title IS NOT NULL
        ORDER BY last_updated DESC
        LIMIT 20`,
       [user.userId]
