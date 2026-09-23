@@ -135,7 +135,7 @@ function bounded(value: unknown, max: number): string | null {
  * the reverse. If both are present they agree, and merging is what makes that an
  * observation rather than an assumption.
  */
-function genreIdsOf(payload: Record<string, unknown>): number[] {
+export function genreIdsOf(payload: Record<string, unknown>): number[] {
   const ids: number[] = [];
   const push = (value: unknown): void => {
     if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
