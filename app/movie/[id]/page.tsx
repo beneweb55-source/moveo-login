@@ -14,6 +14,8 @@ import Carousel from "@/components/Carousel";
 
 import { useLanguage } from "@/context/LanguageContext";
 import WatchTimer from "@/components/WatchTimer";
+import { getWatchHistoryItem, saveWatchHistory } from "@/utils/historyManager";
+import { movieWatchRecord } from "@/lib/movieWatchRecord";
 
 export default function MovieDetails() {
   const { id } = useParams();
@@ -61,6 +63,47 @@ export default function MovieDetails() {
 
   const scrollToPlayer = () => {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  /**
+   * THE VIEWER CHOSE TO WATCH THIS FILM — so the page records it.
+   *
+   * WHY THE MOVIE PAGE NEEDED A WRITER OF ITS OWN: the two write paths this page
+   * had — the provider's `postMessage`, and WatchTimer's minute ticks — both
+   * begin at `parsePlaybackProgress`, which rejects every message from a provider
+   * whose origin allowlist is empty. The source a first-time visitor is handed
+   * for a film is such a provider, so a film watched in full left NOTHING at all:
+   * no position, no minute, not even a local row. That is the reported defect,
+   * and the measurements behind it are recorded in lib/movieWatchRecord.ts.
+   *
+   * WHY THIS MOMENT AND NO OTHER: opening a page is not watching it, so the mount
+   * stays silent and only a DELIBERATE act records — the rule the series page
+   * already applies to a chosen slot, and the one §13 states for progress.
+   * Nothing here is inferred from a clock, an iframe load or a mounted player.
+   *
+   * WHAT THE ENTRY CLAIMS is decided in lib/movieWatchRecord.ts and nowhere
+   * else: this film, its name, its poster — and no position, because none has
+   * been measured.
+   */
+  const handleWatch = () => {
+    scrollToPlayer();
+    try {
+      const existing = getWatchHistoryItem("movie", String(id));
+      const record = movieWatchRecord({
+        id,
+        title: data?.title,
+        posterPath: data?.poster_path,
+        // Carried over so a later visit does not blank a badge the viewer has
+        // already seen. A film opened for the first time claims no provider.
+        provider: existing?.provider,
+        now: Date.now(),
+      });
+      if (record) saveWatchHistory(record);
+    } catch (error) {
+      // The store is a convenience: a browser that refuses to write must not
+      // break the page, and the player below still scrolls into view.
+      console.error("[movie] could not record the film the viewer opened", error);
+    }
   };
 
   const handleHardRefresh = () => {
@@ -241,7 +284,7 @@ export default function MovieDetails() {
                         {/* Actions */}
                         <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 md:gap-6 mb-12 md:mb-20">
                             <button
-                                onClick={scrollToPlayer}
+                                onClick={handleWatch}
                                 className="w-full sm:w-auto flex items-center justify-center gap-4 bg-white text-black hover:bg-zinc-200 px-8 py-3 md:py-4 rounded-full font-black transition-all duration-500 shadow-2xl hover:scale-105 active:scale-95 group cursor-pointer"
                             >
                                 <Play className="w-5 h-5 fill-current" />
