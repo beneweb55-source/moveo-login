@@ -38,6 +38,7 @@ import path from 'node:path';
 import {describe, it} from 'node:test';
 
 import {
+  ADD_TITLE_FEATURES_METADATA,
   CREATED_TABLES,
   CREATE_TASTE_PROFILES,
   CREATE_TASTE_TERMS,
@@ -251,6 +252,49 @@ describe('the features cache describes a TMDB title and nothing else', () => {
     assert.doesNotMatch(featuresSql, /admin_adjustment/);
   });
 
+  it('stores the display title and the poster path, both nullable', () => {
+    // Added for the DISPLAY half of the job — see the long note on
+    // CREATE_TITLE_FEATURES. Only the shape is pinned here: the widths are checked
+    // against the module's own constants in tests/titleFeatures.test.ts, so that
+    // there is one place where a width can be wrong.
+    //
+    // Neither may be NOT NULL, and neither may carry a DEFAULT. "We do not know this
+    // title's name yet" is the state the backfill reads to decide what to fetch, and
+    // a constraint or a default would erase it — turning every unresolved title into
+    // one indistinguishable from a title TMDB says has no name.
+    const featuresSql = sqlOf(CREATE_TITLE_FEATURES);
+    assert.match(featuresSql, /title\s+VARCHAR\(500\)(?!\s+NOT NULL)/);
+    assert.match(featuresSql, /poster_path\s+VARCHAR\(500\)(?!\s+NOT NULL)/);
+    assert.doesNotMatch(featuresSql, /title\s+VARCHAR\(500\)\s+DEFAULT/i);
+    assert.doesNotMatch(featuresSql, /poster_path\s+VARCHAR\(500\)\s+DEFAULT/i);
+  });
+
+  it('installs the same two columns in the repair as in the create', () => {
+    // `CREATE TABLE IF NOT EXISTS` is a no-op on a database that already has the
+    // table, and that database is production — the only one that has it at all. So
+    // the ALTERs below are the ONLY statements that give the existing table its two
+    // new columns. If the two definitions drift, a fresh database and the existing
+    // one end up with different schemas and nothing reports it: exactly the shape of
+    // the owner-key repair above, which is why it is checked the same way.
+    const repaired = sqlOf(ADD_TITLE_FEATURES_METADATA);
+    for (const column of ['title', 'poster_path']) {
+      assert.match(
+        sqlOf(CREATE_TITLE_FEATURES),
+        new RegExp(`${column}\\s+VARCHAR\\(500\\)`),
+        `the create must declare ${column}`,
+      );
+      assert.match(
+        repaired,
+        new RegExp(`ADD COLUMN IF NOT EXISTS ${column} VARCHAR\\(500\\)`),
+        `${column}: the repair must add exactly what the create declares`,
+      );
+    }
+    assert.equal(ADD_TITLE_FEATURES_METADATA.length, 2, 'one ALTER per column, no more');
+    // `IF NOT EXISTS` on each, so running the pair twice is a no-op and a database
+    // created from the CREATE above is left untouched by the repair.
+    assert.equal((repaired.match(/IF NOT EXISTS/g) ?? []).length, 2);
+  });
+
   it('leaves the language nullable rather than defaulting it', () => {
     // A missing original language is a title we know less about. Defaulting it to
     // 'en' would attribute a whole catalogue of metadata-poor titles to English,
@@ -415,5 +459,31 @@ describe('the rollback restores the prior state exactly', () => {
     const plan = rollbackStatements();
     assert.equal(plan.length, CREATED_TABLES.length);
     assert.doesNotMatch(sqlOf(plan), /\bNULL\b/i, 'no column-emptiness guard is needed here');
+  });
+});
+
+describe('the §15 receipt measures the gap this work exists to close', () => {
+  it('counts the hidden rows on BOTH sides, or the comparison disappears', () => {
+    // `hidden_history_rows` is in the `mustBeEqual` list inside main(), so the
+    // migration fails if a backfill is ever folded into it. THAT CONTRACT ONLY WORKS
+    // IF BOTH QUERIES SELECT THE COLUMN. Adding it to one side alone leaves
+    // `Number(undefined)` on the other, and `NaN !== NaN` is TRUE — so the migration
+    // would exit 3, but for a reason that looks like a real change. Worse is the
+    // reverse slip: a key absent from BOTH sides never reaches the filter at all, so
+    // dropping the column from both queries silently removes the check. Asserting on
+    // all three places is the guard on the guard.
+    assert.match(OLD_ROWS_QUERY, /AS hidden_history_rows/);
+    assert.match(NEW_ROWS_QUERY, /AS hidden_history_rows/);
+    assert.match(migrationSource, /'hidden_history_rows',/);
+  });
+
+  it('reports the feature rows that actually carry a title', () => {
+    // `count(*) FROM title_features` says how many rows the cache holds; it says
+    // nothing about how many of them can be shown. After the additive ALTER and
+    // before the backfill has run, that is 0 of 0 — and a receipt that printed only
+    // the first figure would read as a working cache. A count of rows that are
+    // DISPLAYABLE is the only version of this number that is not misleading (§3).
+    assert.match(NEW_ROWS_QUERY, /AS feature_rows_with_title/);
+    assert.match(NEW_ROWS_QUERY, /FROM title_features WHERE title IS NOT NULL/);
   });
 });

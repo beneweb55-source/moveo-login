@@ -116,6 +116,46 @@ const USER_PREFIX = 'user:';
  * TEXT COLUMNS ARE BOUNDED. An unbounded `text` column that receives an API value
  * is a column that can hold a megabyte, and the failure it produces is a storage
  * incident rather than an error at the point of the mistake.
+ *
+ * ─── WHY `title` AND `poster_path` ARE HERE, WHICH IS NOT WHERE THEY STARTED ──
+ *
+ * The first version of this table cached only what a RECOMMENDER needs: the genres
+ * and the original language. The display half of the problem was left to
+ * `watch_history.title`, which looked reasonable until the column was counted: of
+ * the 101 real rows in the signed-in history, 100 carry a NULL title, because the
+ * rows written before the title column existed can never gain one — the values
+ * were never stored, so there is nothing to read back. `GET /api/watch-time`
+ * filters on `title IS NOT NULL`, which is why a viewer with a hundred real
+ * observations sees an almost empty history: the rows are there and are hidden.
+ *
+ * The remedy is ONE fetch per title, and it is the same fetch the recommender
+ * needs. Keeping the title in `title_features` rather than fetching it inline into
+ * `watch_history` is what makes that true: the features cache is keyed by
+ * `(media_type, media_id)`, exactly the pair the history repeats, so the 279
+ * distinct titles in the two history tables cost 279 requests ONCE and every later
+ * reader — the history backfill, the recompute, the next backfill — reads a row
+ * that is already there.
+ *
+ * `title` is the DISPLAY title in the language the fetch asked for (see
+ * `TITLE_FEATURE_LANGUAGE` in lib/titleFeatures.ts), and `original_language` on
+ * the same row is the language-independent field TMDB returns regardless of
+ * `language`. Storing both is deliberate: a French title does not mean the work is
+ * French, and a recommender that confused the two would weigh every translated
+ * release as an original-language signal.
+ *
+ * `poster_path` is stored EXACTLY as TMDB returns it — a bare path like
+ * `/abc123.jpg`, with the leading slash and no host. That is the form the client
+ * already expects (`components/HistoryCard.tsx:27` prepends
+ * `https://image.tmdb.org/t/p/w500` unless the value already starts with `http`),
+ * and the form the write path stores today. Storing a full URL here would be
+ * double-prefixed at render time and the image would 404 — so this is a
+ * compatibility constraint with an existing reader, not a formatting choice.
+ *
+ * BOTH ARE NULLABLE. A TMDB title with no poster is a real title, and a fetch that
+ * returns no display title is a fact to report rather than a row to invent (§3).
+ * NULL means "not known", which is different from `''` meaning "known to be
+ * empty" — the client already treats a missing poster as `''` for its own render
+ * path, so the distinction is preserved in the database and flattened at the edge.
  */
 export const CREATE_TITLE_FEATURES: Statement[] = [
   {
@@ -126,10 +166,44 @@ export const CREATE_TITLE_FEATURES: Statement[] = [
         media_id          INTEGER NOT NULL,
         genre_ids         INTEGER[] NOT NULL DEFAULT '{}',
         original_language VARCHAR(10),
+        title             VARCHAR(500),
+        poster_path       VARCHAR(500),
         fetched_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
         PRIMARY KEY (media_type, media_id),
         CONSTRAINT title_features_media_type_check CHECK (media_type IN ('movie', 'tv'))
       )`,
+  },
+];
+
+/**
+ * The additive repair, for the database where the FIRST version of the table ran.
+ *
+ * The same reason `REPAIR_OWNER_KEY_CONSTRAINT` exists below: `CREATE TABLE IF NOT
+ * EXISTS` is a no-op on a table that already exists, so adding these two columns to
+ * the CREATE above fixes every FUTURE database and no existing one — and the
+ * existing one is production, which is the only database that has the table at all.
+ * A correction that silently does nothing where it is needed is not a correction.
+ *
+ * `ADD COLUMN IF NOT EXISTS` is idempotent on its own: running it twice leaves the
+ * same state, and a database created from the CREATE above (which already has both
+ * columns) is left exactly as it was. Neither statement rewrites a row, drops
+ * anything, or moves data: adding a NULLable column with no default is a catalogue
+ * change in PostgreSQL, not a table rewrite.
+ *
+ * NO `NOT NULL`, NO DEFAULT. A default would be a value invented for the rows that
+ * exist, and the whole point of the two columns is that "we do not know this
+ * title's name yet" must stay representable — that is the state the backfill job
+ * reads to decide what to fetch. A `DEFAULT ''` would make those rows
+ * indistinguishable from a title TMDB says has no name.
+ */
+export const ADD_TITLE_FEATURES_METADATA: Statement[] = [
+  {
+    label: 'title_features: add the display title, if the table predates it',
+    sql: `ALTER TABLE title_features ADD COLUMN IF NOT EXISTS title VARCHAR(500)`,
+  },
+  {
+    label: 'title_features: add the poster path, if the table predates it',
+    sql: `ALTER TABLE title_features ADD COLUMN IF NOT EXISTS poster_path VARCHAR(500)`,
   },
 ];
 
@@ -273,6 +347,7 @@ export const REPAIR_OWNER_KEY_CONSTRAINT: Statement[] = [
 /** Everything this migration does, in order. Profiles before the terms that cite them. */
 export const MIGRATION: Statement[] = [
   ...CREATE_TITLE_FEATURES,
+  ...ADD_TITLE_FEATURES_METADATA,
   ...CREATE_TASTE_PROFILES,
   ...CREATE_TASTE_TERMS,
   ...REPAIR_OWNER_KEY_CONSTRAINT,
@@ -311,7 +386,9 @@ export const OLD_ROWS_QUERY = `
     (SELECT count(*) FROM anonymous_watch_history)                 AS anon_rows,
     (SELECT coalesce(sum(minutes_watched), 0) FROM anonymous_watch_history) AS anon_minutes,
     (SELECT count(*) FROM watch_history_episodes)                  AS episode_rows,
-    (SELECT count(*) FROM users)                                   AS user_rows`;
+    (SELECT count(*) FROM users)                                   AS user_rows,
+    (SELECT count(*) FROM watch_history
+      WHERE media_type <> 'admin_adjustment' AND title IS NULL)     AS hidden_history_rows`;
 
 export const NEW_ROWS_QUERY = `
   SELECT
@@ -325,6 +402,9 @@ export const NEW_ROWS_QUERY = `
     (SELECT count(*) FROM title_features)                          AS feature_rows,
     (SELECT count(*) FROM taste_profiles)                          AS profile_rows,
     (SELECT count(*) FROM taste_terms)                             AS term_rows,
+    (SELECT count(*) FROM title_features WHERE title IS NOT NULL)   AS feature_rows_with_title,
+    (SELECT count(*) FROM watch_history
+      WHERE media_type <> 'admin_adjustment' AND title IS NULL)     AS hidden_history_rows,
     (SELECT count(*) FROM (
        SELECT media_type, media_id FROM watch_history WHERE media_type <> 'admin_adjustment'
        UNION
@@ -477,6 +557,13 @@ async function main() {
       'anon_minutes',
       'episode_rows',
       'user_rows',
+      // Counted in BOTH queries on purpose. This migration adds columns and
+      // creates tables; it resolves no title and fills no history row, so the
+      // number of hidden observations must come out the other side unchanged.
+      // A backfill that ran inside a migration would move this figure and the
+      // contract would say so — which is exactly the separation §16 asks for
+      // between "one logical operation" and everything bundled with it.
+      'hidden_history_rows',
     ];
     const violations = mustBeEqual.filter((k) => Number(afterRow[k]) !== Number(beforeRow[k]));
     if (violations.length > 0) {
