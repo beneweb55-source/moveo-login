@@ -15,7 +15,7 @@ import Carousel from "@/components/Carousel";
 import { useLanguage } from "@/context/LanguageContext";
 import WatchTimer from "@/components/WatchTimer";
 import { getWatchHistoryItem, saveWatchHistory } from "@/utils/historyManager";
-import { movieWatchRecord } from "@/lib/movieWatchRecord";
+import { watchRecord } from "@/lib/watchRecord";
 
 export default function MovieDetails() {
   const { id } = useParams();
@@ -81,15 +81,16 @@ export default function MovieDetails() {
    * already applies to a chosen slot, and the one §13 states for progress.
    * Nothing here is inferred from a clock, an iframe load or a mounted player.
    *
-   * WHAT THE ENTRY CLAIMS is decided in lib/movieWatchRecord.ts and nowhere
-   * else: this film, its name, its poster — and no position, because none has
-   * been measured.
+   * WHAT THE ENTRY CLAIMS is decided in lib/watchRecord.ts and nowhere else:
+   * this film, its name, its poster — and no position, because none has been
+   * measured.
    */
   const handleWatch = () => {
     scrollToPlayer();
     try {
       const existing = getWatchHistoryItem("movie", String(id));
-      const record = movieWatchRecord({
+      const record = watchRecord({
+        type: "movie",
         id,
         title: data?.title,
         posterPath: data?.poster_path,

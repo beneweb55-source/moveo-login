@@ -18,6 +18,7 @@ import { useLanguage } from "@/context/LanguageContext";
 import WatchTimer from "@/components/WatchTimer";
 import { getWatchHistoryItem, saveWatchHistory } from "@/utils/historyManager";
 import { chooseSlot, parseSlotQuery } from "@/lib/episodeSlot";
+import { watchRecord } from "@/lib/watchRecord";
 
 export default function TvDetails() {
   const { id } = useParams();
@@ -296,6 +297,47 @@ export default function TvDetails() {
     playerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
+  /**
+   * THE VIEWER CHOSE TO WATCH THIS EPISODE — so the page records it.
+   *
+   * WHY THE EFFECT ABOVE WAS NOT ENOUGH. It writes only when the slot DIFFERS
+   * from the one the page opened on, which is the right rule for a slot the
+   * viewer did not choose — but it left the ordinary way to watch a series
+   * unrecorded. Opening a show and pressing play on the episode in front of you
+   * changes no slot, so nothing was written at all, and a viewer's own report on
+   * 2026-09-23 was exactly that: one row in the whole history, a film and a
+   * series both absent.
+   *
+   * WHY THIS MOMENT. Pressing Regarder is a deliberate act, and the entry it
+   * writes claims only what that act establishes — "this is the episode you are
+   * starting" — with no position, because none has been measured. The mount
+   * still stays silent: an iframe `load`, a mounted player and a clock are not
+   * playback evidence (§13). See lib/watchRecord.ts.
+   */
+  const handleWatch = () => {
+    scrollToPlayer();
+    try {
+      const existing = getWatchHistoryItem("tv", String(id));
+      const record = watchRecord({
+        type: "tv",
+        id,
+        title: data?.name,
+        posterPath: data?.poster_path,
+        // Carried over so a later visit does not blank a badge the viewer has
+        // already seen. An episode opened for the first time claims no provider.
+        provider: existing?.provider,
+        season: selectedSeason,
+        episode: selectedEpisode,
+        now: Date.now(),
+      });
+      if (record) saveWatchHistory(record);
+    } catch (error) {
+      // The store is a convenience: a browser that refuses to write must not
+      // break the page, and the player below still scrolls into view.
+      console.error("[tv] could not record the episode the viewer started", error);
+    }
+  };
+
   const handleHardRefresh = () => {
     setPlayerKey(prev => prev + 1);
   };
@@ -504,7 +546,7 @@ export default function TvDetails() {
                         {/* Actions */}
                         <div className="flex flex-col sm:flex-row flex-wrap items-center gap-4 md:gap-6 mb-12 md:mb-20">
                             <button
-                                onClick={scrollToPlayer}
+                                onClick={handleWatch}
                                 className="w-full sm:w-auto flex items-center justify-center gap-4 bg-white text-black hover:bg-zinc-200 px-8 py-3 md:py-4 rounded-full font-black transition-all duration-500 shadow-2xl hover:scale-105 active:scale-95 group cursor-pointer"
                             >
                                 <Play className="w-5 h-5 fill-current" />
