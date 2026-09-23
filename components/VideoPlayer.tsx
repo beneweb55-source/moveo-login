@@ -6,7 +6,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Database,
-  ExternalLink,
   Globe,
   Loader2,
   RefreshCw,
@@ -47,6 +46,7 @@ import {
   playerReducer,
   resolveStoredProvider,
 } from "@/lib/playerState";
+import { PLAYER_IFRAME_ALLOW, PLAYER_IFRAME_SANDBOX } from "@/lib/playerFramePolicy";
 import {
   observePosition,
   parsePlaybackProgress,
@@ -907,17 +907,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                     >
                       {t.details.changeServer || "Changer de source"}
                     </button>
-                    {videoUrl && (
-                      <a
-                        href={videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:text-white hover:bg-white/10 text-xs sm:text-sm font-medium transition-all duration-300 flex items-center gap-2"
-                      >
-                        {t.details.openInNewTab || "Ouvrir dans un nouvel onglet"}
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    )}
+                    {/*
+                      REMOVED: an "Ouvrir dans un nouvel onglet" link to the raw
+                      provider URL. Two reasons, and the second is the one that
+                      decided it. It was the only place our own UI sent the
+                      viewer to a provider page OUTSIDE the frame — where the
+                      sandbox in lib/playerFramePolicy does not apply, so every
+                      popup and redirect that provider wants fires with no
+                      containment at all. And it is not needed to recover from a
+                      failed load: Retry re-attempts THIS source and "Changer de
+                      source" moves to the next one, both of which keep the
+                      viewer inside Moveo.
+                    */}
                   </div>
                 </div>
               </motion.div>
@@ -935,13 +936,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 LOADING is shown as an overlay on top of it rather than instead of
                 it — replacing it would mean it never loads at all.
 
-                `allow` is unchanged from the previous implementation and no
-                sandbox is applied. The provider's own page requests
-                `encrypted-media`; we do NOT delegate it, because the reachable
-                player page contains no EME/Widevine/PlayReady usage and no
-                MediaSource — so it is not verified as necessary. Delegating a
-                permission we have not shown to be needed would widen what the
-                frame may do for no reason.
+                `allow` and `sandbox` both come from lib/playerFramePolicy, where
+                every granted token has its reason and every WITHHELD token has
+                the measurement behind it. The line drawn there, in one sentence:
+                the frame keeps every capability that acts inside its own box
+                (scripts, its own origin, forms, casting, pointer and orientation
+                lock) and loses the ones that let it act OUTSIDE it — opening
+                windows, navigating this page away, drawing modals, downloading.
+                Until now no sandbox was set, so a cross-origin, ad-monetised
+                document had exactly the escape hatches of a top-level page; the
+                window it opened with them was measured and is recorded in
+                docs/player-validation-2026-09-21.md §4.2.
+
+                `encrypted-media` stays undelegated, as before: no reachable
+                player page uses EME/Widevine/PlayReady, so delegating it would
+                widen the frame's power for a capability never exercised.
 
                 Note there is no `onLoad`-implies-playing here: a successful
                 document load only tells us the frame loaded, never that video is
@@ -1039,7 +1048,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 src={videoUrl}
                 className="w-full h-full relative z-20"
                 allowFullScreen
-                allow="autoplay; fullscreen *; picture-in-picture *"
+                allow={PLAYER_IFRAME_ALLOW}
+                sandbox={PLAYER_IFRAME_SANDBOX}
                 title={`Lecteur vidéo — ${title || "Moveo"}`}
                 onLoad={(event) => {
                   // Ignore a load from a frame we have already replaced: a retry
@@ -1093,21 +1103,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       {/* --- CONTRÔLES (DARK LUXURY) --- */}
       <div className="w-full flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+        {/*
+          REMOVED: the header's "Ouvrir" link, the second and last of the two
+          places our UI handed the viewer the raw provider URL in a new tab. See
+          the note on the load-failed panel above for why: the tab bypasses the
+          frame's sandbox entirely, and the alternatives below are one click away
+          without leaving Moveo.
+        */}
+        <div className="flex items-center">
           <h3 className="text-xs font-semibold text-white/30 uppercase tracking-widest ml-1">
             Sources Alternatives
           </h3>
-          {videoUrl && (
-            <a
-              href={videoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/5 text-xs font-medium text-white/40 hover:text-white/80 transition-all group"
-            >
-              <span>{t.details.openInNewTab || "Ouvrir"}</span>
-              <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-            </a>
-          )}
         </div>
 
         <div className="bg-black border border-white/5 rounded-xl p-2 flex flex-wrap gap-2">
