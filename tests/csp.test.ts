@@ -195,6 +195,12 @@ describe('frame-src is narrower than what it replaced', () => {
     // A narrowing that silently dropped a working provider would be a bug.
     const entries = tokens(await getFrameSrc());
     for (const kept of [
+      // Frembed's current embed host — the origin the player actually frames.
+      // Added 2026-11-13 with the host migration; its absence was the bug.
+      'https://frembed.uno',
+      // The provider's redirect entry point. Still permitted, and still tested:
+      // a frame that enters on .surf must be allowed to land on .uno, so dropping
+      // either half re-creates the blocked frame in one direction or the other.
       'https://frembed.surf',
       // multiembed.mov was on this list until 2026-09-21, when the provider that
       // needed it was removed. Removing an origin from this list is the one edit
@@ -260,10 +266,21 @@ describe('measured provider redirect chains stay covered', () => {
       hops: ['https://vidsrc.sh'],
     },
     {
-      // Framed directly, so no hop is ever taken (see lib/providers.ts header).
+      // MEASURED 2026-11-13, and the chain this whole block exists for.
+      //
+      //   GET https://frembed.surf/embed/movie/27205 -> 302 -> frembed.uno/embed/movie/27205 (200)
+      //   GET https://frembed.surf/                 -> 302 -> frembed.uno/ (200)
+      //   GET https://frembed.work/api/film.php?id=27205 -> 302 -> frembed.uno/api/film.php?id=27205
+      //
+      // The player frames the final host (entry), so no hop is normally taken;
+      // `frembed.surf` is declared as the hop the provider itself still issues.
+      // Before this was updated, the entry here was the OLD host and the suite
+      // was green while production showed « Ce contenu est bloqué » — the exact
+      // drift `frameOrigins` and this block were written to catch, defeated by a
+      // stale expectation rather than by a missing assertion.
       provider: 'Frembed',
-      entry: 'https://frembed.surf',
-      hops: [],
+      entry: 'https://frembed.uno',
+      hops: ['https://frembed.surf'],
     },
   ];
 

@@ -13,9 +13,16 @@ import type {NextConfig} from 'next';
 // Narrowing it here removes that class of failure without changing which
 // providers work: every entry below is reachable from application code.
 //
+// HOST MIGRATION 2026-11-13 — the direct cause of « Ce contenu est bloqué ».
+// Frembed moved its embed host to `frembed.uno` and made `frembed.surf` a 302
+// to it. This list still held only .surf, so the browser followed the hop and
+// then blocked the frame on the target origin. See the note beside the entries
+// below. Rule restated because this is the failure it prevents: `frame-src` is
+// checked against EVERY origin a frame commits, not just the one we write.
+//
 // Entries were pruned only when no code path can produce them (verified by
 // grepping the whole repo, not by assumption). The removed origins, and why:
-//   frembed.work      — 302-redirects to frembed.surf, so it is never framed
+//   frembed.work      — 302-redirects to frembed.uno (was .surf), so never framed
 //   vidsrc.cc         — no code path references it
 //   www.2embed.to     — no code path references it (the app uses 2embed.cc)
 //   superembed.stream — no code path references it.
@@ -42,17 +49,32 @@ import type {NextConfig} from 'next';
 // name frembed.pro, which is a parked domain.
 //
 // CORRECTION (2026-09-20): an earlier note here claimed frembed.work "does not
-// resolve". That was wrong. It resolves (Cloudflare) and 302-redirects to
-// frembed.surf:
-//   GET https://frembed.work/api/film.php?id=98               -> 302 -> frembed.surf/...
-//   GET https://frembed.work/api/serie.php?id=1399&sa=1&epi=1 -> 302 -> frembed.surf/...
-// The application deliberately frames frembed.surf DIRECTLY and never frames
-// the redirector. That is what matters for `frame-src`: Chrome re-checks
+// resolve". That was wrong. It resolves (Cloudflare) and 302-redirects, to
+// frembed.surf on that date and to frembed.uno when re-measured 2026-11-13:
+//   GET https://frembed.work/api/film.php?id=98               -> 302 -> frembed.uno/...
+//   GET https://frembed.work/api/serie.php?id=1399&sa=1&epi=1 -> 302 -> frembed.uno/...
+// The application deliberately frames the FINAL host DIRECTLY and never frames
+// the redirector. That is what matters for `frame-src`: the browser re-checks
 // frame-src against a redirect's target, so framing frembed.work would require
-// allowing frembed.surf anyway. The hop is skipped rather than permitted.
+// allowing frembed.uno anyway. The hop is skipped rather than permitted.
 const VIDEO_FRAME_DOMAINS = [
   "'self'",
   // Alternative servers — see PROVIDERS in lib/providers.ts
+  //
+  // frembed.uno is Frembed's CURRENT embed host and is what the player frames.
+  // frembed.surf is retained because it is the provider's own redirect entry
+  // point, and the browser re-checks frame-src against a redirect's target — so
+  // a frame that ENTERS on .surf and lands on .uno needs both.
+  //
+  // WHY BOTH, measured 2026-11-13. Until this change the list held only
+  // `frembed.surf`, while the provider had moved its embed host to
+  // `frembed.uno` and turned .surf into a 302. The player therefore framed
+  // .surf, the browser followed the 302 to .uno, re-checked THIS directive
+  // against .uno, found it absent, and replaced the player with Chromium's
+  // « Ce contenu est bloqué. Pour résoudre le problème, contactez le propriétaire
+  // du site. » document (ERR_BLOCKED_BY_CSP). Nothing was wrong at Frembed: the
+  // frame was blocked by our own policy, one hop after we let it start.
+  'https://frembed.uno',
   'https://frembed.surf',
   // REMOVED 2026-09-21 — multiembed.mov and streamingnow.mov, the SuperEmbed
   // pair. Both existed for exactly one provider, and that provider has been

@@ -23,10 +23,10 @@ const ATTACKER = {name: 'other-window'} as unknown as Window;
 
 /** A context that passes every check, so each test can vary exactly one thing. */
 const valid = (over: Partial<MessageValidationContext> = {}): MessageValidationContext => ({
-  origin: 'https://frembed.surf',
+  origin: 'https://frembed.uno',
   source: FRAME,
   expectedSource: FRAME,
-  allowedOrigins: ['https://frembed.surf'],
+  allowedOrigins: ['https://frembed.uno'],
   ...over,
 });
 
@@ -53,7 +53,7 @@ describe('origin validation', () => {
   });
 
   it('rejects a non-string origin', () => {
-    for (const origin of [null, undefined, 42, {}, ['https://frembed.surf']]) {
+    for (const origin of [null, undefined, 42, {}, ['https://frembed.uno']]) {
       assert.equal(parsePlaybackProgress(timeupdate, valid({origin})), null);
     }
   });
@@ -65,7 +65,7 @@ describe('origin validation', () => {
     assert.equal(
       parsePlaybackProgress(
         timeupdate,
-        valid({allowedOrigins: [], origin: 'https://frembed.surf'}),
+        valid({allowedOrigins: [], origin: 'https://frembed.uno'}),
       ),
       null,
     );
@@ -73,11 +73,18 @@ describe('origin validation', () => {
 
   it('rejects a lookalike origin that merely contains the allowed one', () => {
     for (const origin of [
-      'https://frembed.surf.evil.example',
-      'https://evil.example/frembed.surf',
-      'http://frembed.surf',
-      'https://frembed.surf:8443',
-      'https://sub.frembed.surf',
+      'https://frembed.uno.evil.example',
+      'https://evil.example/frembed.uno',
+      'http://frembed.uno',
+      'https://frembed.uno:8443',
+      'https://sub.frembed.uno',
+      // The provider's previous host is NOT the trusted emitter any more: the
+      // frame is served from frembed.uno, so a message claiming the old origin
+      // is rejected like any other stranger. This is asserted rather than left
+      // implicit because the two hosts are both permitted as FRAME origins —
+      // being frameable and being trusted to write watch history are different
+      // permissions, and this is the assertion that separates them.
+      'https://frembed.surf',
     ]) {
       assert.equal(parsePlaybackProgress(timeupdate, valid({origin})), null, origin);
     }
