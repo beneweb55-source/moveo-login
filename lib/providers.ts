@@ -16,6 +16,38 @@
  * The final targets were confirmed frameable (HTTP 200, no X-Frame-Options,
  * no frame-ancestors, no CSP) on 2026-09-20.
  *
+ * ═══════════════════════════════════════════════════════════════════════════
+ * HOST MIGRATION 2026-11-13 — frembed.surf → frembed.uno. THIS IS THE FIX FOR
+ * « Ce contenu est bloqué. Pour résoudre le problème, contactez le propriétaire
+ * du site. » reported by the owner against `frembed.uno/embed/movie/27205`.
+ * ═══════════════════════════════════════════════════════════════════════════
+ *
+ * The provider moved to `frembed.uno` and turned the old host into a pure
+ * REDIRECTOR. Measured 2026-11-13, unauthenticated, no cookies, GET:
+ *
+ *   https://frembed.surf/embed/movie/27205        -> 302 -> https://frembed.uno/embed/movie/27205
+ *   https://frembed.surf/embed/serie/1396?...     -> 302 -> https://frembed.uno/embed/serie/1396?...
+ *   https://frembed.surf/                         -> 302 -> https://frembed.uno/
+ *   https://frembed.work/api/film.php?id=27205    -> 302 -> https://frembed.uno/api/film.php?id=27205
+ *   https://frembed.uno/embed/movie/27205         -> 200  (Server: cloudflare,
+ *        no X-Frame-Options, no frame-ancestors, no CSP — still frameable)
+ *
+ * WHAT THAT DOES TO A BROWSER, and why the symptom is a Chromium page rather
+ * than a provider error. Our CSP said `frame-src ... https://frembed.surf ...`
+ * and nothing else, so we framed `frembed.surf`. The browser followed the 302
+ * and re-checked `frame-src` against the NEW origin, `frembed.uno`, which was
+ * not listed. The frame was therefore blocked BY OUR OWN POLICY, and the block
+ * rendered as Chromium's in-frame error document: *« Ce contenu est bloqué.
+ * Pour résoudre le problème, contactez le propriétaire du site. »* — the exact
+ * text reported. That page is a browser document (ERR_BLOCKED_BY_CSP), so the
+ * provider never got the request and nothing on its side could explain it.
+ *
+ * The two errors compound: the stale `frameOrigins`/CSP pair produced the
+ * block, and `FREMBED_ORIGIN` produced URLs that took a failing redirect hop.
+ * Both are fixed by pointing the entry origin at the measured final host.
+ * tests/csp.test.ts and tests/providers.test.ts pin the new chain so a future
+ * rotation fails the suite instead of shipping a blocked frame.
+ *
  * NOTE ON HOSTS: frembed.pro is a PARKED DOMAIN ("This domain may be for
  * sale"). Several third-party listings still reference it — do not "restore"
  * it from documentation.
@@ -24,10 +56,11 @@
  * claiming it "does not resolve". Measured 2026-09-20:
  *   GET https://frembed.work/api/film.php?id=98               -> 302 -> frembed.surf/...
  *   GET https://frembed.work/api/serie.php?id=1399&sa=1&epi=1 -> 302 -> frembed.surf/...
- * The app deliberately frames frembed.surf DIRECTLY rather than the redirector,
+ * and re-measured 2026-11-13, when it had moved on to frembed.uno (see above).
+ * The app deliberately frames the FINAL host DIRECTLY rather than a redirector,
  * so frembed.work is intentionally absent from `frame-src` in next.config.ts.
- * Framing the redirector would be pointless: Chrome re-checks frame-src against
- * the redirect's target, so frembed.surf would have to be allowed regardless.
+ * Framing a redirector would be pointless: the browser re-checks frame-src
+ * against the redirect's target, so that target must be allowed regardless.
  */
 
 export type MediaType = "movie" | "tv";
@@ -133,7 +166,29 @@ export interface ProviderDefinition {
   buildUrl: (params: ProviderUrlParams) => string;
 }
 
-const FREMBED_ORIGIN = "https://frembed.surf";
+/**
+ * The FINAL embed host, i.e. the origin the browser actually commits for the
+ * frame we create — not merely the host we type into the iframe.
+ *
+ * frembed.surf is now a redirector to this host (302, measured 2026-11-13; see
+ * the module header). Framing the old host put a redirect hop in every load and,
+ * because `frame-src` was re-checked against the redirect TARGET, replaced the
+ * player with Chromium's « Ce contenu est bloqué » page. This constant is the
+ * single place the host is written down; everything else derives from it.
+ */
+const FREMBED_ORIGIN = "https://frembed.uno";
+
+/**
+ * The provider's previous entry host. It still answers, with a 302 to
+ * FREMBED_ORIGIN, so it is kept as a NAMED redirect hop rather than a bare string
+ * in an array: `frameOrigins` documents what the browser can encounter, and if
+ * the provider ever stops redirecting, the reason this origin is permitted has
+ * to be reconsidered deliberately rather than silently inherited.
+ *
+ * Only relevant if a build is ever rolled back to a frembed.surf URL; the app now
+ * frames FREMBED_ORIGIN directly, so this hop is not normally taken.
+ */
+const FREMBED_REDIRECT_ORIGIN = "https://frembed.surf";
 
 /**
  * Provider ids arrive from route params (`/movie/[id]`) and are interpolated
@@ -252,17 +307,35 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
       // viewport" and it was; do not read it as "verified stable".
       mobile: "yes",
     },
-    // No redirect hop: buildUrl targets frembed.surf directly rather than the
-    // frembed.work redirector (see module header). One origin is the whole
-    // chain.
-    frameOrigins: [FREMBED_ORIGIN],
+    // MEASURED 2026-11-13. buildUrl targets frembed.uno, the host the old entry
+    // point now redirects to, so the frame normally takes no hop at all and
+    // `[0]` is the whole chain.
+    //
+    // frembed.surf is declared SECOND because it is a hop the provider itself
+    // issues: anything still pointing at the previous URL (a cached page, a
+    // stored iframe src, a bookmarked "Ouvrir dans un nouvel onglet" link) enters
+    // on that origin and is 302'd to `[0]`. Declaring it is what stops the
+    // browser's frame-src re-check from blocking the target — the exact failure
+    // this migration fixes, and the reason the field is a LIST (see its doc).
+    frameOrigins: [FREMBED_ORIGIN, FREMBED_REDIRECT_ORIGIN],
     /**
      * Verified emitter. The audit observed exactly one message from this
-     * origin: `{type:"episode_change",season:1,episode:1}` — which is NOT a
+     * provider: `{type:"episode_change",season:1,episode:1}` — which is NOT a
      * playback event and is deliberately not treated as one. No `timeupdate`
-     * was ever observed from this provider, so in practice nothing is accepted
-     * today; the allowlist exists so that IF a real position is ever exposed,
-     * only this exact origin can supply it.
+     * was ever observed, so in practice nothing is accepted today; the allowlist
+     * exists so that IF a real position is ever exposed, only this provider's
+     * origin can supply it.
+     *
+     * UPDATED 2026-11-13 with the host migration, and the reason matters: this
+     * was `https://frembed.surf`, the origin that emitted the observation. The
+     * observation was made before the move, so `frembed.uno` is the same
+     * publisher's continuation of the same emitter rather than a NEW origin
+     * being trusted on a guess — but it is an EXTENSION of the evidence, not a
+     * re-measurement, and no `episode_change` has yet been recorded arriving
+     * FROM frembed.uno. Keeping only the old origin would be strictly worse:
+     * the app no longer frames it, so the allowlist would reject the very frame
+     * on screen. If the provider ever stops emitting from the new host, the
+     * correct fix is to measure and remove it, not to add a third origin.
      */
     messageOrigins: [FREMBED_ORIGIN],
     buildUrl: ({type, id, season, episode}) => {

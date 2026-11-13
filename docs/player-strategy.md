@@ -69,7 +69,7 @@ Six providers are integrated. Two Sibnet variants are integrated separately
 |---|---|---|---|---|---|---|
 | **SmashyStream** | `anyembed.xyz` | yes | **yes** | unknown | **yes** | yes |
 | **VidLink** | `vidlink.pro` | yes | **yes** | yes | unknown | yes |
-| **Frembed** | `frembed.surf` | yes | unknown | yes | unknown | yes |
+| **Frembed** | `frembed.uno` (was `frembed.surf` until 2026-11-13) | yes | unknown | yes | unknown | yes |
 | VidSrc.to | `vidsrc.to` | no — manual | unknown | unknown | unknown | unknown |
 | VidSrc.me | `vidsrc.me` → `vidsrc.sh` | no — manual | unknown | unknown | unknown | unknown |
 | 2Embed | `www.2embed.cc` | no — manual | unknown | unknown | unknown | unknown |

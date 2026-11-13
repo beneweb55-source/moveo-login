@@ -1588,3 +1588,79 @@ identifier.
 Not fixed, and named here so it is not mistaken for measured: no provider was re-driven to playback
 on this deployment. Provider behaviour is not what these commits changed, and the last full provider
 pass is the one recorded above.
+
+---
+
+## Host rotation 2026-11-13 — Frembed `frembed.surf` → `frembed.uno`, and the blocked frame it caused
+
+**Reported by the owner:** *« le lecteur frembed ne marche plus »*, with the player showing
+*« Ce contenu est bloqué. Pour résoudre le problème, contactez le propriétaire du site. »*
+
+**What that sentence is.** It is not a Frembed error page and not a Moveo string. It is Chromium's
+own in-frame error document, rendered when a navigation inside a frame is blocked — the
+`ERR_BLOCKED_BY_CSP` family. So the diagnosis starts from a fact that narrows the search
+immediately: **the provider's document was never committed.** Nothing Frembed said or refused
+explains the message; the browser stopped the navigation first.
+
+**Cause, measured.** The provider moved its embed host and turned the old one into a redirector.
+Unauthenticated `GET`s with no cookies, 2026-11-13:
+
+| Request | Response |
+|---|---|
+| `https://frembed.surf/embed/movie/27205` | **302** → `https://frembed.uno/embed/movie/27205` |
+| `https://frembed.surf/embed/serie/1396?id=1396&sa=1&epi=1` | **302** → `https://frembed.uno/embed/serie/1396?id=1396&sa=1&epi=1` |
+| `https://frembed.surf/` | **302** → `https://frembed.uno/` |
+| `https://frembed.work/api/film.php?id=27205` | **302** → `https://frembed.uno/api/film.php?id=27205` |
+| `https://frembed.uno/embed/movie/27205` | **200**, `text/html`, `Server: cloudflare`, **no** `X-Frame-Options`, **no** CSP, **no** `frame-ancestors` |
+| `https://frembed.uno/embed/serie/1396?id=1396&sa=1&epi=2` | **200**; page renders *Breaking Bad*, `Saison 1 · Épisode 2`, `VF` badge, `SERVERS` / `ÉPISODES` |
+
+The body at the final target is the real player shell: the title, the year, the VF badge, the
+Frembed logo and the Servers control. **The provider was serving the right thing the whole time.**
+
+Our registry still declared `frembed.surf` as the entry origin, and `frame-src` still listed only
+that host. So the sequence in a browser was:
+
+1. we framed `frembed.surf` — permitted;
+2. the provider answered 302 to `frembed.uno`;
+3. the browser **re-checked `frame-src` against the redirect target** (`frembed.uno`), which was
+   not listed;
+4. the frame was blocked, and the block was rendered as the sentence above.
+
+That is a defect entirely inside our own configuration. The provider imposed no domain
+restriction, required no authorisation, and set no framing headers.
+
+**Why the suite was green while production was broken.** `tests/csp.test.ts` and
+`tests/providers.test.ts` assert agreements **between files** — the registry against the CSP, the
+registry against the expected URL. Both files carried the same stale fact, so every assertion
+agreed. A hermetic unit test cannot observe a host rotating; it would have to reach the internet.
+The `MEASURED_CHAINS` block was the right mechanism with a stale expectation in it, and that is
+worth recording as the failure mode: the canary was not missing, it had been fed the old date.
+
+**Fix.** Point the entry origin at the measured final host, declare the redirect entry point as a
+hop, and permit both in `frame-src`. `frembed.surf` is kept — not out of sentiment, but because a
+frame that *enters* on the old host (cached document, stored link) still needs its destination
+permitted, and dropping either half re-creates the block in one direction. Detail is in
+`lib/providers.ts` (module header, `FREMBED_ORIGIN`, `frameOrigins`) and `next.config.ts`.
+
+**Added guard.** `npm run probe:hosts` (`scripts/probe-provider-hosts.ts`) asks, per provider,
+whether the entry URL still commits on the declared origin, with `redirect: 'manual'` so a hop to
+an undeclared origin is the *reported* condition rather than something silently followed. It is
+opt-in and deliberately outside `npm test`, because the suite must stay hermetic. Read a failure in
+it the way this document reads every other measurement: a `fetch failed` on **every** provider
+describes the vantage point, not the providers.
+
+**What this pass did NOT establish — stated because the columns above invite over-reading.**
+
+- **Playback was not observed.** The final target serves the correct title, season and episode and
+  is frameable; whether the inner VOE player starts is the separate question §"fourth pass" left
+  open, and nothing here changes that verdict. `playbackObserved` stays `"unknown"` for this
+  provider, on the same standard as before.
+- **`messageOrigins` was updated by inference, not by re-measurement.** It now names
+  `frembed.uno`, the same publisher's continuation of the origin that emitted `episode_change` in
+  September. No such message has yet been recorded arriving *from* the new host. Keeping only the
+  old origin would have been strictly worse — the app no longer frames it — but the honest label
+  on this line is "carried forward", not "re-verified". If it stops emitting, measure and remove it
+  rather than adding a third origin.
+- **A stale in-page cache can still show the block once.** A tab already holding the old document
+  keeps its old `frame-src`; a hard reload picks up the new header. That is why `frembed.surf` is
+  permitted rather than merely replaced.

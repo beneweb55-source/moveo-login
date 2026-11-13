@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "clean": "next clean",
-    "test": "node --import tsx --test \"tests/*.test.ts\""
+    "test": "node --import tsx --test \"tests/*.test.ts\"",
+    "probe:hosts": "node --import tsx scripts/probe-provider-hosts.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
