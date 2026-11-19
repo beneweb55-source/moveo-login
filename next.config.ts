@@ -74,8 +74,8 @@ const VIDEO_FRAME_DOMAINS = [
   // « Ce contenu est bloqué. Pour résoudre le problème, contactez le propriétaire
   // du site. » document (ERR_BLOCKED_BY_CSP). Nothing was wrong at Frembed: the
   // frame was blocked by our own policy, one hop after we let it start.
+  'https://frembed.shop',
   'https://frembed.uno',
-  'https://frembed.surf',
   // REMOVED 2026-09-21 — multiembed.mov and streamingnow.mov, the SuperEmbed
   // pair. Both existed for exactly one provider, and that provider has been
   // removed from PROVIDERS. The reason is recorded in full there and in

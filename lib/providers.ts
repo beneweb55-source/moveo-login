@@ -176,7 +176,7 @@ export interface ProviderDefinition {
  * player with Chromium's « Ce contenu est bloqué » page. This constant is the
  * single place the host is written down; everything else derives from it.
  */
-const FREMBED_ORIGIN = "https://frembed.uno";
+const FREMBED_ORIGIN = "https://frembed.shop";
 
 /**
  * The provider's previous entry host. It still answers, with a 302 to
@@ -185,10 +185,10 @@ const FREMBED_ORIGIN = "https://frembed.uno";
  * the provider ever stops redirecting, the reason this origin is permitted has
  * to be reconsidered deliberately rather than silently inherited.
  *
- * Only relevant if a build is ever rolled back to a frembed.surf URL; the app now
+ * Only relevant if a build is ever rolled back to a frembed.uno URL; the app now
  * frames FREMBED_ORIGIN directly, so this hop is not normally taken.
  */
-const FREMBED_REDIRECT_ORIGIN = "https://frembed.surf";
+const FREMBED_REDIRECT_ORIGIN = "https://frembed.uno";
 
 /**
  * Provider ids arrive from route params (`/movie/[id]`) and are interpolated

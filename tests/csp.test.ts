@@ -197,11 +197,11 @@ describe('frame-src is narrower than what it replaced', () => {
     for (const kept of [
       // Frembed's current embed host — the origin the player actually frames.
       // Added 2026-11-13 with the host migration; its absence was the bug.
-      'https://frembed.uno',
+      'https://frembed.shop',
       // The provider's redirect entry point. Still permitted, and still tested:
-      // a frame that enters on .surf must be allowed to land on .uno, so dropping
+      // a frame that enters on .uno must be allowed to land on .shop, so dropping
       // either half re-creates the blocked frame in one direction or the other.
-      'https://frembed.surf',
+      'https://frembed.uno',
       // multiembed.mov was on this list until 2026-09-21, when the provider that
       // needed it was removed. Removing an origin from this list is the one edit
       // here that could hide a regression, so it is stated: the provider is gone
@@ -279,8 +279,8 @@ describe('measured provider redirect chains stay covered', () => {
       // drift `frameOrigins` and this block were written to catch, defeated by a
       // stale expectation rather than by a missing assertion.
       provider: 'Frembed',
-      entry: 'https://frembed.uno',
-      hops: ['https://frembed.surf'],
+      entry: 'https://frembed.shop',
+      hops: ['https://frembed.uno'],
     },
   ];
 

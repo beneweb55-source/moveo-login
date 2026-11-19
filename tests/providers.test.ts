@@ -14,8 +14,8 @@
  * with it. `frembed.surf` stopped being an embed host and became a 302 to
  * `frembed.uno`, which is where the same grammar now answers 200:
  *   GET https://frembed.surf/embed/movie/27205  -> 302 -> frembed.uno/embed/movie/27205 (200)
- *   GET https://frembed.uno/embed/movie/27205   -> 200
- *   GET https://frembed.uno/embed/serie/1396?id=1396&sa=1&epi=2 -> 200, "Saison 1 / Épisode 2"
+ *   GET https://frembed.shop/embed/movie/27205   -> 200
+ *   GET https://frembed.shop/embed/serie/1396?id=1396&sa=1&epi=2 -> 200, "Saison 1 / Épisode 2"
  * Hard-coding the OLD host is what let a blocked frame ship: the URLs below are
  * therefore asserted against the FINAL host, and csp.test.ts asserts that the
  * redirect entry point stays permitted too.
@@ -49,21 +49,21 @@ describe('Frembed — verified embed URLs', () => {
   it('builds the verified movie embed URL', () => {
     assert.equal(
       buildProviderUrl('Frembed', MOVIE),
-      'https://frembed.uno/embed/movie/550?id=550',
+      'https://frembed.shop/embed/movie/550?id=550',
     );
   });
 
   it('builds the verified series embed URL for S1E1', () => {
     assert.equal(
       buildProviderUrl('Frembed', SERIES),
-      'https://frembed.uno/embed/serie/1396?id=1396&sa=1&epi=1',
+      'https://frembed.shop/embed/serie/1396?id=1396&sa=1&epi=1',
     );
   });
 
   it('carries any season and episode through unchanged', () => {
     assert.equal(
       buildProviderUrl('Frembed', {type: 'tv', id: '1396', season: 4, episode: 11}),
-      'https://frembed.uno/embed/serie/1396?id=1396&sa=4&epi=11',
+      'https://frembed.shop/embed/serie/1396?id=1396&sa=4&epi=11',
     );
   });
 
@@ -71,7 +71,7 @@ describe('Frembed — verified embed URLs', () => {
     // Regression: the previous implementation interpolated raw values, so a
     // series without season/episode produced `&sa=undefined&epi=undefined`.
     const url = buildProviderUrl('Frembed', {type: 'tv', id: '1396'});
-    assert.equal(url, 'https://frembed.uno/embed/serie/1396?id=1396&sa=1&epi=1');
+    assert.equal(url, 'https://frembed.shop/embed/serie/1396?id=1396&sa=1&epi=1');
     assert.ok(!String(url).includes('undefined'));
   });
 
@@ -90,7 +90,7 @@ describe('Frembed — verified embed URLs', () => {
     // understood 0 and resolved the correct special.
     assert.equal(
       buildProviderUrl('Frembed', {type: 'tv', id: '1396', season: 0, episode: 1}),
-      'https://frembed.uno/embed/serie/1396?id=1396&sa=0&epi=1',
+      'https://frembed.shop/embed/serie/1396?id=1396&sa=0&epi=1',
     );
   });
 
@@ -132,7 +132,7 @@ describe('Frembed — verified embed URLs', () => {
         season: bad as number,
         episode: 1,
       });
-      assert.equal(url, 'https://frembed.uno/embed/serie/1396?id=1396&sa=1&epi=1');
+      assert.equal(url, 'https://frembed.shop/embed/serie/1396?id=1396&sa=1&epi=1');
     }
   });
 
@@ -145,7 +145,7 @@ describe('Frembed — verified embed URLs', () => {
       season: 1,
       episode: 0,
     });
-    assert.equal(url, 'https://frembed.uno/embed/serie/1396?id=1396&sa=1&epi=1');
+    assert.equal(url, 'https://frembed.shop/embed/serie/1396?id=1396&sa=1&epi=1');
   });
 
   it('never emits the strings undefined, null or NaN', () => {
@@ -163,8 +163,8 @@ describe('Frembed — verified embed URLs', () => {
 describe('every provider keeps its existing URL contract', () => {
   const expected: Record<string, {movie: string; tv: string}> = {
     Frembed: {
-      movie: 'https://frembed.uno/embed/movie/550?id=550',
-      tv: 'https://frembed.uno/embed/serie/1396?id=1396&sa=1&epi=1',
+      movie: 'https://frembed.shop/embed/movie/550?id=550',
+      tv: 'https://frembed.shop/embed/serie/1396?id=1396&sa=1&epi=1',
     },
     'VidSrc.to': {
       movie: 'https://vidsrc.to/embed/movie/550',
@@ -248,7 +248,7 @@ describe('input hardening', () => {
 
   it('encodes an id that contains URL syntax', () => {
     const url = buildProviderUrl('Frembed', {type: 'movie', id: 'a&epi=99'});
-    assert.equal(url, 'https://frembed.uno/embed/movie/a%26epi%3D99?id=a%26epi%3D99');
+    assert.equal(url, 'https://frembed.shop/embed/movie/a%26epi%3D99?id=a%26epi%3D99');
     // The injected parameter must not become a real query parameter.
     assert.equal(new URL(url as string).searchParams.get('epi'), null);
   });
@@ -261,7 +261,7 @@ describe('input hardening', () => {
   it('trims surrounding whitespace from the id', () => {
     assert.equal(
       buildProviderUrl('Frembed', {type: 'movie', id: '  550  '}),
-      'https://frembed.uno/embed/movie/550?id=550',
+      'https://frembed.shop/embed/movie/550?id=550',
     );
   });
 
@@ -361,7 +361,7 @@ describe('provider list validation', () => {
       ['Frembed', 'VidLink'],
       'only origins observed emitting real messages may be trusted',
     );
-    assert.deepEqual(getMessageOrigins('Frembed'), ['https://frembed.uno']);
+    assert.deepEqual(getMessageOrigins('Frembed'), ['https://frembed.shop']);
     assert.deepEqual(getMessageOrigins('VidLink'), ['https://vidlink.pro']);
   });
 
